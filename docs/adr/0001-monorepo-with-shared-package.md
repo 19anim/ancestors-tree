@@ -9,7 +9,7 @@ The web app and the API must agree on data shapes (Zod schemas), business rules 
 
 ## Decision
 
-Use one pnpm workspace with `apps/web`, `apps/api`, `apps/cron-worker` and `packages/shared`. Both apps import `@ancestors-tree/shared` directly from source. Each app is deployed separately (Netlify base directory `apps/web`, Render root directory `apps/api`).
+Use one pnpm workspace with `apps/web`, `apps/api`, `apps/cron-worker` (planned; added in a later sub-plan, it does not exist yet) and `packages/shared`. The web and API apps import `@ancestors-tree/shared` directly from source. Each app is deployed separately (Netlify base directory `apps/web`, Render root directory `apps/api`).
 
 ## Consequences
 

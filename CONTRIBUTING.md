@@ -16,15 +16,19 @@ API reference: http://localhost:3000/api/docs
 
 ## Scripts
 
-| Command                         | What it does                                                          |
-| ------------------------------- | --------------------------------------------------------------------- |
-| `pnpm dev`                      | Run web and API in watch mode                                         |
-| `pnpm test` / `pnpm test:watch` | Run all Vitest projects (shared, api, web)                            |
-| `pnpm test:coverage`            | Tests with coverage thresholds (shared ≥ 90%, overall ≥ 70%)          |
-| `pnpm lint` / `pnpm format`     | ESLint / Prettier                                                     |
-| `pnpm typecheck`                | `tsc --noEmit` in every package                                       |
-| `pnpm docs:errors`              | Regenerate `docs/error-codes.md` from `packages/shared/src/errors.ts` |
-| `pnpm check`                    | Everything CI runs                                                    |
+| Command                         | What it does                                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                      | Run web and API in watch mode                                                                              |
+| `pnpm test` / `pnpm test:watch` | Run all Vitest projects (shared, api, web)                                                                 |
+| `pnpm test:coverage`            | Tests with coverage thresholds (shared ≥ 90%, overall ≥ 70%)                                               |
+| `pnpm lint`                     | ESLint                                                                                                     |
+| `pnpm format`                   | Prettier: rewrite all files in place                                                                       |
+| `pnpm format:check`             | Prettier: report unformatted files without changing them                                                   |
+| `pnpm typecheck`                | `tsc --noEmit` in every package                                                                            |
+| `pnpm docs:errors`              | Regenerate `docs/error-codes.md` from `packages/shared/src/errors.ts`                                      |
+| `pnpm docs:errors:check`        | Fail if `docs/error-codes.md` is out of date                                                               |
+| `pnpm build`                    | Run every package's build: Vite bundle for web, type check for the API (Node runs its TypeScript directly) |
+| `pnpm check`                    | Everything CI runs                                                                                         |
 
 ## Conventions
 
