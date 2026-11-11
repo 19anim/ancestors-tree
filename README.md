@@ -35,4 +35,4 @@ docs/              Architecture, ADRs, user guide, specs
 
 ## License
 
-To be decided.
+[MIT](LICENSE) — free to use, modify and distribute, including commercially, as long as the copyright notice is kept.
