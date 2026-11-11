@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.turbo/
+.wrangler/
+dev-dist/
+
+# Environment (commit only *.example files)
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test artifacts
+playwright-report/
+test-results/
+blob-report/
+
+# Editors & OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Deploy tooling
+.netlify/
+
+# Local Claude Code settings
+.claude/settings.local.json
