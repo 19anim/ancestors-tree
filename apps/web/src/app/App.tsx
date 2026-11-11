@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ServerStatus } from '../features/system/ServerStatus';
+import { ServerStatus } from '../features/system';
 
 export function App() {
   const { t } = useTranslation();
