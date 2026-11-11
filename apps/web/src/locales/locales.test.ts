@@ -21,8 +21,13 @@ describe('locales', () => {
   });
 
   it('have no empty strings', () => {
-    for (const [key, value] of Object.entries({ ...viFlat, ...enFlat })) {
-      expect(typeof value === 'string' && value.trim().length > 0, key).toBe(true);
+    for (const [locale, flat] of [
+      ['vi', viFlat],
+      ['en', enFlat],
+    ] as const) {
+      for (const [key, value] of Object.entries(flat)) {
+        expect(typeof value === 'string' && value.trim().length > 0, `${locale}:${key}`).toBe(true);
+      }
     }
   });
 
