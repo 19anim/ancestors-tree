@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "AncestorsTree",
+    "tagline": "Cùng con cháu dựng cây gia phả, không quên ngày giỗ."
+  },
+  "system": {
+    "serverStatus": {
+      "checking": "Đang kết nối máy chủ…",
+      "ok": "Máy chủ đang hoạt động (phiên bản {{version}})",
+      "retry": "Thử lại"
+    }
+  },
+  "errors": {
+    "VALIDATION_ERROR": "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.",
+    "UNAUTHENTICATED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
+    "NOT_FOUND": "Không tìm thấy nội dung bạn cần.",
+    "VERSION_CONFLICT": "Cây gia phả vừa được người khác cập nhật.",
+    "RULE_VIOLATION": "Thay đổi này không hợp lệ với cây gia phả.",
+    "RATE_LIMITED": "Bạn thao tác quá nhanh. Vui lòng thử lại sau giây lát.",
+    "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
+    "NETWORK_ERROR": "Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.",
+    "INVALID_RESPONSE": "Máy chủ trả về dữ liệu không như mong đợi."
+  }
+}
