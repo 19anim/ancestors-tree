@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Polaroid } from './Polaroid';
+import { Polaroid, POLAROID_SIZE } from './Polaroid';
 
 const LABEL = 'Ông Thịnh, 1931–2004';
 
@@ -23,27 +23,56 @@ describe('Polaroid', () => {
     expect(within(card).queryByText('H')).not.toBeInTheDocument();
   });
 
-  it('renders date marks on the full card only', () => {
-    const marks = <span>Giỗ 15/10</span>;
-    const { rerender } = render(
-      <Polaroid name="Ông Thịnh" label={LABEL} tape="progenitor" marks={marks} />,
-    );
-    expect(screen.getByText('Giỗ 15/10')).toBeInTheDocument();
-
-    rerender(
-      <Polaroid name="Ông Thịnh" label={LABEL} tape="progenitor" marks={marks} lod="label" />,
-    );
-    expect(screen.queryByText('Giỗ 15/10')).not.toBeInTheDocument();
+  it('makes the full card tall enough for the line under the caption', () => {
+    expect(POLAROID_SIZE.full).toEqual({ width: 100, height: 138 });
   });
 
-  it('sticks date marks on the photo, not over the caption', () => {
+  it('writes the date line under the caption, not on the photo', () => {
     render(
-      <Polaroid name="Ông Thịnh" label={LABEL} tape="progenitor" marks={<span>Giỗ 15/10</span>} />,
+      <Polaroid
+        name="Ông Thịnh"
+        label={LABEL}
+        tape="progenitor"
+        lifeYears="1931–2004"
+        dateLine={<span>Giỗ 15/10 ÂL</span>}
+      />,
     );
     const card = screen.getByRole('figure', { name: LABEL });
-    const mark = screen.getByText('Giỗ 15/10');
+    const line = card.querySelector('[data-part="date-line"]');
+    expect(line).toContainElement(screen.getByText('Giỗ 15/10 ÂL'));
+    expect(card.querySelector('[data-part="photo"]')).not.toContainElement(line as HTMLElement);
+    expect(within(card).queryByText('1931–2004')).not.toBeInTheDocument();
+  });
+
+  it('shows the life years on the date line when there is no anniversary', () => {
+    render(<Polaroid name="Bố Tuấn" label="Bố Tuấn, 1962" tape={0} lifeYears="1962–" />);
+    const card = screen.getByRole('figure', { name: 'Bố Tuấn, 1962' });
+    expect(card.querySelector('[data-part="date-line"]')).toHaveTextContent('1962–');
+  });
+
+  it('renders stickers and the date line on the full card only', () => {
+    const props = {
+      name: 'Mẹ Lan',
+      label: 'Mẹ Lan, 1965',
+      tape: 'in-law',
+      marks: <span>21/11</span>,
+      dateLine: <span>Giỗ 15/10 ÂL</span>,
+    } as const;
+    const { rerender } = render(<Polaroid {...props} />);
+    expect(screen.getByText('21/11')).toBeInTheDocument();
+    expect(screen.getByText('Giỗ 15/10 ÂL')).toBeInTheDocument();
+
+    rerender(<Polaroid {...props} lod="label" />);
+    expect(screen.queryByText('21/11')).not.toBeInTheDocument();
+    expect(screen.queryByText('Giỗ 15/10 ÂL')).not.toBeInTheDocument();
+  });
+
+  it('sticks stickers on the photo, not over the caption', () => {
+    render(<Polaroid name="Mẹ Lan" label="Mẹ Lan" tape="in-law" marks={<span>21/11</span>} />);
+    const card = screen.getByRole('figure', { name: 'Mẹ Lan' });
+    const mark = screen.getByText('21/11');
     expect(card.querySelector('[data-part="photo"]')).toContainElement(mark);
-    expect(within(card).getByText('Ông Thịnh')).not.toContainElement(mark);
+    expect(within(card).getByText('Mẹ Lan')).not.toContainElement(mark);
   });
 
   it('renders a taped name label at medium zoom', () => {

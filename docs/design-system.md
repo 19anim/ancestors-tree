@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-AncestorsTree looks like a family scrapbook laid out on grid paper. Each person is a polaroid with a handwritten caption, and every decoration carries data: the washi tape color shows the person's branch, a thread ending in a red pin joins a parent to a child, a dashed stitch with a round knot marks a marriage, a red rubber stamp shows a death anniversary and a round yellow sticker shows a birthday. The direction is aimed at the younger family members who enter most of the data, while staying readable for older relatives. The rules and the token values come from [spec §13.3](superpowers/specs/2026-11-11-ancestors-tree-design.md#133-visual-direction-family-scrapbook-anti-slop). The reasons behind the direction and the hand-written components are in [ADR 0004](adr/0004-scrapbook-design-system.md). Every token and component is shown in both themes on the live `/design` page of the app (`http://localhost:5173/design` when running `pnpm dev`, or `/design` on any Netlify deploy).
+AncestorsTree looks like a family scrapbook laid out on grid paper. Each person is a polaroid with a handwritten caption, and every decoration carries data: the washi tape color shows the person's branch, a thread ending in a red pin joins a parent to a child, a dashed stitch with a round knot marks a marriage, a quiet line under the caption shows a death anniversary and a round yellow sticker with a cake shows a birthday. The direction is aimed at the younger family members who enter most of the data, while staying readable for older relatives. The rules and the token values come from [spec §13.3](superpowers/specs/2026-11-11-ancestors-tree-design.md#133-visual-direction-family-scrapbook-anti-slop). The reasons behind the direction and the hand-written components are in [ADR 0004](adr/0004-scrapbook-design-system.md). Every token and component is shown in both themes on the live `/design` page of the app (`http://localhost:5173/design` when running `pnpm dev`, or `/design` on any Netlify deploy).
 
 ## 2. Where things live
 
@@ -25,20 +25,20 @@ Features import all of these through `shared/ui/index.ts` only.
 
 Light is "grid paper by day", dark is "desk at night". Polaroid paper stays light in both themes.
 
-| Token                                              | Light                                                                                                            | Dark               | Use                                          |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------ | -------------------------------------------- |
-| `paper` / `paper-grid`                             | #FAFAF8 / #ECECE7                                                                                                | #14161C / #1E2129  | page and board background, 22 px grid        |
-| `surface`                                          | #FFFFFF                                                                                                          | #1C1F27            | panels, dialogs, inputs                      |
-| `ink` / `ink-muted`                                | #1A1A1A / #5B5F66                                                                                                | #ECEAE4 / #A4A9B3  | text                                         |
-| `line` / `line-strong`                             | #E2E2DC / #8A8F98                                                                                                | #2C303A / #737882  | decorative borders / control borders (≥ 3:1) |
-| `stamp` / `on-stamp`                               | #D7263D / #FFFFFF                                                                                                | #FF5A6E / #14161C  | anniversaries, destructive actions           |
-| `stamp-hover`                                      | #B8202F                                                                                                          | #FF7A8B            | danger button hover (`on-stamp` ≥ 4.5:1)     |
-| `accent` / `on-accent`                             | #2B59FF / #FFFFFF                                                                                                | #7C9CFF / #14161C  | links, focus ring, selection                 |
-| `success`                                          | #12805C                                                                                                          | #3CCB91            | "server is running" and other OK states      |
-| `thread` / `pin`                                   | #5B5F66 / #D7263D                                                                                                | #A4A9B3 / #FF5A6E  | relationship lines                           |
-| `photo`, `photo-ink`, `photo-muted`, `photo-stamp` | #FFFFFF, #1A1A1A, #5B5F66, #B8202F                                                                               | #E9E6DD, same inks | polaroid paper and what is printed on it     |
-| `sticker` / `on-sticker`                           | #FFD23F / #1A1A1A                                                                                                | same               | birthday stickers                            |
-| `tape-*`                                           | progenitor #D55E00; branches #E69F00, #56B4E9, #009E73, #F0E442, #0072B2, #CC79A7; in-law #B8BCC4; loose #C9C9C2 | same               | washi tape                                   |
+| Token                               | Light                                                                                                            | Dark               | Use                                          |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------ | -------------------------------------------- |
+| `paper` / `paper-grid`              | #FAFAF8 / #ECECE7                                                                                                | #14161C / #1E2129  | page and board background, 22 px grid        |
+| `surface`                           | #FFFFFF                                                                                                          | #1C1F27            | panels, dialogs, inputs                      |
+| `ink` / `ink-muted`                 | #1A1A1A / #5B5F66                                                                                                | #ECEAE4 / #A4A9B3  | text                                         |
+| `line` / `line-strong`              | #E2E2DC / #8A8F98                                                                                                | #2C303A / #737882  | decorative borders / control borders (≥ 3:1) |
+| `stamp` / `on-stamp`                | #D7263D / #FFFFFF                                                                                                | #FF5A6E / #14161C  | anniversaries, destructive actions           |
+| `stamp-hover`                       | #B8202F                                                                                                          | #FF7A8B            | danger button hover (`on-stamp` ≥ 4.5:1)     |
+| `accent` / `on-accent`              | #2B59FF / #FFFFFF                                                                                                | #7C9CFF / #14161C  | links, focus ring, selection                 |
+| `success`                           | #12805C                                                                                                          | #3CCB91            | "server is running" and other OK states      |
+| `thread` / `pin`                    | #5B5F66 / #D7263D                                                                                                | #A4A9B3 / #FF5A6E  | relationship lines                           |
+| `photo`, `photo-ink`, `photo-muted` | #FFFFFF, #1A1A1A, #5B5F66                                                                                        | #E9E6DD, same inks | polaroid paper and what is printed on it     |
+| `sticker` / `on-sticker`            | #FFD23F / #1A1A1A                                                                                                | same               | birthday stickers                            |
+| `tape-*`                            | progenitor #D55E00; branches #E69F00, #56B4E9, #009E73, #F0E442, #0072B2, #CC79A7; in-law #B8BCC4; loose #C9C9C2 | same               | washi tape                                   |
 
 One more token, `scrim` (#000000 in both themes), is the overlay behind dialogs and is always used with opacity (`bg-scrim/45`).
 
@@ -97,13 +97,15 @@ The label is always visible above the input and linked to it. An optional `hint`
 
 A polaroid has three levels of detail, chosen by the canvas zoom (spec §7.4).
 
-| Level (`lod`) | Zoom       | Size (px) | Shows                                                                                                                  |
-| ------------- | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `full`        | above 0.8  | 100 × 124 | tape, photo (or initials on a block tinted with the tape color), handwritten caption, date marks on the photo's corner |
-| `label`       | 0.4 to 0.8 | 100 × 40  | a taped name label with the life years                                                                                 |
-| `strip`       | below 0.4  | 100 × 14  | only a strip of washi tape in the branch color                                                                         |
+| Level (`lod`) | Zoom       | Size (px) | Shows                                                                                                                                        |
+| ------------- | ---------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `full`        | above 0.8  | 100 × 138 | tape, photo (or initials on a block tinted with the tape color), handwritten caption, the date line under it, stickers on the photo's corner |
+| `label`       | 0.4 to 0.8 | 100 × 40  | a taped name label with the life years                                                                                                       |
+| `strip`       | below 0.4  | 100 × 14  | only a strip of washi tape in the branch color                                                                                               |
 
 The sizes are exported as `POLAROID_SIZE`, so layout code and threads use the same numbers. Every level keeps the accessible name from `label`.
+
+The **date line** under the caption shows `dateLine` (the death anniversary, a `DateMark`) or, when there is none, `lifeYears`, so every full card has the same height. `marks` (birthday stickers) sit on the photo's corner and never cover the caption.
 
 ### TapeKind
 
@@ -115,12 +117,12 @@ The sizes are exported as `POLAROID_SIZE`, so layout code and threads use the sa
 
 ### DateMark
 
-| Kind                | Look                                                                   | Meaning                        |
-| ------------------- | ---------------------------------------------------------------------- | ------------------------------ |
-| `death-anniversary` | red rubber stamp, tilted −10°, uppercase mono 11 px, `photo-stamp` ink | death anniversary (lunar date) |
-| `birthday`          | round yellow sticker, 44 px, tilted 8°, mono 11 px                     | birthday                       |
+| Kind                | Look                                                                                   | Meaning                        |
+| ------------------- | -------------------------------------------------------------------------------------- | ------------------------------ |
+| `death-anniversary` | a quiet line under the caption: mono 11 px in `photo-muted`, no stamp, no tilt, no red | death anniversary (lunar date) |
+| `birthday`          | round yellow sticker, 44 px, tilted 8°, a line-drawn Lucide `Cake` above the date      | birthday                       |
 
-The text comes from the locale keys `scrapbook.deathAnniversary` and `scrapbook.birthday`.
+A death anniversary remembers someone who has died, so it is written quietly instead of stamped. Each mark shows a short text (`children`: "Giỗ 15/10 ÂL", "21/11") and gives screen readers the full one (`label`: "Ngày giỗ 15/10 âm lịch", "Sinh nhật 21/11"). The texts come from the locale keys `scrapbook.deathAnniversary`, `scrapbook.deathAnniversaryLabel` and `scrapbook.birthday`. The anniversary line uses photo-paper inks, so it is only placed on photo paper.
 
 ### Thread and Stitch
 
@@ -164,22 +166,22 @@ Easing uses `ease-settle`. The lift shadow (`shadow-lift`) is reserved for a car
 
 The review was run on the screenshots below and the code, against the checklist in spec §13.3. Two problems were found and fixed in the review: the date marks covered the end of the caption ("Ông Thịnh", "Bà Hoa"), so they now sit on the photo's corner; and the date-mark text was 9 to 10 px, now 11 px with a slightly larger sticker.
 
-| Checklist item                                                                       | Result           | Evidence                                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No purple/indigo gradients, no glassmorphism, no glowing blobs, no emoji as icons    | pass             | the only gradient in the code is the 22 px board grid (`styles/index.css`); no `backdrop-filter` or blur; screenshots show no emoji                                                                                                                                             |
-| No default shadcn look; tokens customized first; Tailwind's default palette removed  | pass             | `tokens.css` resets `--color-*`, `--font-*`, `--radius-*`, `--shadow-*`; unit test "maps every Tailwind color to a defined token"                                                                                                                                               |
-| No "hero + three feature cards" landing; the landing page shows a real (sample) tree | pass             | home screenshots: headline and one button beside the sample family board; `HomePage.test.tsx`                                                                                                                                                                                   |
-| No identical gray cards everywhere; hierarchy from type, spacing and a few accents   | pass             | the `/design` screenshots: sections are separated by headings and hairlines, not cards; the only accents are tape, stamp and sticker                                                                                                                                            |
-| No drop shadows on resting cards; depth only while lifted                            | pass             | `shadow-lift` is the only shadow token and no resting component uses it; polaroids have a 1 px `line` border                                                                                                                                                                    |
-| No decoration without meaning                                                        | pass (after fix) | tape = branch, thread = parent/child, stitch = marriage, stamp = death anniversary, sticker = birthday; "stamps death anniversaries and stickers birthdays", "sticks date marks on the photo, not over the caption", "keeps the date readable: stamp and sticker text is 11 px" |
-| Branch colors from the Okabe–Ito palette                                             | pass             | `--tape-*` in `tokens.css`; unit test "defines the washi tape palette"; `tape.test.ts`                                                                                                                                                                                          |
-| Light and dark themes both designed                                                  | pass             | light and dark screenshots; contrast tests run for both themes; e2e "remembers the chosen theme after a reload"                                                                                                                                                                 |
-| Motion is purposeful and short; respects `prefers-reduced-motion`                    | pass             | only color transitions (120 ms) and the dialog fade/scale (200 ms); e2e "turns animations off when the user asks for reduced motion"; `useReducedMotion.test.ts`                                                                                                                |
-| Icons from one set (Lucide) at stroke width 1.75                                     | pass             | `Dialog.tsx` and `ThemeToggle.tsx` are the only icon users, both with `strokeWidth={1.75}` and `aria-hidden`                                                                                                                                                                    |
+| Checklist item                                                                       | Result           | Evidence                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No purple/indigo gradients, no glassmorphism, no glowing blobs, no emoji as icons    | pass             | the only gradient in the code is the 22 px board grid (`styles/index.css`); no `backdrop-filter` or blur; screenshots show no emoji                                                                                                                                                       |
+| No default shadcn look; tokens customized first; Tailwind's default palette removed  | pass             | `tokens.css` resets `--color-*`, `--font-*`, `--radius-*`, `--shadow-*`; unit test "maps every Tailwind color to a defined token"                                                                                                                                                         |
+| No "hero + three feature cards" landing; the landing page shows a real (sample) tree | pass             | home screenshots: headline and one button beside the sample family board; `HomePage.test.tsx`                                                                                                                                                                                             |
+| No identical gray cards everywhere; hierarchy from type, spacing and a few accents   | pass             | the `/design` screenshots: sections are separated by headings and hairlines, not cards; the only accents are tape, pins and stickers                                                                                                                                                      |
+| No drop shadows on resting cards; depth only while lifted                            | pass             | `shadow-lift` is the only shadow token and no resting component uses it; polaroids have a 1 px `line` border                                                                                                                                                                              |
+| No decoration without meaning                                                        | pass (after fix) | tape = branch, thread = parent/child, stitch = marriage, date line = death anniversary, cake sticker = birthday; "writes death anniversaries under the name and stickers birthdays with a cake", "sticks stickers on the photo, not over the caption", "keeps the date readable at 11 px" |
+| Branch colors from the Okabe–Ito palette                                             | pass             | `--tape-*` in `tokens.css`; unit test "defines the washi tape palette"; `tape.test.ts`                                                                                                                                                                                                    |
+| Light and dark themes both designed                                                  | pass             | light and dark screenshots; contrast tests run for both themes; e2e "remembers the chosen theme after a reload"                                                                                                                                                                           |
+| Motion is purposeful and short; respects `prefers-reduced-motion`                    | pass             | only color transitions (120 ms) and the dialog fade/scale (200 ms); e2e "turns animations off when the user asks for reduced motion"; `useReducedMotion.test.ts`                                                                                                                          |
+| Icons from one set (Lucide) at stroke width 1.75                                     | pass             | `Dialog.tsx`, `ThemeToggle.tsx` and `DateMark.tsx` are the only icon users, all with `strokeWidth={1.75}` and `aria-hidden`                                                                                                                                                               |
 
 Home page, desktop, light theme:
 
-![Home page on a 1280 px desktop in the light theme: the headline "Gia phả nhà mình, dán từng tấm ảnh." beside the sample family on grid paper, with five polaroids joined by threads and stitches, two red death-anniversary stamps and two yellow birthday stickers](design/screenshots/desktop-home-light.png)
+![Home page on a 1280 px desktop in the light theme: the headline "Gia phả nhà mình, dán từng tấm ảnh." beside the sample family on grid paper, with five polaroids joined by threads and stitches, two death anniversaries written under the names and two yellow birthday stickers with a cake](design/screenshots/desktop-home-light.png)
 
 Home page, desktop, dark theme:
 

@@ -25,9 +25,18 @@ describe('SampleFamilyBoard', () => {
     );
   });
 
-  it('stamps death anniversaries and stickers birthdays', () => {
+  it('writes death anniversaries under the name and stickers birthdays with a cake', () => {
     renderWithProviders(<SampleFamilyBoard />);
-    expect(screen.getByText('Giỗ 15/10')).toHaveAttribute('data-kind', 'death-anniversary');
-    expect(screen.getByText('SN 21/11')).toHaveAttribute('data-kind', 'birthday');
+    const anniversary = screen.getByText('Giỗ 15/10 ÂL');
+    expect(anniversary.closest('[data-kind]')).toHaveAttribute('data-kind', 'death-anniversary');
+    expect(anniversary.closest('[data-part="date-line"]')).not.toBeNull();
+    expect(screen.getByText('Ngày giỗ 15/10 âm lịch')).toHaveClass('sr-only');
+
+    expect(screen.getByText('21/11').closest('[data-kind]')).toHaveAttribute(
+      'data-kind',
+      'birthday',
+    );
+    expect(screen.getByText('Sinh nhật 21/11')).toHaveClass('sr-only');
+    expect(screen.queryByText(/^SN /)).not.toBeInTheDocument();
   });
 });

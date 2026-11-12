@@ -31,7 +31,6 @@ const COLOR_TOKENS = [
   'photo',
   'photo-ink',
   'photo-muted',
-  'photo-stamp',
   'sticker',
   'on-sticker',
   'thread',
@@ -167,8 +166,11 @@ export function DesignGalleryPage() {
                   tape={progenitor.tape}
                   tilt={tiltFor(progenitor.id)}
                   lod={lod}
-                  marks={
-                    <DateMark kind="death-anniversary">
+                  dateLine={
+                    <DateMark
+                      kind="death-anniversary"
+                      label={t('scrapbook.deathAnniversaryLabel', { date: '15/10' })}
+                    >
                       {t('scrapbook.deathAnniversary', { date: '15/10' })}
                     </DateMark>
                   }
@@ -181,10 +183,18 @@ export function DesignGalleryPage() {
 
       <Section id="gallery-marks" title={t('designGallery.sections.marks')}>
         <div className="flex items-center gap-8">
-          <DateMark kind="death-anniversary">
-            {t('scrapbook.deathAnniversary', { date: '15/10' })}
+          {/* The anniversary line is printed on photo paper, so show it on photo paper. */}
+          <span className="rounded-photo border border-line bg-photo px-3 py-2">
+            <DateMark
+              kind="death-anniversary"
+              label={t('scrapbook.deathAnniversaryLabel', { date: '15/10' })}
+            >
+              {t('scrapbook.deathAnniversary', { date: '15/10' })}
+            </DateMark>
+          </span>
+          <DateMark kind="birthday" label={t('scrapbook.birthday', { date: '21/11' })}>
+            21/11
           </DateMark>
-          <DateMark kind="birthday">{t('scrapbook.birthday', { date: '21/11' })}</DateMark>
         </div>
         <p className="mt-4 text-sm text-ink-muted">{t('designGallery.marks.note')}</p>
       </Section>

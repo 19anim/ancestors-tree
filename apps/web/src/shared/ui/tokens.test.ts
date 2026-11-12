@@ -65,7 +65,6 @@ const TEXT_PAIRS: Array<[string, string]> = [
   ['--on-sticker', '--sticker'],
   ['--photo-ink', '--photo'],
   ['--photo-muted', '--photo'],
-  ['--photo-stamp', '--photo'],
 ];
 
 /** Borders, lines, focus rings and status dots: WCAG 1.4.11 3:1. */
