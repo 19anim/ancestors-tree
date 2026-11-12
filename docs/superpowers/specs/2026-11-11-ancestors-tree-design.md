@@ -47,6 +47,7 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 | In-laws | In-law nodes beside their spouse with birth-family info, optional "hide in-laws" view, configurable depth for daughters' descendants (§8) |
 | Linked trees | Link any person to the same person in another shared family tree; hover shows an indicator + preview, click opens that tree focused on the person, with a breadcrumb back (§8.1) |
 | Person profile | Name, aliases (taboo name, courtesy name, nickname), gender, birth & death dates (lunar and/or solar, or approximate year), burial place, photo, biography |
+| Tree themes | Decorate the board: surface, polaroid frame, fastener, thread and stitch styles for the whole tree, plus frame and fastener for a single card; each either for the whole clan or only for yourself (§13.4) |
 | ⭐ Large smooth tree | 1,000–2,000 people stay smooth; collapse/expand branches; minimap; diacritic-insensitive search with fly-to; level-of-detail rendering |
 | ⭐ History & undo | Undo/redo with **toolbar buttons and keyboard shortcuts**, a "who changed what, when" timeline, revert any past change |
 | Reminders | "Upcoming anniversaries" page (30 days) with explanatory notes for special cases; email + web push 7 days and 1 day before |
@@ -84,6 +85,8 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 | See linked-tree indicator & open the linked tree | ✅* | ✅* | ✅* | ✅* |
 | See incoming links, block a source clan | ✅ | ❌ | ❌ | ❌ |
 | View change history | ✅ | ✅ | ✅ | ❌ |
+| Decorate the tree and cards for the whole clan (§13.4) | ✅ | ✅ | ❌ | ❌ |
+| Decorate the tree and cards only for yourself (§13.4) | ✅ | ✅ | ✅ | ❌ |
 | Invite members, change roles | ✅ | ❌ | ❌ | ❌ |
 | Create/revoke share links, change progenitor, clan settings, delete clan | ✅ | ❌ | ❌ | ❌ |
 
@@ -178,7 +181,30 @@ Clan {                           // one family lineage, e.g. "Nguyễn family �
     daughtersDescendantsDepth: 0 | 1 | 2 | 'all',   // see §8 (default 1)
     showInLawsByDefault: boolean                     // default true
   },
+  theme: TreeTheme,              // the clan's shared tree theme (§13.4); {} = defaults
   createdAt
+}
+
+TreeTheme {                      // every field optional; a missing field falls through (§13.4)
+  surface?: 'grid-paper' | 'corkboard' | 'fridge',
+  frame?: CardFrame,
+  fastener?: CardFastener,
+  thread?: 'cotton' | 'yarn',
+  stitch?: 'cotton' | 'yarn'
+}
+CardFrame    = 'classic' | 'kraft' | 'vintage'
+CardFastener = 'washi' | 'pushpin' | 'magnet'
+CardStyle {                      // a single card's own choice; every field optional
+  frame?: CardFrame,
+  fastener?: CardFastener
+}
+
+ViewPreference {                 // "only for me": one User's own decoration of one Clan (§13.4)
+  userId, clanId,                // unique (userId, clanId)
+  enabled: boolean,              // false = "Back to the clan's theme" without losing the choices
+  theme: TreeTheme,
+  cards: { [personId]: CardStyle },   // entries for deleted people are ignored and pruned on save
+  updatedAt
 }
 
 Membership {                     // which User belongs to which Clan, with which role
@@ -224,6 +250,7 @@ Person {                         // a person in the genealogy (NOT a User)
     shareLinkId?                          // when created from a share link
   },                             // index on treeLink.targetClanId (incoming-links list)
   photo?: { publicId, version },  // Cloudinary asset (§12, image storage); URLs are built on the client
+  cardStyle?: CardStyle,         // the clan's shared choice for this card (§13.4); set with updatePerson
   bio?, burialPlace?,
   createdAt, updatedAt
 }
@@ -295,6 +322,7 @@ ReminderLog {                    // "sign-off sheet" that prevents duplicate sen
 | `deleteUnion` | `{ id }` | `restoreUnion` with a snapshot |
 | `setParents` | `{ personId, parentUnionId \| null }` | `setParents` with the previous value |
 | `setTreeLink` | `{ personId, treeLink \| null }` | `setTreeLink` with the previous value |
+| `setTreeTheme` | `{ changes }` — changed `TreeTheme` fields; `null` resets a field to the default (§13.4) | `setTreeTheme` with the previous values of exactly those fields |
 | `batch` | `{ ops: Operation[] }` (used by AI import) | `batch` of the inverses in reverse order |
 | `restorePerson` / `restoreUnion` | full snapshot | `deletePerson` / `deleteUnion` — produced only by undo, never sent directly by the UI |
 
@@ -365,7 +393,7 @@ src/
   features/
     auth/           sign in, sign up, password reset
     clans/          clan list, members, invites, settings
-    tree/           ⭐ canvas, layout worker, PersonNode, profile panel, search, toolbar (undo/redo), linked trees
+    tree/           ⭐ canvas, layout worker, PersonNode, profile panel, search, toolbar (undo/redo), linked trees, Decorate panel (§13.4)
     history/        change timeline, revert
     reminders/      upcoming anniversaries, reminder settings, push subscription
     import/         AI import: prompt, JSON paste, diff preview
@@ -401,7 +429,7 @@ Each feature exposes its public API only through its `index.ts`. Features never 
 
 | Data | Tool | Notes |
 |---|---|---|
-| Clan list, members, upcoming anniversaries, history, current user, linked-tree previews | **TanStack Query** | Caching, refetching, loading/error states |
+| Clan list, members, upcoming anniversaries, history, current user, linked-tree previews, my `ViewPreference` (§13.4) | **TanStack Query** | Caching, refetching, loading/error states |
 | The tree being edited | **Zustand** store `useTreeStore` | `persons`, `unions`, `confirmedVersion`, `confirmedTree`, `pending[]`, `undoStack[]`, `redoStack[]` |
 | Local UI state (open panel, selected person) | `useState` / small Zustand slice | |
 
@@ -444,14 +472,14 @@ Because in-laws never expand upward (§8), the layout is a pure descendant tree:
 
 ### 7.5 Tree toolbar
 
-Top bar of the tree page, left to right: clan name (or the breadcrumb when following a linked tree, §8.1) · **↶ Undo · ↷ Redo** · save status · search · view menu (show/hide in-laws, daughters' descendants depth, collapse all) · export · fit view. On mobile it collapses into a bottom bar with Undo/Redo always visible and the rest in a "more" menu. All buttons have accessible labels and visible focus states.
+Top bar of the tree page, left to right: clan name (or the breadcrumb when following a linked tree, §8.1) · **↶ Undo · ↷ Redo** · save status · search · view menu (show/hide in-laws, daughters' descendants depth, collapse all) · **Decorate** (§13.4) · export · fit view. On mobile it collapses into a bottom bar with Undo/Redo always visible and the rest in a "more" menu. All buttons have accessible labels and visible focus states.
 
 ### 7.6 Forms & input
 
 - React Hook Form + Zod resolver (schemas from `packages/shared`).
 - Clicking a person opens a **side panel** (bottom sheet on mobile) to view/edit. Saving creates an `updatePerson` op with only the changed fields.
 - `DualDateInput`: toggle **Lunar / Solar / Year only**. Entering one side shows the converted other side and the Can Chi year. A "leap month" checkbox appears in Lunar mode.
-- Context menu (and card buttons on touch devices): Add child · Add spouse · Add parent (if missing) · Change relationship… · Link to another family tree · Delete.
+- Context menu (and card buttons on touch devices): Add child · Add spouse · Add parent (if missing) · Change relationship… · Link to another family tree · Decorate this card… (§13.4) · Delete.
 - People are created through forms and AI import (§10), never by dragging. Dragging only **changes relationships**.
 
 **Drag to relate (editors only).** Positions always come from the layout (§7.4); a drag never stores a free position.
@@ -699,6 +727,7 @@ The prompt instructs the AI to: return only JSON in this format; never invent in
 
 - **PNG/SVG:** `html-to-image` captures the React Flow viewport with LOD temporarily disabled for full detail.
 - **PDF:** `jsPDF`, landscape A4/A3/A1. Trees larger than the page are tiled with assembly marks. Title and export date included. Options: hide in-laws, daughters' descendants depth.
+- **Themes:** exports and share links always use the clan's shared decoration, never anyone's "only for me" choices (§13.4).
 - **Share link:** `GET /api/share/:token/tree`. The **server** strips data before responding: living people keep only name, gender and relationships; birth date, photo and bio are removed. Filtering happens server-side because anything sent to the browser is visible in DevTools. The Owner can revoke a link anytime. A share link is also one way another clan can link into this tree (§8.1).
 
 ---
@@ -761,13 +790,15 @@ The UI must not look like a generic AI-generated SaaS template. It is aimed at y
 
 | Element | Meaning |
 |---|---|
-| Polaroid card | one person: photo (or initials on a tinted block) and a handwritten caption |
-| Washi tape color | the person's branch, taken from the Okabe–Ito colorblind-safe palette. The progenitor has vermilion tape; in-laws have neutral grey tape |
+| Polaroid card | one person: photo (or initials on a tinted block), a handwritten caption and one quiet line below it |
+| Washi tape color (or pin / magnet color, §13.4) | the person's branch, taken from the Okabe–Ito colorblind-safe palette. The progenitor has vermilion tape; in-laws have neutral grey tape |
 | Thread ending in a red pin | parent → child |
 | Dashed stitch with a round knot | marriage |
-| Red rubber stamp | death anniversary (lunar date) |
-| Round yellow sticker | birthday |
+| Line under the caption: "Giỗ 15/10 ÂL" | death anniversary (lunar date). Plain mono text in `photo-muted`, no stamp, no tilt and no red, because it remembers someone who has died |
+| Round yellow sticker with a line-drawn cake | birthday: Lucide `Cake` above the solar date ("21/11"); its accessible text is "Sinh nhật 21/11" |
 | "Loose photos" tray | people not connected to the tree (§7.6) |
+
+The line under the caption shows the death anniversary for deceased people with a lunar death date, and the life years ("1990–") for everyone else, so every full card has the same height (the card grows from 124 px to about 138 px). The birthday sticker stays on the photo's corner.
 
 Each card tilts slightly by an angle derived from the person id (±2.5°). The board feels hand-made, but a card never changes its tilt between renders.
 
@@ -784,7 +815,7 @@ Each card tilts slightly by an angle derived from the person id (±2.5°). The b
 | `accent` / `on-accent` | #2B59FF / #FFFFFF | #7C9CFF / #14161C | links, focus ring, selection |
 | `success` | #12805C | #3CCB91 | "server is running" and other OK states |
 | `thread` / `pin` | #5B5F66 / #D7263D | #A4A9B3 / #FF5A6E | relationship lines |
-| `photo`, `photo-ink`, `photo-muted`, `photo-stamp` | #FFFFFF, #1A1A1A, #5B5F66, #B8202F | #E9E6DD, same inks | polaroid paper and what is printed on it |
+| `photo`, `photo-ink`, `photo-muted` | #FFFFFF, #1A1A1A, #5B5F66 | #E9E6DD, same inks | polaroid paper and what is printed on it (the `classic` frame; other frames set their own values, §13.4) |
 | `sticker` / `on-sticker` | #FFD23F / #1A1A1A | same | birthday stickers |
 | `tape-*` | progenitor #D55E00; branches #E69F00, #56B4E9, #009E73, #F0E442, #0072B2, #CC79A7; in-law #B8BCC4; loose #C9C9C2 | same | washi tape |
 
@@ -793,7 +824,7 @@ Text pairs meet WCAG AA (4.5:1), and borders and lines meet 3:1. A unit test che
 **Type:** all three typefaces are self-hosted with their Vietnamese subsets.
 - **Be Vietnam Pro**: UI text and headings (700, −0.02em tracking).
 - **Patrick Hand**: only captions on photos and handwritten notes. It is never used for controls or body text.
-- **JetBrains Mono**: dates, stamps and numbers.
+- **JetBrains Mono**: dates, date lines and numbers.
 
 **Anti-slop checklist (S9):**
 - ❌ No purple/indigo gradients, no glassmorphism, no glowing blobs, no emoji as icons.
@@ -801,13 +832,68 @@ Text pairs meet WCAG AA (4.5:1), and borders and lines meet 3:1. A unit test che
 - ❌ No "hero + three feature cards" landing cliché; the landing page shows a real (sample) tree.
 - ❌ No identical gray cards everywhere; hierarchy comes from type, spacing and a few deliberate accents.
 - ❌ No drop shadows on resting cards; depth appears only while a card is lifted (dragged).
-- ❌ No decoration without meaning: tape color, threads, stitches, stamps and stickers always encode data.
+- ❌ No decoration without meaning: fastener color, threads, stitches, date lines and stickers always encode data. Themes (§13.4) change how a device looks, never what it means.
 - ✅ Branch colors come from the Okabe–Ito colorblind-safe palette, not random hues.
 - ✅ Light and dark themes both designed (dark = "desk at night").
 - ✅ Motion is purposeful and short (card settle, fly-to, panel slide); respects `prefers-reduced-motion`.
 - ✅ Icons from one consistent set (Lucide) at stroke width 1.75.
 
 Design tokens live in `apps/web/src/shared/ui/tokens.css` (CSS variables mapped into Tailwind with `@theme`). The `/design` page shows every token and component in both themes.
+
+### 13.4 Tree themes (decorating the board)
+
+Families can decorate their board, like choosing an album and stickers. A theme changes the look of the scrapbook devices, never their meaning (§13.3).
+
+**What can be chosen.** The first set is deliberately small; every option needs light and dark versions, all three LODs and passing contrast tests.
+
+| Part | Options (first set) | Whole tree | One card |
+|---|---|:-:|:-:|
+| Surface | `grid-paper` (default), `corkboard`, `fridge` | ✅ | ❌ |
+| Polaroid frame | `classic` white (default), `kraft` paper, `vintage` photo with a deckled edge | ✅ | ✅ |
+| Fastener | `washi` tape (default), `pushpin`, `magnet` | ✅ | ✅ |
+| Thread (parent → child) | `cotton` (default), `yarn` | ✅ | ❌ |
+| Stitch (marriage) | `cotton` dashed (default), `yarn` | ✅ | ❌ |
+
+- The surface and the line styles belong to the whole board: a thread or stitch joins two people, so no single card owns it.
+- Choosing a surface also picks its matching fastener (grid paper → washi, corkboard → pushpin, fridge → magnet). The fastener can still be changed afterwards.
+- Meaning stays fixed in every option: the fastener's color is the branch color, a thread still ends in a pin, a stitch still has a knot, and a divorce is still a broken stitch.
+
+**Two scopes × two modes.**
+
+| | Whole tree | One card |
+|---|---|---|
+| **For the whole clan** (Editor/Owner) | `Clan.theme`, changed with a `setTreeTheme` op | `Person.cardStyle`, changed with an `updatePerson` op |
+| **Only for me** (any member) | `ViewPreference.theme` | `ViewPreference.cards[personId]` |
+
+- Clan-wide changes are normal ops: they appear in history, can be undone and reverted, and go through the 409 flow (§6).
+- "Only for me" choices are stored per account and clan, so they follow the user across devices. They are not ops and never appear in the clan's history. Viewers can use them, which lets everyone decorate without edit rights.
+- Exports and share links use only the clan-wide layers (§11).
+
+**Which choice wins.** For each part of a card, the first layer that has a value is used:
+
+1. My choice for this card (`ViewPreference.cards[personId]`, when `enabled`)
+2. The clan's choice for this card (`Person.cardStyle`)
+3. My tree theme (`ViewPreference.theme`, when `enabled`)
+4. The clan's tree theme (`Clan.theme`)
+5. The default
+
+Two rules make this predictable: **a card beats the whole tree**, and **mine beats the clan's**. Changing the clan's theme therefore never undoes anyone's decoration of a single card, and never overrides what a member chose for their own view. Surface, thread and stitch use steps 3–5 only. The resolver is a pure function in `packages/shared` (`resolveCardStyle`, `resolveBoardStyle`) with unit tests for every step.
+
+**Interface.**
+- **Decorate** in the tree toolbar (§7.5) opens a side panel (a bottom sheet on mobile) with a switch **Apply to: Only me / Whole clan** and one row of small live previews per part. Picking an option changes the board immediately. "Whole clan" is disabled for Viewers, with a short explanation.
+- **Decorate this card…** in the card menu (§7.6) and in the profile panel opens a small panel with the frame and fastener rows, the same switch, and **Use the tree's style** to remove that card's choice.
+- While "only for me" choices are active, a banner says "You are viewing your own theme" with **Back to the clan's theme** (sets `enabled: false` and keeps the choices). Picking any option in "Only me" mode sets `enabled: true` again. Editors and Owners also see **Use for the whole clan**, which sends a `setTreeTheme` op with their tree-level choices; their card choices stay personal.
+- The panel shows "Different from the tree" on any card or part that has its own choice.
+
+**API.**
+- `GET /api/clans/:id/view-preference` and `PUT /api/clans/:id/view-preference` (any member; only the caller's own document). The body is validated by Zod: known option values only, `personId` keys must be ObjectIds, at most 5,000 card entries (the clan size limit, §5).
+- Clan-wide changes go through `POST /api/clans/:id/ops` like every other edit.
+
+**Rendering.**
+- Board-level choices are data attributes on the board root (`data-surface`, `data-thread`, `data-stitch`); card-level choices are data attributes on each card (`data-frame`, `data-fastener`). Each option is a set of CSS variables in `tokens.css`, so switching themes never re-runs the layout and never re-renders cards whose resolved style did not change.
+- Surfaces are repeating CSS/SVG patterns (no large photos), so panning and zooming stay smooth, the CSP stays unchanged and every surface has a dark version.
+- The fastener is drawn only at the full LOD. The label and strip LODs keep the branch-color band (§7.4).
+- Every frame defines its own `photo`, `photo-ink` and `photo-muted`, and every surface its own `paper` and `thread` values. The contrast unit test checks every frame and surface in both themes.
 
 ---
 
@@ -831,12 +917,12 @@ Design tokens live in `apps/web/src/shared/ui/tokens.css` (CSS variables mapped 
 
 | Type | Tools | Main coverage |
 |---|---|---|
-| Unit | Vitest | `applyOp` per op type, per business rule, and inverse correctness (`applyOp(applyOp(t, op), op.inverse) ≡ t`); lunar golden + property-based (`fast-check`) + differential tests; `anniversaryFor` for every row of §9.2; layout (no overlapping nodes, children below parents); `classifyLineage`; duplicate detection |
+| Unit | Vitest | `applyOp` per op type, per business rule, and inverse correctness (`applyOp(applyOp(t, op), op.inverse) ≡ t`); lunar golden + property-based (`fast-check`) + differential tests; `anniversaryFor` for every row of §9.2; layout (no overlapping nodes, children below parents); `classifyLineage`; duplicate detection; `resolveCardStyle` / `resolveBoardStyle` for every layer of §13.4; contrast of every frame and surface in both themes |
 | Component | Vitest + Testing Library | `DualDateInput`, import diff preview, profile panel, toolbar undo/redo states, linked-tree popover (3 states) |
-| Integration | Supertest + `mongodb-memory-server` (replica-set mode for transactions) | Op writes, 409 on stale version, viewer/editor permissions, share link hides living people, linked-tree preview/open permissions, blocking a source clan, reminder job run twice sends once, catch-up after a missed day, OpenAPI route coverage |
+| Integration | Supertest + `mongodb-memory-server` (replica-set mode for transactions) | Op writes, 409 on stale version, viewer/editor permissions, share link hides living people, linked-tree preview/open permissions, blocking a source clan, reminder job run twice sends once, catch-up after a missed day, OpenAPI route coverage, a Viewer can save their own `ViewPreference` but gets 403 on `setTreeTheme`, a share link never includes anyone's `ViewPreference` |
 | E2E | Playwright | Sign up → create clan → add 3 generations → set death date → see upcoming anniversary → undo via toolbar button → export PNG; two tabs edit concurrently → the later one rebases; link a person to another clan's share link → hover shows the preview → click opens the target tree focused on that person → breadcrumb returns; revoked share link shows the "Unavailable" state; offline: reload while offline shows the cached tree read-only |
 | Performance | Seed script + React Profiler | S1, S2 with 1,000 and 2,000 people |
-| Visual | Playwright screenshots (light/dark, mobile/desktop) | Design review against §13.3 |
+| Visual | Playwright screenshots (light/dark, mobile/desktop) | Design review against §13.3; one screenshot per surface and per frame (§13.4) |
 
 **CI (GitHub Actions)** on every push/PR: `lint` → `typecheck` → `test` (with coverage) → `build` → OpenAPI route check. Deploys run only on merge to `main`.
 
@@ -870,7 +956,7 @@ Environment variables are documented in `apps/*/.env.example` (no real values).
 | 2 | `packages/shared`: Zod schemas, `applyOp` + tests; ops API (transaction, version, 409); Zustand store; tree visible with a simple layout | Add people, see them on the tree, survives reload |
 | 3 | Profile panel, `DualDateInput`, lunar algorithm + golden/property tests, `computeGenerations`, `classifyLineage`, in-law display | Enter lunar/solar dates; see generations and in-laws |
 | 4 | Layout worker, **undo/redo toolbar + shortcuts**, history page, 409 rebase → **deploy MVP** | MVP online; family starts entering data |
-| 5 | ⭐ Performance: 2,000-person seed, LOD, memo, collapse, search, minimap, in-law view options, measurements | Before/after numbers for the CV |
+| 5 | **Tree themes (§13.4)**, then ⭐ performance: 2,000-person seed, LOD, memo, collapse, search, minimap, in-law view options, measurements (with themes in place) | Decorated boards; before/after numbers for the CV |
 | 6 | Upcoming page + notes, `anniversaryFor` + differential tests, idempotent job with catch-up, email, **PWA (install, offline read, push incl. iOS)**, cron worker | Real reminder email/push; installable app |
 | 7 | AI import (prompt, validation, diff preview, batch); PNG/PDF export; share links; **linked trees (§8.1)** | Import a real genealogy page; jump from an in-law into their family's tree |
 | 8 | E2E, accessibility, Lighthouse, Sentry, **docs (user guide, architecture, ADRs, error codes)**, README with demo GIF, onboard real users | CV-ready release |
@@ -970,6 +1056,8 @@ Environment variables are documented in `apps/*/.env.example` (no real values).
 | Web hosting | Netlify | Familiar; commercial use allowed; deploy only from `main` |
 | Reminder triggering | Cloudflare Worker Cron + cron-job.org backup + Sentry monitor + catch-up | Independent of commits; tolerates cold starts; missed days are sent late, not lost |
 | Docs | User guide + generated OpenAPI + generated error codes + ADRs | Measurable (S8); signals engineering maturity |
-| Visual direction | "Family scrapbook" on grid paper: polaroids, washi tape = branch, threads, stamps and stickers (§13.3) | Appeals to younger users and leaves room for birthdays; every decoration encodes data |
+| Visual direction | "Family scrapbook" on grid paper: polaroids, washi tape = branch, threads, date lines and stickers (§13.3) | Appeals to younger users and leaves room for birthdays; every decoration encodes data |
 | Relationship editing | Drag to relate on the board, with cut, follow-up questions and undo; keyboard menu as an alternative (§7.6) | Fixing mistakes is direct and never a dead end |
+| Date marks | Death anniversary as a quiet line under the caption ("Giỗ 15/10 ÂL"); birthday as a sticker with a line-drawn cake (§13.3) | A tilted red stamp read like "approved"/"overdue", which is wrong for remembering the dead; "SN" was unclear |
+| Tree themes | Curated options per part; whole tree or one card; for the whole clan or only for me; card beats tree and mine beats the clan's (§13.4) | Families personalise the board without losing meaning, contrast or speed; nobody's decoration is undone by someone else |
 | Image storage | One Cloudinary cloud, `ancestors-tree/<env>/clans/<clanId>/people/<personId>/<random>`, every upload signed and verified by the API (§12) | Clans and people are deleted by prefix; no names in URLs; dev and prod stay apart without a second account |
