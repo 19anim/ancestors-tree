@@ -32,6 +32,7 @@
 - User-facing text lives only in `apps/web/src/locales/{vi,en}.json`. Vietnamese is the default, the keys are English, and both files must have identical keys (`locales.test.ts` enforces it). There are two exceptions:
   - The bootstrap failure screen (`BootFailure`) hard-codes a bilingual message, because i18n itself may be what failed.
   - Sample family data (names, years, dates in `features/home/sampleFamily.ts`) is content, not UI copy.
+  - The Vietnamese meta description in `apps/web/index.html` is the pre-JavaScript fallback; `useDocumentLanguage` (Task 9) replaces it from `app.description` at runtime.
 
 **Colors and styling**
 - Colors come only from tokens.
@@ -272,7 +273,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `apps/web/src/shared/ui/contrast.ts`, `apps/web/src/shared/ui/tokens.css`, `apps/web/src/styles/index.css`, `apps/web/src/styles/fonts.ts`
-- Modify: `apps/web/src/main.tsx`, `apps/web/index.html`, `vitest.config.ts` (root)
+- Modify: `apps/web/src/main.tsx`, `apps/web/index.html`, `vitest.config.ts` (root), `apps/web/vitest.config.ts` (`test.css.include: [/\.css\?raw$/]`, because Vitest stubs CSS imports, `?raw` included, unless they are included)
 - Test: `apps/web/src/shared/ui/contrast.test.ts`, `apps/web/src/shared/ui/tokens.test.ts`
 
 **Interfaces:**
@@ -388,7 +389,7 @@ function declarations(selector: string): Map<string, string> {
 }
 
 const light = declarations(':root');
-const darkOverrides = declarations(':root[data-theme="dark"]');
+const darkOverrides = declarations(":root[data-theme='dark']");
 const dark = new Map([...light, ...darkOverrides]);
 
 const THEMED = [
@@ -561,7 +562,7 @@ Expected: FAIL. `Failed to resolve import "./tokens.css?raw"`.
   --duration-settle: 380ms;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   color-scheme: dark;
 
   --paper: #14161c;
@@ -971,7 +972,7 @@ export function applyTheme(theme: ResolvedTheme, root: HTMLElement = document.do
 ```
 
 Run: `pnpm vitest run --project web src/shared/ui/theme/theme.test.ts`
-Expected: PASS (10 tests).
+Expected: PASS (9 tests).
 
 - [ ] **Step 3: Write the failing reduced-motion test**
 
@@ -1231,7 +1232,7 @@ export function useTheme(): ThemeContextValue {
 `apps/web/src/shared/ui/theme/ThemeToggle.tsx`:
 
 ```tsx
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ThemePreference } from './theme';
@@ -1241,7 +1242,7 @@ const OPTIONS = [
   { value: 'light', Icon: Sun, labelKey: 'theme.light' },
   { value: 'dark', Icon: Moon, labelKey: 'theme.dark' },
   { value: 'system', Icon: Monitor, labelKey: 'theme.system' },
-] as const satisfies ReadonlyArray<{ value: ThemePreference; labelKey: string }>;
+] as const satisfies ReadonlyArray<{ value: ThemePreference; Icon: LucideIcon; labelKey: string }>;
 
 /** Three native radios (free keyboard support) styled as a compact segmented control. */
 export function ThemeToggle() {
@@ -1256,7 +1257,7 @@ export function ThemeToggle() {
         <label
           key={value}
           title={t(labelKey)}
-          className="grid size-8 cursor-pointer place-items-center rounded-full text-ink-muted transition-colors duration-(--duration-fast) hover:text-ink has-[:checked]:bg-ink has-[:checked]:text-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
+          className="grid size-8 cursor-pointer place-items-center rounded-full text-ink-muted transition-colors duration-(--duration-fast) ease-settle hover:text-ink has-[:checked]:bg-ink has-[:checked]:text-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
         >
           <input
             type="radio"
@@ -1453,7 +1454,7 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 
 export const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap transition-colors duration-(--duration-fast) disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap transition-colors duration-(--duration-fast) ease-settle disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -2733,7 +2734,9 @@ export function ServerStatus() {
       <p role="status" aria-live="polite" data-state={state} className="text-ink-muted">
         {message}
       </p>
-      {health.isError ? (
+      {/* TanStack Query v5 resets a query without data to "pending" while it refetches, so
+          isError is false during a retry; errorUpdateCount keeps the button (disabled) on screen. */}
+      {!health.isSuccess && health.errorUpdateCount > 0 ? (
         <Button
           variant="secondary"
           size="sm"
@@ -3521,7 +3524,7 @@ import { ThemeToggle } from '../shared/ui';
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return cn(
-    'rounded-control px-3 py-2 text-sm transition-colors duration-(--duration-fast)',
+    'rounded-control px-3 py-2 text-sm transition-colors duration-(--duration-fast) ease-settle',
     isActive ? 'bg-paper-grid font-medium text-ink' : 'text-ink-muted hover:text-ink',
   );
 }
