@@ -15,7 +15,7 @@ relationships (spec §7.6).
 ## Decision
 
 - Colors are CSS custom properties in `apps/web/src/shared/ui/tokens.css` (light `:root`, dark
-  `:root[data-theme="dark"]`), mapped into Tailwind v4 with `@theme inline`. Tailwind's default palette,
+  `:root[data-theme='dark']`), mapped into Tailwind v4 with `@theme inline`. Tailwind's default palette,
   fonts, radii and shadows are reset, so only tokens can be used. A unit test checks WCAG contrast for every
   text and line pair in both themes.
 - Branch tape uses the Okabe–Ito colorblind-safe palette.

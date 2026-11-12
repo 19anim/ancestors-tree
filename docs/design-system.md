@@ -139,7 +139,7 @@ Both render inside the board's SVG layer and take board coordinates.
 
 The theme preference (`light`, `dark` or `system`) is stored in localStorage under `ancestors-tree:theme`; `system` is the default and follows `prefers-color-scheme`, including live changes. If storage is blocked, the choice lasts for the current page only.
 
-The first paint does not flash the wrong theme. `main.tsx` reads the preference and sets `data-theme` on `<html>` before React renders, and until that script runs, `tokens.css` paints a dark page background for users whose system is dark.
+`main.tsx` reads the preference and sets `data-theme` on `<html>` before React renders. It is a deferred module script, though, so the browser can paint the empty page before it runs. Until then, `tokens.css` follows `prefers-color-scheme` and paints a dark page background for users whose system is dark, which covers the default `system` choice. A user whose stored choice differs from the system setting may briefly see the system's background until the script runs.
 
 CSS animations and transitions are switched off globally under `prefers-reduced-motion: reduce` (`styles/index.css`). Motion driven by JavaScript (fly-to and drag settle on the tree canvas) must check `useReducedMotion()`, which follows the media query and its changes.
 

@@ -14,7 +14,7 @@ import {
   systemPrefersDark,
 } from './shared/ui';
 
-// Before the first render, so the page never flashes the wrong theme.
+// Before the first render, so React never renders with the wrong theme (see docs/design-system.md §7).
 applyTheme(resolveTheme(readThemePreference(getLocalStorage()), systemPrefersDark()));
 
 const rootElement = document.getElementById('root');
