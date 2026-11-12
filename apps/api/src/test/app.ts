@@ -1,4 +1,5 @@
 import { pino } from 'pino';
+import { createMemoryMailer } from '../mail/mailer.ts';
 import { createApp, type AppOptions, type CreatedApp } from '../app.ts';
 
 /** The web origin tests use: the only origin allowed to send writes. */
@@ -20,6 +21,7 @@ export function testAppOptions(overrides: Partial<AppOptions> = {}): AppOptions 
       secureCookies: false,
       bcryptCost: 4,
     },
+    mailer: createMemoryMailer(),
     ...overrides,
   };
 }

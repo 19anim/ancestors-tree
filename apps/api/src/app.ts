@@ -21,6 +21,9 @@ import { buildOpenApiDocument, type OpenApiDocument } from './openapi/document.t
 import { registerAuthRoutes } from './routes/auth.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
+import { createPasswordResets } from './auth/passwordResets.ts';
+import type { Mailer } from './mail/mailer.ts';
+import { registerPasswordResetRoutes } from './routes/passwordReset.ts';
 import { createPasswords } from './auth/passwords.ts';
 import { createRequireAuth } from './auth/requireAuth.ts';
 import { createAuthService } from './auth/service.ts';
@@ -41,6 +44,8 @@ export interface AppOptions {
   apiDocs: boolean;
   /** Requests per minute: `auth` per IP and endpoint, `user` per signed-in user. */
   rateLimits: { auth: number; user: number };
+  /** Sends password reset emails (createMailer). */
+  mailer: Mailer;
   auth: {
     /** JWT_SECRET: signs the access tokens. */
     jwtSecret: string;
@@ -74,6 +79,12 @@ export function createApp(options: AppOptions): CreatedApp {
   registerHealthRoutes(api, { version: options.version });
   registerAuthRoutes(api, { auth });
   registerMeRoutes(api, { auth });
+  const resets = createPasswordResets({
+    mailer: options.mailer,
+    appOrigin: options.appOrigin,
+    passwords,
+  });
+  registerPasswordResetRoutes(api, { auth, resets, logger: options.logger });
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();

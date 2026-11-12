@@ -2,6 +2,7 @@ import { pino } from 'pino';
 import { createApp } from './app.ts';
 import { BCRYPT_COST } from './auth/passwords.ts';
 import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
+import { createMailer } from './mail/mailer.ts';
 import { connectDatabase, disconnectDatabase } from './db/connect.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -35,6 +36,7 @@ const { app } = createApp({
   trustProxyHops: config.TRUST_PROXY_HOPS,
   apiDocs: apiDocsEnabled(config),
   rateLimits: { auth: 5, user: 300 },
+  mailer: createMailer(config, logger),
   auth: {
     jwtSecret: requireSetting(config.JWT_SECRET, 'JWT_SECRET'),
     secureCookies: config.NODE_ENV === 'production',
