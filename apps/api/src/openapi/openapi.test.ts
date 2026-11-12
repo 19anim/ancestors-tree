@@ -6,7 +6,6 @@ import { createApp } from '../app.ts';
 const { app, api, openApiDocument } = createApp({
   logger: pino({ level: 'silent' }),
   version: '1.0.0-test',
-  validateResponses: true,
   httpLogging: false,
 });
 

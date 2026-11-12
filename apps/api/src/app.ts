@@ -1,5 +1,5 @@
 import { apiReference } from '@scalar/express-api-reference';
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
@@ -12,7 +12,6 @@ import { registerHealthRoutes } from './routes/health.ts';
 export interface AppOptions {
   logger: Logger;
   version: string;
-  validateResponses: boolean;
   httpLogging: boolean;
 }
 
@@ -22,8 +21,15 @@ export interface CreatedApp {
   openApiDocument: OpenApiDocument;
 }
 
+/** Replaced in Task 6 (signedIn) and Task 10 (clan roles); until then nothing is protected. */
+const notConfigured: RequestHandler = (_req, _res, next) => {
+  next(new Error('Access policies are not configured yet'));
+};
+
 export function createApp(options: AppOptions): CreatedApp {
-  const api = createRouteRegistry({ validateResponses: options.validateResponses });
+  const api = createRouteRegistry({
+    policies: { signedIn: [notConfigured], clanRole: () => [notConfigured] },
+  });
   registerHealthRoutes(api, { version: options.version });
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 

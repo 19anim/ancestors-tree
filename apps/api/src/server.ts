@@ -29,7 +29,6 @@ try {
 const { app } = createApp({
   logger,
   version: config.APP_VERSION,
-  validateResponses: config.NODE_ENV !== 'production',
   httpLogging: config.NODE_ENV !== 'test',
 });
 

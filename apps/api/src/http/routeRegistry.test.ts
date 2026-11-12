@@ -1,141 +1,295 @@
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import { pino } from 'pino';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { buildOpenApiDocument } from '../openapi/document.ts';
+import { AppError } from './AppError.ts';
 import { createErrorHandler } from './errorHandler.ts';
-import { notFoundHandler } from './notFound.ts';
-import { createRouteRegistry, toOpenApiPath } from './routeRegistry.ts';
+import { getLocals } from './locals.ts';
+import {
+  assertSupportedPath,
+  createRouteRegistry,
+  type AccessPolicies,
+  type RouteRegistry,
+} from './routeRegistry.ts';
 
-const EchoResponseSchema = z.object({ id: z.string(), name: z.string(), loud: z.boolean() });
+const fakeSignIn: RequestHandler = (req, res, next) => {
+  const userId = req.get('x-test-user');
+  if (!userId) {
+    next(new AppError('UNAUTHENTICATED', 'Sign in to continue'));
+    return;
+  }
+  getLocals(res).userId = userId;
+  next();
+};
 
-function buildTestApp(validateResponses = true) {
-  const api = createRouteRegistry({ validateResponses });
-
-  api.define({
-    method: 'post',
-    path: '/echo/:id',
-    summary: 'Echo the input back',
-    tags: ['Test'],
-    request: {
-      params: z.object({ id: z.string().regex(/^[a-z]+$/) }),
-      query: z.object({ loud: z.enum(['true', 'false']).optional() }),
-      body: z.object({ name: z.string().min(1) }),
+const policies: AccessPolicies = {
+  signedIn: [fakeSignIn],
+  clanRole: (role) => [
+    fakeSignIn,
+    (req, res, next) => {
+      const locals = getLocals(res);
+      locals.membership = { clanId: String(req.params.id), userId: locals.userId ?? '', role };
+      next();
     },
-    responses: { 200: { description: 'Echoed', schema: EchoResponseSchema } },
-    handler: ({ params, query, body }) => ({
-      status: 200,
-      body: { id: params.id, name: body.name, loud: query.loud === 'true' },
-    }),
-  });
+  ],
+};
 
-  api.define({
-    method: 'get',
-    path: '/broken',
-    summary: 'Returns a body that violates its schema',
-    tags: ['Test'],
-    responses: { 200: { description: 'Should be an object', schema: EchoResponseSchema } },
-    handler: () => ({ status: 200, body: { id: 1 } }),
-  });
-
-  api.define({
-    method: 'delete',
-    path: '/things/:id',
-    summary: 'Delete a thing',
-    tags: ['Test'],
-    request: { params: z.object({ id: z.string() }) },
-    responses: { 204: { description: 'Deleted' } },
-    handler: () => ({ status: 204 }),
-  });
-
+function appWith(define: (api: RouteRegistry) => void) {
+  const api = createRouteRegistry({ policies });
+  define(api);
   const app = express();
   app.use(express.json());
-  app.use('/api', api.router);
-  app.use(notFoundHandler);
+  app.use(api.router);
   app.use(createErrorHandler(pino({ level: 'silent' })));
   return { app, api };
 }
 
-describe('toOpenApiPath', () => {
-  it('converts Express params to OpenAPI params', () => {
-    expect(toOpenApiPath('/clans/:clanId/persons/:personId')).toBe(
-      '/clans/{clanId}/persons/{personId}',
+const ItemSchema = z.object({ id: z.string(), name: z.string() });
+
+describe('route registry', () => {
+  it('validates params, query and body', async () => {
+    const { app } = appWith((api) =>
+      api.define({
+        method: 'post',
+        path: '/items/:id',
+        summary: 'Create',
+        tags: ['Test'],
+        access: 'public',
+        request: {
+          params: z.object({ id: z.string().length(3) }),
+          query: z.object({ dryRun: z.enum(['yes', 'no']).optional() }),
+          body: z.object({ name: z.string().min(1) }),
+        },
+        responses: { 201: { description: 'Created', schema: ItemSchema } },
+        handler: ({ params, body }) => ({ status: 201, body: { id: params.id, name: body.name } }),
+      }),
     );
-    expect(toOpenApiPath('/health')).toBe('/health');
-  });
-});
+    const bad = await request(app).post('/items/abcd?dryRun=maybe').send({ name: '' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('VALIDATION_ERROR');
 
-describe('createRouteRegistry', () => {
-  it('passes parsed params, query and body to the handler', async () => {
-    const { app } = buildTestApp();
-    const response = await request(app).post('/api/echo/abc?loud=true').send({ name: 'Tư' });
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ id: 'abc', name: 'Tư', loud: true });
+    const good = await request(app).post('/items/abc').send({ name: 'Lan' });
+    expect(good.status).toBe(201);
+    expect(good.body).toEqual({ id: 'abc', name: 'Lan' });
   });
 
-  it('rejects an invalid body with prefixed details', async () => {
-    const { app } = buildTestApp();
-    const response = await request(app).post('/api/echo/abc').send({ name: '' });
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('VALIDATION_ERROR');
-    expect(response.body.error.message).toBe('Invalid request body');
-    expect(response.body.error.details[0].path).toBe('body.name');
+  it('sends only the fields the response schema declares', async () => {
+    const { app } = appWith((api) =>
+      api.define({
+        method: 'get',
+        path: '/items/:id',
+        summary: 'Read',
+        tags: ['Test'],
+        access: 'public',
+        request: { params: z.object({ id: z.string() }) },
+        responses: { 200: { description: 'Item', schema: ItemSchema } },
+        handler: ({ params }) => {
+          const stored = { id: params.id, name: 'Lan', passwordHash: 'secret-hash' };
+          return { status: 200, body: stored };
+        },
+      }),
+    );
+    const response = await request(app).get('/items/a1');
+    expect(response.body).toEqual({ id: 'a1', name: 'Lan' });
   });
 
-  it('rejects invalid params', async () => {
-    const { app } = buildTestApp();
-    const response = await request(app).post('/api/echo/ABC').send({ name: 'x' });
-    expect(response.status).toBe(400);
-    expect(response.body.error.details[0].path).toBe('params.id');
-  });
-
-  it('rejects a missing body as a validation error', async () => {
-    const { app } = buildTestApp();
-    const response = await request(app).post('/api/echo/abc');
-    expect(response.status).toBe(400);
-    expect(response.body.error.message).toBe('Invalid request body');
-  });
-
-  it('fails with INTERNAL_ERROR when a response violates its schema', async () => {
-    const { app } = buildTestApp(true);
-    const response = await request(app).get('/api/broken');
+  it('turns a response that breaks its schema into a 500', async () => {
+    const { app } = appWith((api) =>
+      api.define({
+        method: 'get',
+        path: '/broken',
+        summary: 'Broken',
+        tags: ['Test'],
+        access: 'public',
+        responses: { 200: { description: 'Item', schema: ItemSchema } },
+        handler: () => ({
+          status: 200,
+          body: { id: 'x' } as unknown as z.input<typeof ItemSchema>,
+        }),
+      }),
+    );
+    const response = await request(app).get('/broken');
     expect(response.status).toBe(500);
     expect(response.body.error.code).toBe('INTERNAL_ERROR');
   });
 
-  it('skips response validation when disabled', async () => {
-    const { app } = buildTestApp(false);
-    const response = await request(app).get('/api/broken');
-    expect(response.status).toBe(200);
+  it('sets and clears cookies, and never on a failed response', async () => {
+    const { app } = appWith((api) => {
+      api.define({
+        method: 'post',
+        path: '/session',
+        summary: 'Cookies',
+        tags: ['Test'],
+        access: 'public',
+        responses: { 204: { description: 'Done' } },
+        handler: () => ({
+          status: 204,
+          cookies: [
+            { name: 'at', value: 'token-1', options: { httpOnly: true, path: '/api' } },
+            { name: 'old', clear: true, options: { path: '/' } },
+          ],
+        }),
+      });
+      api.define({
+        method: 'post',
+        path: '/session-broken',
+        summary: 'Broken cookies',
+        tags: ['Test'],
+        access: 'public',
+        responses: { 200: { description: 'Item', schema: ItemSchema } },
+        handler: () => ({
+          status: 200,
+          body: { id: 1 } as unknown as z.input<typeof ItemSchema>,
+          cookies: [{ name: 'at', value: 'token-2', options: { path: '/api' } }],
+        }),
+      });
+    });
+    const ok = await request(app).post('/session');
+    expect(ok.status).toBe(204);
+    const cookies = ok.headers['set-cookie'] as unknown as string[];
+    expect(cookies.some((c) => c.startsWith('at=token-1;') && c.includes('HttpOnly'))).toBe(true);
+    expect(cookies.some((c) => c.startsWith('old=;'))).toBe(true);
+
+    const broken = await request(app).post('/session-broken');
+    expect(broken.status).toBe(500);
+    expect(broken.headers['set-cookie']).toBeUndefined();
   });
 
-  it('sends an empty body for 204 responses', async () => {
-    const { app } = buildTestApp();
-    const response = await request(app).delete('/api/things/42');
-    expect(response.status).toBe(204);
-    expect(response.text).toBe('');
-  });
-
-  it('records every route with its OpenAPI path', () => {
-    const { api } = buildTestApp();
-    expect(api.routes).toEqual([
-      { method: 'post', path: '/echo/:id', openApiPath: '/echo/{id}' },
-      { method: 'get', path: '/broken', openApiPath: '/broken' },
-      { method: 'delete', path: '/things/:id', openApiPath: '/things/{id}' },
-    ]);
-  });
-
-  it('refuses to define the same route twice', () => {
-    const { api } = buildTestApp();
-    expect(() =>
+  it('redirects', async () => {
+    const { app } = appWith((api) =>
       api.define({
         method: 'get',
-        path: '/broken',
-        summary: 'Duplicate',
+        path: '/go',
+        summary: 'Redirect',
         tags: ['Test'],
-        responses: { 200: { description: 'x' } },
-        handler: () => ({ status: 200 }),
+        access: 'public',
+        responses: { 302: { description: 'To the app', redirect: true } },
+        handler: () => ({ status: 302, redirect: '/clans' }),
       }),
-    ).toThrow('Route already defined: GET /broken');
+    );
+    const response = await request(app).get('/go');
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('/clans');
+  });
+
+  it('runs the access policy of each route', async () => {
+    const { app } = appWith((api) => {
+      api.define({
+        method: 'get',
+        path: '/me',
+        summary: 'Me',
+        tags: ['Test'],
+        access: 'signedIn',
+        responses: { 200: { description: 'Me', schema: z.object({ userId: z.string() }) } },
+        handler: ({ userId }) => ({ status: 200, body: { userId: userId() } }),
+      });
+      api.define({
+        method: 'get',
+        path: '/clans/:id',
+        summary: 'Clan',
+        tags: ['Test'],
+        access: { clanRole: 'editor' },
+        request: { params: z.object({ id: z.string() }) },
+        responses: {
+          200: { description: 'Role', schema: z.object({ role: z.string(), clanId: z.string() }) },
+        },
+        handler: ({ membership }) => ({
+          status: 200,
+          body: { role: membership().role, clanId: membership().clanId },
+        }),
+      });
+    });
+    expect((await request(app).get('/me')).status).toBe(401);
+    expect((await request(app).get('/me').set('x-test-user', 'u1')).body).toEqual({ userId: 'u1' });
+    expect((await request(app).get('/clans/c1').set('x-test-user', 'u1')).body).toEqual({
+      role: 'editor',
+      clanId: 'c1',
+    });
+  });
+
+  it('fails loudly when a public route reads the user', async () => {
+    const { app } = appWith((api) =>
+      api.define({
+        method: 'get',
+        path: '/oops',
+        summary: 'Oops',
+        tags: ['Test'],
+        access: 'public',
+        responses: { 200: { description: 'Me', schema: z.object({ userId: z.string() }) } },
+        handler: ({ userId }) => ({ status: 200, body: { userId: userId() } }),
+      }),
+    );
+    expect((await request(app).get('/oops')).status).toBe(500);
+  });
+
+  it('rejects an undeclared status', async () => {
+    const { app } = appWith((api) =>
+      api.define({
+        method: 'get',
+        path: '/teapot',
+        summary: 'Teapot',
+        tags: ['Test'],
+        access: 'public',
+        responses: { 200: { description: 'OK' } },
+        handler: () => ({ status: 418 }) as unknown as { status: 200 },
+      }),
+    );
+    expect((await request(app).get('/teapot')).status).toBe(500);
+  });
+
+  it('accepts only lowercase segments and :params in paths', () => {
+    expect(() => assertSupportedPath('/clans/:id/members/:userId')).not.toThrow();
+    for (const path of ['/files/*splat', '/a{/:b}', '/Upper', 'no-slash', '/trailing/']) {
+      expect(() => assertSupportedPath(path), path).toThrow(/Unsupported route path/);
+    }
+  });
+
+  it('detects duplicate routes even when parameter names differ', () => {
+    expect(() =>
+      appWith((api) => {
+        const route = {
+          method: 'get' as const,
+          summary: 'Dup',
+          tags: ['Test'],
+          access: 'public' as const,
+          responses: { 204: { description: 'Done' } },
+          handler: () => ({ status: 204 as const }),
+        };
+        api.define({ ...route, path: '/clans/:id' });
+        api.define({ ...route, path: '/clans/:clanId' });
+      }),
+    ).toThrow(/Route already defined: GET \/clans\/:clanId/);
+  });
+
+  it('documents the session cookie on protected routes only', () => {
+    const { api } = appWith((api) => {
+      api.define({
+        method: 'get',
+        path: '/open',
+        summary: 'Open',
+        tags: ['Test'],
+        access: 'public',
+        responses: { 204: { description: 'Done' } },
+        handler: () => ({ status: 204 }),
+      });
+      api.define({
+        method: 'get',
+        path: '/clans/:id',
+        summary: 'Clan',
+        tags: ['Test'],
+        access: { clanRole: 'owner' },
+        request: { params: z.object({ id: z.string() }) },
+        responses: { 204: { description: 'Done' } },
+        handler: () => ({ status: 204 }),
+      });
+    });
+    const document = buildOpenApiDocument(api.openApi, { version: 'test' });
+    expect(document.components?.securitySchemes).toHaveProperty('sessionCookie');
+    expect(document.paths?.['/open']?.get?.security).toBeUndefined();
+    const clan = document.paths?.['/clans/{id}']?.get;
+    expect(clan?.security).toEqual([{ sessionCookie: [] }]);
+    expect(clan?.description).toMatch(/owner role/);
   });
 });

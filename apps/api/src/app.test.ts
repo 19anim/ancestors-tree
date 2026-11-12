@@ -7,7 +7,6 @@ import { createApp } from './app.ts';
 const { app } = createApp({
   logger: pino({ level: 'silent' }),
   version: '9.9.9-test',
-  validateResponses: true,
   httpLogging: false,
 });
 

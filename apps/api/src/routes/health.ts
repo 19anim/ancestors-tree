@@ -8,11 +8,12 @@ export function registerHealthRoutes(api: RouteRegistry, info: { version: string
     path: '/health',
     summary: 'Service health check',
     tags: ['System'],
+    access: 'public',
     responses: { 200: { description: 'The API is running', schema: HealthResponseSchema } },
     handler: () => ({
       status: 200,
       body: {
-        status: 'ok',
+        status: 'ok' as const,
         version: info.version,
         uptimeSeconds: Math.round(process.uptime()),
         database: databaseState(),
