@@ -1,0 +1,132 @@
+/*
+ * Design tokens for the "family scrapbook" direction (spec §13.3).
+ * Light = grid paper by day, dark = desk at night. Polaroid paper stays light in both themes.
+ *
+ * Rules:
+ * - Every color is a 6-digit hex value so tokens.test.ts can check WCAG contrast.
+ * - Themed tokens are redefined in the dark block; theme-invariant tokens (photo inks,
+ *   sticker, scrim, tape) are defined once in :root.
+ * - Components never use raw hex values. They use Tailwind utilities generated from the
+ *   @theme blocks below (bg-paper, text-ink, …) or var(--tape-*) for washi tape.
+ * - Adding a color: define it here (and in the dark block if themed), map it in
+ *   @theme inline, add its contrast pairs to tokens.test.ts and list it in the /design gallery.
+ */
+:root {
+  color-scheme: light;
+
+  /* Themed */
+  --paper: #fafaf8;
+  --paper-grid: #ecece7;
+  --surface: #ffffff;
+  --ink: #1a1a1a;
+  --ink-muted: #5b5f66;
+  --line: #e2e2dc;
+  --line-strong: #8a8f98;
+  --stamp: #d7263d;
+  --stamp-hover: #b8202f;
+  --on-stamp: #ffffff;
+  --accent: #2b59ff;
+  --on-accent: #ffffff;
+  --success: #12805c;
+  --photo: #ffffff;
+  --thread: #5b5f66;
+  --pin: #d7263d;
+
+  /* Theme-invariant */
+  --photo-ink: #1a1a1a;
+  --photo-muted: #5b5f66;
+  --photo-stamp: #b8202f;
+  --sticker: #ffd23f;
+  --on-sticker: #1a1a1a;
+  --scrim: #000000;
+
+  /* Washi tape: progenitor, Okabe–Ito branch palette, in-law, loose */
+  --tape-progenitor: #d55e00;
+  --tape-1: #e69f00;
+  --tape-2: #56b4e9;
+  --tape-3: #009e73;
+  --tape-4: #f0e442;
+  --tape-5: #0072b2;
+  --tape-6: #cc79a7;
+  --tape-in-law: #b8bcc4;
+  --tape-loose: #c9c9c2;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-settle: 380ms;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #14161c;
+  --paper-grid: #1e2129;
+  --surface: #1c1f27;
+  --ink: #eceae4;
+  --ink-muted: #a4a9b3;
+  --line: #2c303a;
+  --line-strong: #737882;
+  --stamp: #ff5a6e;
+  --stamp-hover: #ff7a8b;
+  --on-stamp: #14161c;
+  --accent: #7c9cff;
+  --on-accent: #14161c;
+  --success: #3ccb91;
+  --photo: #e9e6dd;
+  --thread: #a4a9b3;
+  --pin: #ff5a6e;
+}
+
+/* Before main.tsx sets data-theme, follow the OS so dark-mode users do not see a white flash. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    background-color: #14161c;
+  }
+}
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+
+  --font-ui: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-hand: 'Patrick Hand', 'Be Vietnam Pro', cursive;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --default-font-family: var(--font-ui);
+  --default-mono-font-family: var(--font-mono);
+
+  --radius-photo: 2px;
+  --radius-control: 0.5rem;
+  --radius-pill: 999px;
+
+  --shadow-lift: 0 10px 22px rgb(0 0 0 / 0.13);
+
+  --ease-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-grid: var(--paper-grid);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-stamp: var(--stamp);
+  --color-stamp-hover: var(--stamp-hover);
+  --color-on-stamp: var(--on-stamp);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-photo: var(--photo);
+  --color-photo-ink: var(--photo-ink);
+  --color-photo-muted: var(--photo-muted);
+  --color-photo-stamp: var(--photo-stamp);
+  --color-sticker: var(--sticker);
+  --color-on-sticker: var(--on-sticker);
+  --color-scrim: var(--scrim);
+  --color-thread: var(--thread);
+  --color-pin: var(--pin);
+}

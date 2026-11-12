@@ -225,7 +225,8 @@ Person {                         // một người trong gia phả (KHÔNG phả
     access: 'membership' | 'shareLink',   // liên kết được tạo theo cách nào
     shareLinkId?                          // nếu tạo từ một link chia sẻ
   },                             // index trên treeLink.targetClanId (danh sách liên kết trỏ tới)
-  avatarUrl?, bio?, burialPlace?,
+  photo?: { publicId, version },  // asset trên Cloudinary (§12, lưu trữ ảnh); URL do client dựng
+  bio?, burialPlace?,
   createdAt, updatedAt
 }
 
@@ -373,7 +374,8 @@ src/
     export/         xuất PNG/SVG/PDF, link chia sẻ
     help/           hướng dẫn sử dụng trong app
   shared/
-    ui/             component design system (dựa trên shadcn/ui), DualDateInput, InfoHint
+    ui/             design token, component nền (theo mẫu shadcn/ui trên Radix), thành phần album
+                    (Polaroid, DateMark, Thread, Stitch, Board), giao diện sáng/tối, DualDateInput, InfoHint
     lib/            api client, removeDiacritics, các hàm định dạng
   locales/          vi.json, en.json
   sw/               service worker (vite-plugin-pwa / Workbox)
@@ -433,7 +435,7 @@ Vì dâu/rể không bao giờ mở rộng ngược lên trên (§8), layout là
 |---|---|
 | `onlyRenderVisibleElements` của React Flow | Chỉ vẽ node nằm trong màn hình |
 | `React.memo` cho PersonNode + selector theo id | Sửa một người thì chỉ thẻ đó vẽ lại |
-| Mức chi tiết theo zoom (LOD) | < 0.4: tên + màu chi · 0.4–0.8: + năm sinh–mất · > 0.8: thẻ đầy đủ có ảnh |
+| Mức chi tiết theo zoom (LOD) | < 0.4: một dải băng dính washi màu của chi · 0.4–0.8: nhãn tên dán băng kèm năm sinh–mất · > 0.8: ảnh polaroid đầy đủ có ảnh và tem ngày (§13.3) |
 | Layout trong Web Worker | Tính lại vị trí không làm đơ giao diện |
 | Chỉ tính lại layout khi cấu trúc đổi | Sửa tên hay ngày không phải tính lại vị trí |
 | Thu gọn/mở rộng nhánh | Bớt node khi cây cực lớn |
@@ -451,7 +453,30 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 - React Hook Form + resolver Zod (schema từ `packages/shared`).
 - Bấm vào một người mở **panel bên phải** (bottom sheet trên điện thoại) để xem/sửa. Lưu thì tạo op `updatePerson` chỉ chứa các trường đã đổi.
 - `DualDateInput`: nút chuyển **Âm / Dương / Chỉ biết năm**. Nhập một bên thì hiện bên kia và năm Can Chi. Ô "tháng nhuận" hiện khi chọn Âm.
-- Menu chuột phải (và nút trên thẻ ở thiết bị cảm ứng): Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Nối với cây gia phả khác · Xoá.
+- Menu chuột phải (và nút trên thẻ ở thiết bị cảm ứng): Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… · Nối với cây gia phả khác · Xoá.
+- Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
+
+**Kéo thả để đổi quan hệ (chỉ người có quyền sửa).** Vị trí luôn do layout tính (§7.4); kéo thả không bao giờ lưu một vị trí tự do.
+
+- **Vùng thả.** Thả thẻ A vào ⅓ trên, ⅓ giữa hoặc ⅓ dưới của thẻ B thì A thành **cha/mẹ**, **vợ/chồng** hoặc **con** của B. Các vùng hiện nhãn trên thẻ B khi rê tới, và dòng trạng thái nói chính xác lần thả sẽ làm gì.
+- **Thay thế, không chồng thêm.** Quan hệ trực tiếp đang có giữa A và B (vợ chồng, cha mẹ hoặc con) được thay bằng quan hệ mới. Khi một cặp vợ chồng đổi thành cha mẹ – con, các con chung ở lại với người trở thành con.
+- **Hỏi tiếp thay vì ngõ cụt.**
+  - Nếu B có nhiều vợ/chồng, đặt A làm con của B sẽ hỏi "con của B với ai?" (hoặc "chỉ B").
+  - Nếu B đã có đủ cha và mẹ, đặt A làm cha/mẹ của B sẽ hỏi A thay cho ai.
+  - Nếu một trong hai người có con mới chỉ biết một cha/mẹ, đặt A và B làm vợ chồng sẽ hỏi đó có phải con chung không.
+  - Câu hỏi nào cũng có lựa chọn "Thôi, không đổi".
+- **Chỉ chặn điều không thể.** Lần thả chỉ bị chặn khi tạo ra trạng thái không thể có, ví dụ một người thành tổ tiên của chính mình qua người khác. Vùng bị chặn được gạch ngang kèm lý do trước khi thả, và lý do chỉ cách làm tiếp. Bước kiểm tra chạy đúng `applyOp` của server, nên giao diện không bao giờ nhận một lần thả mà server sẽ từ chối.
+- **Hoàn tác.** Mỗi lần thả thành công là một op `batch`, tức là một bước hoàn tác. Một thông báo xác nhận thay đổi kèm nút "Hoàn tác".
+- **Huỷ khi đang kéo.** Bấm Esc, hoặc thả thẻ ra chỗ trống cách vị trí cũ hơn khoảng một tấm ảnh.
+- **Cắt chỉ.**
+  - Bấm vào sợi chỉ hoặc ghim đỏ của nó, hay nút tròn giữa hai vợ chồng, để hiện nút **Cắt chỉ**.
+  - Cắt sợi chỉ cha mẹ → con là `setParents(null)`.
+  - Cắt quan hệ vợ chồng có con chung sẽ hỏi các con ở lại với ai; người còn lại được gỡ khỏi Union đó bằng `updateUnion`.
+  - Ly hôn mà cả hai vẫn là cha mẹ thì ghi trạng thái Union `divorced` (đường khâu đứt quãng), không cắt chỉ.
+- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào cột **Ảnh chưa dán** chứ không bị xoá. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây.
+- **Xê dịch.** Thả thẻ cách vị trí cũ chưa tới khoảng một tấm ảnh thì thẻ giữ một độ lệch hiển thị nhỏ, giúp sợi chỉ ngắn vẫn dễ bấm. Độ lệch lưu theo từng máy (localStorage), không phải op và không chia sẻ cho người khác. Nút **Xếp lại gọn** xoá hết độ lệch.
+- **Cảm ứng.** Nhấn giữ khoảng 400 ms để nhấc thẻ lên; vuốt bình thường vẫn là di chuyển cây.
+- **Bàn phím và trình đọc màn hình.** Mục **Đổi quan hệ…** trong menu của thẻ liệt kê từng quan hệ kèm nút **Gỡ**, và có các lựa chọn thêm hoặc thay như trên.
 
 ### 7.7 PWA
 
@@ -464,7 +489,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 ### 7.8 Responsive & khả năng tiếp cận
 
 - Kéo/zoom bằng cảm ứng (React Flow có sẵn); panel thành bottom sheet trên màn hình nhỏ.
-- Bàn phím: Tab qua các thẻ, Enter mở hồ sơ, phím mũi tên di chuyển giữa cha/con/anh chị em.
+- Bàn phím: Tab qua các thẻ, Enter mở hồ sơ, phím mũi tên di chuyển giữa cha/con/anh chị em. "Đổi quan hệ…" trong menu của thẻ là cách dùng bàn phím thay cho kéo thả (§7.6).
 - Độ tương phản đạt WCAG AA. Mỗi thẻ có `aria-label` gồm tên, năm sinh–mất, đời.
 
 ---
@@ -686,9 +711,30 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
 - Phiên đăng nhập: **JWT** trong cookie `httpOnly; Secure; SameSite=Lax`. Access token 15 phút; refresh token 30 ngày, có xoay vòng.
 - Mọi route `/clans/:id/*` kiểm tra Membership + vai trò ở middleware. Không bao giờ tin `clanId` trong body; luôn kiểm tra `Person.clanId === :id`.
 - `helmet`, `express-rate-limit` (đăng nhập: 5 lần/phút/IP; API chung: 300 lần/phút/user).
-- Upload ảnh: client xin **chữ ký upload** từ API rồi upload thẳng lên Cloudinary; tối đa 2 MB; chỉ jpg/png/webp.
+- Upload ảnh: client xin **chữ ký upload** từ API rồi upload thẳng lên Cloudinary; tối đa 2 MB; chỉ jpg/png/webp. Đường dẫn và các bước kiểm tra: xem "Lưu trữ ảnh" bên dưới.
 - `/internal/*` yêu cầu `X-Cron-Secret` khớp biến môi trường.
 - Token mời/chia sẻ: 32 ký tự từ `crypto.randomBytes`.
+
+### Lưu trữ ảnh (Cloudinary)
+
+Một cloud Cloudinary dùng cho mọi môi trường. API quyết định mọi đường dẫn; trình duyệt không bao giờ tự chọn.
+
+```
+ancestors-tree/                      gốc trên Cloudinary
+├─ dev/                              CLOUDINARY_FOLDER=ancestors-tree/dev (chạy trên máy)
+└─ prod/                             CLOUDINARY_FOLDER=ancestors-tree/prod (Render)
+   └─ clans/<clanId>/
+      └─ people/<personId>/
+         └─ <ngẫu nhiên>             mỗi ảnh tải lên là một asset
+```
+
+- **Theo dòng họ, rồi theo người.** Xoá một dòng họ thì xoá theo tiền tố `…/clans/<clanId>/`; xoá hẳn một người thì xoá `…/people/<personId>/`. Dung lượng của từng dòng họ đo được theo tiền tố.
+- **Không có tên người trong đường dẫn.** ID là ID trong cơ sở dữ liệu, đoạn cuối là 16 ký tự ngẫu nhiên (`crypto.randomBytes`). URL ảnh có thể lộ ra (ảnh chụp màn hình, lịch sử trình duyệt), nên nó không chứa tên hay ngày tháng và không đoán được.
+- **API ký từng lần upload.** `POST /api/clans/:id/people/:personId/photo-upload` (Editor hoặc Owner) ký đúng các tham số: `public_id` (đường dẫn đầy đủ), `asset_folder` (phần thư mục của nó, để cả hai chế độ thư mục của Cloudinary cho ra cùng một cây), `allowed_formats=jpg,png,webp`, `tags=clan_<clanId>` và phép biến đổi khi nhận `c_limit,w_1600,h_1600`, vốn mã hoá lại ảnh và bỏ siêu dữ liệu (kể cả vị trí GPS). Client từ chối file trên 2 MB trước khi upload.
+- **Kiểm tra khi lưu.** Client lưu `photo: { publicId, version }` bằng một op `updatePerson` bình thường. Server chỉ chấp nhận khi `publicId` bắt đầu bằng tiền tố của đúng dòng họ và người đó, và asset tồn tại với dung lượng tối đa 2 MB (Admin API); nếu không thì trả 422 và xoá asset.
+- **Giữ ảnh cũ** chừng nào còn op tham chiếu tới nó có thể hoàn tác hoặc khôi phục (§6.4). Dọn các asset không còn ai dùng để sang Giai đoạn 2.
+- **Hiển thị.** Trình duyệt tự dựng URL từ tên cloud công khai (`VITE_CLOUDINARY_CLOUD_NAME`), `publicId`, `version` và các phép biến đổi có tên: polaroid `c_fill,g_face,w_172,h_148,f_auto,q_auto` (gấp đôi vùng ảnh 86×74), hồ sơ `c_fill,g_face,w_480,h_480,f_auto,q_auto`. Link chia sẻ (§11) bỏ `photo` của người còn sống ngay trên server, nên URL ảnh của họ không bao giờ được gửi đi.
+- **Bí mật.** `CLOUDINARY_URL` (API key và secret) chỉ nằm trong biến môi trường của API.
 
 ---
 
@@ -709,23 +755,61 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
 
 Skeleton có hình dạng giống nội dung thật (không dùng vòng xoay chung chung ở các trang chính). Dòng họ trống → hướng dẫn bước đầu ("Thêm thuỷ tổ"). Danh sách giỗ trống → giải thích cần gì (ngày mất âm lịch).
 
-### 13.3 Hướng thiết kế: "modern heritage" (chống AI-slop)
+### 13.3 Hướng thiết kế: "album gia đình" (chống AI-slop)
 
-Giao diện không được trông như template SaaS do AI sinh ra.
+Giao diện không được trông như template SaaS do AI sinh ra. Đối tượng chính là các thành viên trẻ trong gia đình, nhưng người lớn tuổi vẫn phải đọc dễ, và giao diện phải hợp khi thêm nhắc sinh nhật sau này.
 
-**Hướng đi:** cảm giác điềm tĩnh, mang chất lưu trữ, lấy cảm hứng từ sơn mài và giấy dó Việt Nam — nền ấm màu giấy, chữ màu mực đậm, một màu nhấn đỏ sơn mài tiết chế và một màu vàng nhũ trầm cho điểm nhấn, khoảng trắng rộng rãi, font serif tinh tế cho tiêu đề kết hợp font sans-serif gọn gàng cho chữ giao diện. Cả hai font phải hỗ trợ đầy đủ dấu tiếng Việt (chốt font cụ thể ở bước design system, tuần 1).
+**Hướng đi:** một cuốn album gia đình bày trên giấy kẻ ô. Mỗi chi tiết trang trí đều mang thông tin:
+
+| Chi tiết | Ý nghĩa |
+|---|---|
+| Ảnh polaroid | một người: ảnh (hoặc chữ cái đầu trên nền màu nhạt) và chú thích viết tay |
+| Màu băng dính washi | chi của người đó, lấy từ bảng màu Okabe–Ito an toàn cho người mù màu. Thuỷ tổ dán băng đỏ cam; dâu/rể dán băng xám trung tính |
+| Sợi chỉ có ghim đỏ ở cuối | cha mẹ → con |
+| Đường khâu chấm chấm có nút tròn | vợ chồng |
+| Con dấu đỏ | ngày giỗ (ngày âm lịch) |
+| Sticker vàng tròn | sinh nhật |
+| Cột "Ảnh chưa dán" | người chưa nối với cây (§7.6) |
+
+Mỗi thẻ nghiêng nhẹ theo một góc tính từ id của người đó (±2,5°). Bảng trông như làm tay, nhưng một thẻ không bao giờ đổi góc nghiêng giữa các lần vẽ.
+
+**Token màu** (sáng = "giấy kẻ ô ban ngày", tối = "bàn làm việc ban đêm"). Giấy ảnh polaroid luôn sáng ở cả hai giao diện.
+
+| Token | Sáng | Tối | Dùng cho |
+|---|---|---|---|
+| `paper` / `paper-grid` | #FAFAF8 / #ECECE7 | #14161C / #1E2129 | nền trang và nền bảng, ô kẻ 22 px |
+| `surface` | #FFFFFF | #1C1F27 | panel, hộp thoại, ô nhập |
+| `ink` / `ink-muted` | #1A1A1A / #5B5F66 | #ECEAE4 / #A4A9B3 | chữ |
+| `line` / `line-strong` | #E2E2DC / #8A8F98 | #2C303A / #737882 | viền trang trí / viền của nút và ô nhập (≥ 3:1) |
+| `stamp` / `on-stamp` | #D7263D / #FFFFFF | #FF5A6E / #14161C | ngày giỗ, thao tác xoá |
+| `stamp-hover` | #B8202F | #FF7A8B | khi rê chuột lên thao tác xoá (giữ `on-stamp` đạt 4.5:1) |
+| `accent` / `on-accent` | #2B59FF / #FFFFFF | #7C9CFF / #14161C | liên kết, viền focus, lựa chọn |
+| `success` | #12805C | #3CCB91 | "máy chủ đang hoạt động" và các trạng thái ổn |
+| `thread` / `pin` | #5B5F66 / #D7263D | #A4A9B3 / #FF5A6E | đường quan hệ |
+| `photo`, `photo-ink`, `photo-muted`, `photo-stamp` | #FFFFFF, #1A1A1A, #5B5F66, #B8202F | #E9E6DD, mực giữ nguyên | giấy ảnh và chữ in trên ảnh |
+| `sticker` / `on-sticker` | #FFD23F / #1A1A1A | giữ nguyên | sticker sinh nhật |
+| `tape-*` | thuỷ tổ #D55E00; các chi #E69F00, #56B4E9, #009E73, #F0E442, #0072B2, #CC79A7; dâu/rể #B8BCC4; chưa dán #C9C9C2 | giữ nguyên | băng dính washi |
+
+Các cặp chữ/nền đạt chuẩn WCAG AA (4,5:1), còn viền và đường nối đạt 3:1. Một unit test kiểm tra mọi cặp ở cả hai giao diện.
+
+**Chữ:** cả ba phông đều tự host kèm bộ ký tự tiếng Việt.
+- **Be Vietnam Pro**: chữ giao diện và tiêu đề (700, giãn chữ −0,02em).
+- **Patrick Hand**: chỉ dùng cho chú thích trên ảnh và ghi chú viết tay, không bao giờ dùng cho nút hay chữ nội dung.
+- **JetBrains Mono**: ngày tháng, con dấu và con số.
 
 **Checklist chống AI-slop (S9):**
 - ❌ Không gradient tím/chàm, không glassmorphism, không đốm sáng phát quang, không dùng emoji làm icon.
-- ❌ Không dùng giao diện shadcn mặc định nguyên si: phải tuỳ biến token (màu, bo góc, khoảng cách, cỡ chữ, đổ bóng) trước.
-- ❌ Không landing page kiểu "hero + ba thẻ tính năng"; landing page hiển thị một cây gia phả thật.
+- ❌ Không dùng giao diện shadcn mặc định nguyên si: phải tuỳ biến token (màu, bo góc, khoảng cách, cỡ chữ, đổ bóng) trước, và bỏ bảng màu mặc định của Tailwind để chỉ dùng được token.
+- ❌ Không landing page kiểu "hero + ba thẻ tính năng"; landing page hiển thị một cây gia phả thật (cây mẫu).
 - ❌ Không để thẻ xám giống hệt nhau khắp nơi; thứ bậc thị giác đến từ chữ, khoảng cách và vài điểm nhấn có chủ đích.
-- ✅ Màu các chi lấy từ một bảng màu chọn lọc, an toàn cho người mù màu, xây bằng OKLCH, không chọn màu ngẫu nhiên.
-- ✅ Thiết kế cả giao diện sáng và tối (tối = "đen sơn mài").
-- ✅ Chuyển động ngắn và có mục đích (bay tới, trượt panel); tôn trọng `prefers-reduced-motion`.
-- ✅ Icon từ một bộ thống nhất (Lucide), cùng độ dày nét.
+- ❌ Không đổ bóng cho thẻ đang nằm yên; chỉ có độ nổi khi thẻ đang được nhấc lên (kéo).
+- ❌ Không trang trí vô nghĩa: màu băng dính, sợi chỉ, đường khâu, con dấu và sticker luôn mang dữ liệu.
+- ✅ Màu các chi lấy từ bảng màu Okabe–Ito an toàn cho người mù màu, không chọn màu ngẫu nhiên.
+- ✅ Thiết kế cả giao diện sáng và tối (tối = "bàn làm việc ban đêm").
+- ✅ Chuyển động ngắn và có mục đích (thẻ trôi về chỗ, bay tới, trượt panel); tôn trọng `prefers-reduced-motion`.
+- ✅ Icon từ một bộ thống nhất (Lucide), nét dày 1,75.
 
-Design token nằm ở `apps/web/src/shared/ui/tokens.css` (biến CSS được Tailwind sử dụng).
+Design token nằm ở `apps/web/src/shared/ui/tokens.css` (biến CSS được đưa vào Tailwind bằng `@theme`). Trang `/design` hiển thị mọi token và component ở cả hai giao diện.
 
 ---
 
@@ -767,7 +851,7 @@ Design token nằm ở `apps/web/src/shared/ui/tokens.css` (biến CSS được 
 | Web | **Netlify** | Tài khoản tạo từ 04/09/2025 có 300 credit/tháng; mỗi lần deploy production tốn 15 (~20 lần/tháng) → **chỉ deploy khi merge `main`, tắt deploy preview**. Hết credit thì site tạm dừng tới tháng sau. Dự phòng: Cloudflare Pages |
 | API | Render | Ngủ sau 15 phút không dùng → có màn hình chờ khởi động |
 | Database | MongoDB Atlas M0 | 512 MB, có transaction |
-| Ảnh | Cloudinary | |
+| Ảnh | Cloudinary | Gói miễn phí: 25 credit/tháng (tính chung dung lượng, băng thông và biến đổi ảnh); một cloud, dev và prod tách bằng thư mục (§12) |
 | Email | Resend | 3.000 email/tháng |
 | Push | Web Push (VAPID) | Miễn phí |
 | Cron chính | Cloudflare Workers Cron Trigger | Free: 5 trigger/tài khoản, tối đa 15 phút mỗi lần chạy |
@@ -888,3 +972,6 @@ Biến môi trường được mô tả trong `apps/*/.env.example` (không ch�
 | Host web | Netlify | Đã quen; cho phép thương mại; chỉ deploy từ `main` |
 | Kích hoạt nhắc giỗ | Cloudflare Worker Cron + cron-job.org dự phòng + Sentry giám sát + bắt kịp | Không phụ thuộc commit; chịu được cold start; ngày lỡ được gửi trễ chứ không mất |
 | Tài liệu | Hướng dẫn sử dụng + OpenAPI tự sinh + mã lỗi tự sinh + ADR | Đo được (S8); thể hiện sự chuyên nghiệp |
+| Hướng thiết kế | "Album gia đình" trên giấy kẻ ô: ảnh polaroid, màu băng dính = chi, sợi chỉ, tem và sticker (§13.3) | Hợp với người trẻ, có chỗ cho nhắc sinh nhật; mọi chi tiết trang trí đều mang thông tin |
+| Sửa quan hệ | Kéo thả trên bảng, có cắt chỉ, câu hỏi tiếp theo và hoàn tác; menu bàn phím để thay thế (§7.6) | Sửa nhầm trực tiếp, không bao giờ vào ngõ cụt |
+| Lưu trữ ảnh | Một cloud Cloudinary, `ancestors-tree/<env>/clans/<clanId>/people/<personId>/<ngẫu nhiên>`, API ký và kiểm tra mọi lần upload (§12) | Xoá dòng họ hay một người theo tiền tố; URL không lộ tên; dev và prod tách nhau mà không cần tài khoản thứ hai |

@@ -8,7 +8,51 @@ describe('loadConfig', () => {
       PORT: 3000,
       LOG_LEVEL: 'info',
       APP_VERSION: '0.0.0-dev',
+      CLOUDINARY_FOLDER: 'ancestors-tree/dev',
     });
+  });
+
+  it('accepts MongoDB and Cloudinary settings', () => {
+    const config = loadConfig({
+      // Obviously fake values: a credential-shaped fixture gets flagged by GitHub secret scanning.
+      MONGODB_URI: 'mongodb+srv://db.example.test/ancestors-tree-dev?retryWrites=true',
+      CLOUDINARY_URL: 'cloudinary://test-key:test-secret@example-cloud',
+      CLOUDINARY_FOLDER: 'ancestors-tree/prod',
+    });
+    expect(config.MONGODB_URI).toMatch(/^mongodb\+srv:/);
+    expect(config.CLOUDINARY_URL).toMatch(/^cloudinary:/);
+    expect(config.CLOUDINARY_FOLDER).toBe('ancestors-tree/prod');
+  });
+
+  it('treats empty MongoDB and Cloudinary values as not set', () => {
+    const config = loadConfig({ MONGODB_URI: '', CLOUDINARY_URL: '' });
+    expect(config.MONGODB_URI).toBeUndefined();
+    expect(config.CLOUDINARY_URL).toBeUndefined();
+  });
+
+  it('requires a database name in MONGODB_URI', () => {
+    expect(() =>
+      loadConfig({
+        MONGODB_URI: 'mongodb+srv://db.example.test/?retryWrites=true',
+      }),
+    ).toThrow(/MONGODB_URI/);
+  });
+
+  it('rejects a malformed CLOUDINARY_URL without echoing the secret', () => {
+    let message = '';
+    try {
+      loadConfig({ CLOUDINARY_URL: 'https://top-secret-value@my-cloud' });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/CLOUDINARY_URL/);
+    expect(message).not.toContain('top-secret-value');
+  });
+
+  it('rejects a CLOUDINARY_FOLDER with leading or trailing slashes', () => {
+    expect(() => loadConfig({ CLOUDINARY_FOLDER: '/ancestors-tree/' })).toThrow(
+      /CLOUDINARY_FOLDER/,
+    );
   });
 
   it('coerces PORT from a string', () => {

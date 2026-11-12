@@ -12,6 +12,7 @@ export default defineConfig({
         '**/src/test/**',
         'apps/api/src/server.ts',
         'apps/web/src/main.tsx',
+        'apps/web/src/styles/**',
       ],
       reporter: ['text-summary', 'html'],
       thresholds: {

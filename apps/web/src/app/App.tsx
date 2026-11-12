@@ -1,17 +1,8 @@
-import { useTranslation } from 'react-i18next';
-import { ServerStatus } from '../features/system';
+import { useState } from 'react';
+import { createBrowserRouter, RouterProvider } from 'react-router';
+import { routes } from './routes';
 
 export function App() {
-  const { t } = useTranslation();
-  return (
-    <>
-      <header>
-        <h1>{t('app.name')}</h1>
-        <p>{t('app.tagline')}</p>
-      </header>
-      <main>
-        <ServerStatus />
-      </main>
-    </>
-  );
+  const [router] = useState(() => createBrowserRouter(routes));
+  return <RouterProvider router={router} />;
 }

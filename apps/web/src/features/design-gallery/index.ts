@@ -1,0 +1,1 @@
+export { DesignGalleryPage } from './DesignGalleryPage';
