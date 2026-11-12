@@ -1,0 +1,27 @@
+{
+  "name": "@ancestors-tree/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.ts",
+    "start": "node --env-file-if-exists=.env src/server.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ancestors-tree/shared": "workspace:*",
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@scalar/express-api-reference": "^0.10.36",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.2"
+  }
+}

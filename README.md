@@ -2,7 +2,9 @@
 
 A collaborative family-tree (gia phả) platform for Vietnamese families: build and co-edit large genealogy trees, link trees across families, and get reminded of death anniversaries computed from the Vietnamese lunar calendar.
 
-> 🚧 **Status:** design phase — implementation has not started yet.
+> 🚧 **Status:** foundation in place (monorepo, API skeleton with generated OpenAPI docs, web skeleton, CI). Feature work in progress — see the [roadmap](docs/superpowers/plans/2026-11-12-roadmap.md).
+
+[![CI](https://github.com/19anim/ancestors-tree/actions/workflows/ci.yml/badge.svg)](https://github.com/19anim/ancestors-tree/actions/workflows/ci.yml)
 
 ## Highlights (planned)
 
@@ -17,6 +19,18 @@ A collaborative family-tree (gia phả) platform for Vietnamese families: build 
 ## Tech stack
 
 pnpm monorepo · React 19 + TypeScript + Vite · TanStack Query · Zustand · React Flow · Tailwind + shadcn/ui · Express · MongoDB (Mongoose) · Zod · Vitest · Playwright
+
+## Quick start
+
+```bash
+pnpm install
+cp apps/api/.env.example apps/api/.env
+pnpm dev
+```
+
+- Web: http://localhost:5173
+- API reference: http://localhost:3000/api/docs
+- More: [CONTRIBUTING.md](CONTRIBUTING.md) · [API error codes](docs/error-codes.md) · [ADRs](docs/adr/)
 
 ## Design docs
 

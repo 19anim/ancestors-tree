@@ -1,0 +1,36 @@
+{
+  "name": "ancestors-tree",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter \"./apps/*\" run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "docs:errors": "node packages/shared/scripts/generate-error-docs.ts",
+    "docs:errors:check": "node packages/shared/scripts/generate-error-docs.ts --check",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm docs:errors:check && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "@vitest/coverage-v8": "^5.1.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}

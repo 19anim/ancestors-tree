@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+coverage/
+dist/
+dev-dist/
+docs/superpowers/
+docs/error-codes.md
+.superpowers/
