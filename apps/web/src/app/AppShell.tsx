@@ -27,7 +27,7 @@ export function AppShell() {
       </a>
 
       <header className="border-b border-line">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <Link to="/" className="relative text-lg font-bold tracking-tight text-ink">
             {t('app.name')}
             <span
@@ -35,8 +35,11 @@ export function AppShell() {
               className="absolute -bottom-1 left-0 h-1.5 w-10 -rotate-2 bg-(--tape-progenitor) opacity-85"
             />
           </Link>
-          <nav aria-label={t('nav.primary')} className="flex-1">
-            <ul className="flex flex-wrap gap-1">
+          <nav
+            aria-label={t('nav.primary')}
+            className="order-last basis-full sm:order-none sm:basis-auto sm:flex-1"
+          >
+            <ul className="flex gap-1">
               <li>
                 <NavLink to="/" end className={navLinkClass}>
                   {t('nav.home')}
