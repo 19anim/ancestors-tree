@@ -15,9 +15,9 @@ P3 adds accounts: email and password, Google sign-in, password reset by email, a
 
 - The access token is a JWT (HS256, 15 minutes, cookie `at`, path `/api`). The API verifies it on every request without touching the database.
 - The refresh token is a random opaque value (cookie `rt`, path `/api/auth`, 30 days). Only its SHA-256 hash is stored (`Session`), so a database leak does not yield usable tokens. Every refresh issues a new token and marks the old one used. Using an old token again revokes its whole family, which signs out whoever holds the stolen copy and the real user alike, and the real user signs in again.
-- Sessions can therefore be revoked (sign out, password reset, a Google takeover) without checking the database on every request.
+- Sessions can therefore be revoked (sign out, password reset, a Google takeover) without checking the database on every request. Signing in (password, register, reset or Google) also revokes the family of any refresh cookie the browser already had, so an old session does not stay alive beside the new one.
 
-**A 10-second window for concurrent refreshes.** Two tabs often refresh at the same moment with the same cookie. A token used again within 10 seconds of its first use is treated as such a concurrent refresh and answered like any other refresh; only a reuse after 10 seconds counts as theft and revokes the family.
+**A 10-second window for concurrent refreshes.** Two tabs often refresh at the same moment with the same cookie. A token used again within 10 seconds of its first use is treated as such a concurrent refresh and answered with a 204 that sets no new cookies (the other tab already holds the new ones); only a reuse after 10 seconds counts as theft and revokes the family.
 
 **Known limit.** Revoking a session does not invalidate an access token already issued: it stays valid for up to 15 minutes. We accept this to keep request checks stateless; the window is short and every refresh after it fails.
 
@@ -27,7 +27,11 @@ P3 adds accounts: email and password, Google sign-in, password reset by email, a
 
 **Password reset.** A link valid for 1 hour and usable once, with the token in the URL fragment so it is not sent to servers or logs; only its hash is stored. The request answers the same whether or not the email exists, and a reset signs out every device. Emails go through a `Mailer` interface (Resend, the log in development, memory in tests).
 
-**Invite tokens are stored in plain text.** Unlike refresh and reset tokens, the `Invite` token is stored as is, so the clan Owner can copy a link again later. An invite expires after 7 days, can be revoked (the document is deleted), and only grants membership with the role the Owner chose, never access to an account.
+**Invite tokens are stored in plain text.** Unlike refresh and reset tokens, the `Invite` token is stored as is, so the clan Owner can copy a link again later. An invite expires after 7 days, can be revoked (the document is deleted), and only grants membership with the role the Owner chose, never access to an account. Removing a member records the removal: that person cannot join with any invite created before it (accept answers `FORBIDDEN`, 403), while a link created afterwards works. A member who left on their own can rejoin with any active link.
+
+**Rate limits.** The per-IP limits (5/min per endpoint) are not enough alone, because the client IP behind two proxies is only as trustworthy as the proxy chain. Login also has a limit of 10 attempts per 15 minutes per email, and forgot-password still answers 204 every time but sends at most one email per user per 60 seconds and 5 per 24 hours, which keeps the mail quota safe from a flood aimed at one address.
+
+**Logs hold no secrets.** The API logger masks invite tokens, the Google `code`, `state` and `returnTo`, and reset URLs, and redacts the `Referer` and `Location` headers. In production `APP_ORIGIN` and `TRUST_PROXY_HOPS` are required at boot, so a missing value fails fast instead of falling back to a development default.
 
 ## Consequences
 

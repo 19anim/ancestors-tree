@@ -96,6 +96,8 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 
 Một User có thể thuộc nhiều dòng họ với vai trò khác nhau (ví dụ họ nội và họ ngoại).
 
+**Thành viên bị xoá.** Khi Chủ họ xoá một thành viên, người đó không thể tham gia lại bằng bất kỳ link mời nào tạo trước lúc xoá (chấp nhận link sẽ trả `FORBIDDEN`, 403); link tạo sau lúc xoá thì dùng được. Người tự rời họ thì có thể tham gia lại bằng bất kỳ link nào còn hiệu lực.
+
 ---
 
 ## 4. Kiến trúc
@@ -758,9 +760,10 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
   - **CSRF:** `SameSite=Lax` cộng kiểm tra header `Origin` trên mọi request `/api` không phải GET (request mang `Origin` lạ bị từ chối; trình duyệt luôn gửi `Origin` khi ghi chéo trang).
   - **Đăng nhập Google:** qua chuyển hướng (authorization code + PKCE, `state` và `nonce` giữ trong cookie sống ngắn); chỉ nhận email Google đã xác minh. Đăng nhập Google tiếp quản tài khoản có email chưa từng được xác minh bằng cách xoá mật khẩu và đăng xuất khỏi mọi thiết bị.
   - **Đặt lại mật khẩu:** link có hiệu lực 1 giờ, dùng một lần, token nằm trong phần fragment của URL (`/reset-password#token=…`) nên không gửi tới máy chủ hay log. Yêu cầu luôn trả lời giống nhau dù email có tồn tại hay không. Đặt lại mật khẩu sẽ đăng xuất mọi thiết bị.
-  - **Sau proxy:** `trust proxy` đặt theo số tầng proxy (`TRUST_PROXY_HOPS`); logger che cookie và `Authorization`.
+  - **Đăng nhập khi đã có phiên:** mỗi lần đăng nhập (mật khẩu, đăng ký, đặt lại mật khẩu hoặc Google) thu hồi cả họ token của cookie refresh mà trình duyệt đang giữ.
+  - **Sau proxy:** `trust proxy` đặt theo số tầng proxy (`TRUST_PROXY_HOPS`); ở production, `APP_ORIGIN` và `TRUST_PROXY_HOPS` là bắt buộc khi khởi động. Logger che cookie và `Authorization`, che token mời, `code`, `state` và `returnTo` của Google cùng URL đặt lại mật khẩu, và ẩn các header `Referer` và `Location`.
 - Mọi route `/clans/:id/*` kiểm tra Membership + vai trò ở middleware. Không bao giờ tin `clanId` trong body; luôn kiểm tra `Person.clanId === :id`.
-- `helmet`, `express-rate-limit` (đăng nhập, đăng ký, quên mật khẩu và đặt lại mật khẩu: 5 lần/phút theo từng IP và từng endpoint; API chung: 300 lần/phút/user).
+- `helmet`, `express-rate-limit` (đăng nhập, đăng ký, quên mật khẩu và đặt lại mật khẩu: 5 lần/phút theo từng IP và từng endpoint; API chung: 300 lần/phút/user). Đăng nhập còn có giới hạn thứ hai: 10 lần thử trong 15 phút cho mỗi email (`RATE_LIMITED`, 429), nên dò mật khẩu qua nhiều IP cũng không thoát. Quên mật khẩu vẫn luôn trả 204, nhưng mỗi người dùng chỉ được gửi tối đa một email mỗi 60 giây và 5 email mỗi 24 giờ.
 - Upload ảnh: client xin **chữ ký upload** từ API rồi upload thẳng lên Cloudinary; tối đa 2 MB; chỉ jpg/png/webp. Đường dẫn và các bước kiểm tra: xem "Lưu trữ ảnh" bên dưới.
 - `/internal/*` yêu cầu `X-Cron-Secret` khớp biến môi trường.
 - Token mời/chia sẻ: 32 ký tự từ `crypto.randomBytes`.

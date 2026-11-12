@@ -94,6 +94,8 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 
 A User may belong to several clans with different roles (e.g. paternal and maternal families).
 
+**Removed members.** When the Owner removes a member, that person can no longer join with any invite link created before the removal (accepting it answers `FORBIDDEN`, 403); a link created after the removal works. A member who left on their own can rejoin with any active link.
+
 ---
 
 ## 4. Architecture
@@ -756,9 +758,10 @@ The prompt instructs the AI to: return only JSON in this format; never invent in
   - **CSRF:** `SameSite=Lax` plus an `Origin` check on every non-GET `/api` request (a request with a foreign `Origin` is rejected; browsers always send one on cross-site writes).
   - **Google sign-in:** by redirect (authorization code + PKCE, `state` and `nonce` kept in a short-lived cookie); only verified Google emails are accepted. A Google sign-in takes over an account whose email was never verified by clearing its password and signing it out everywhere.
   - **Password reset:** a link valid for 1 hour and usable once, with the token in the URL fragment (`/reset-password#token=…`) so it is not sent to servers or logs. The request answers the same whether or not the email exists. A reset signs out every device.
-  - **Behind proxies:** `trust proxy` is set to the number of hops (`TRUST_PROXY_HOPS`); the logger redacts cookies and `Authorization`.
+  - **Signing in over an existing session:** a sign-in (password, register, reset or Google) revokes the session family of any refresh cookie the browser already had.
+  - **Behind proxies:** `trust proxy` is set to the number of hops (`TRUST_PROXY_HOPS`); in production `APP_ORIGIN` and `TRUST_PROXY_HOPS` are required at boot. The logger redacts cookies and `Authorization`, masks invite tokens, the Google `code`, `state` and `returnTo` and password reset URLs, and redacts the `Referer` and `Location` headers.
 - Every `/clans/:id/*` route checks Membership + role in middleware. A `clanId` in the request body is never trusted; `Person.clanId === :id` is always verified.
-- `helmet`, `express-rate-limit` (sign-in, sign-up, forgot-password and reset-password: 5/min per IP and endpoint; general API: 300/min/user).
+- `helmet`, `express-rate-limit` (sign-in, sign-up, forgot-password and reset-password: 5/min per IP and endpoint; general API: 300/min/user). Sign-in has a second limit of 10 attempts per 15 minutes per email (`RATE_LIMITED`, 429), so spreading guesses over many IPs does not help. Forgot-password still always answers 204, but sends at most one email per user per 60 seconds and at most 5 per 24 hours.
 - Image upload: the client requests a **signed upload** from the API, then uploads directly to Cloudinary; max 2 MB; jpg/png/webp only. Paths and checks: "Image storage" below.
 - `/internal/*` requires `X-Cron-Secret` to match an environment variable.
 - Invite/share tokens: 32 chars from `crypto.randomBytes`.
