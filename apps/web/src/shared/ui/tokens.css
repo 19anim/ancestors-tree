@@ -35,7 +35,6 @@
   /* Theme-invariant */
   --photo-ink: #1a1a1a;
   --photo-muted: #5b5f66;
-  --photo-stamp: #b8202f;
   --sticker: #ffd23f;
   --on-sticker: #1a1a1a;
   --scrim: #000000;
@@ -123,7 +122,6 @@
   --color-photo: var(--photo);
   --color-photo-ink: var(--photo-ink);
   --color-photo-muted: var(--photo-muted);
-  --color-photo-stamp: var(--photo-stamp);
   --color-sticker: var(--sticker);
   --color-on-sticker: var(--on-sticker);
   --color-scrim: var(--scrim);

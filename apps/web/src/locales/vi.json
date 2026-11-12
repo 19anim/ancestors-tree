@@ -19,12 +19,13 @@
     "galleryLink": "Xem bộ thiết kế",
     "boardLabel": "Cây gia phả mẫu",
     "boardScroll": "Khung cuộn ngang của cây gia phả mẫu",
-    "legend": "Sợi chỉ có ghim đỏ nối cha mẹ với con · đường khâu nối vợ chồng · tem đỏ là ngày giỗ · sticker vàng là sinh nhật."
+    "legend": "Sợi chỉ có ghim đỏ nối cha mẹ với con · đường khâu nối vợ chồng · dòng chữ dưới tên là ngày giỗ (âm lịch) · sticker bánh kem là sinh nhật."
   },
   "scrapbook": {
     "personLabel": "{{name}}, {{years}}",
-    "deathAnniversary": "Giỗ {{date}}",
-    "birthday": "SN {{date}}"
+    "deathAnniversary": "Giỗ {{date}} ÂL",
+    "deathAnniversaryLabel": "Ngày giỗ {{date}} âm lịch",
+    "birthday": "Sinh nhật {{date}}"
   },
   "nav": {
     "skipToContent": "Bỏ qua, tới nội dung chính",
@@ -58,7 +59,7 @@
       "display": "Gia phả họ Nguyễn",
       "body": "Mỗi người là một tấm ảnh. Màu băng dính cho biết người đó thuộc chi nào.",
       "hand": "Ông nội giỗ rằm tháng Mười",
-      "mono": "GIỖ 15/10 · SN 21/11 · 1931–2004"
+      "mono": "Giỗ 15/10 ÂL · 21/11 · 1931–2004"
     },
     "controls": {
       "primary": "Lưu thay đổi",
@@ -83,7 +84,7 @@
       "strip": "Thu nhỏ: dải băng dính"
     },
     "marks": {
-      "note": "Tem đỏ là ngày giỗ (âm lịch), sticker vàng là sinh nhật."
+      "note": "Ngày giỗ (âm lịch) là một dòng chữ nhỏ dưới tên; sticker bánh kem là sinh nhật."
     },
     "threads": {
       "note": "Sợi chỉ có ghim đỏ nối cha mẹ với con. Đường khâu có nút tròn nối vợ chồng."

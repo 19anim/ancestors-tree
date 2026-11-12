@@ -49,6 +49,7 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 | Dâu/rể | Thẻ dâu/rể đặt cạnh vợ/chồng kèm thông tin gia đình gốc, chế độ "ẩn dâu/rể", cài đặt số đời con cháu của con gái (§8) |
 | Liên kết cây gia phả | Nối bất kỳ người nào với chính người đó trong một cây gia phả khác đã được chia sẻ; di chuột vào thấy dấu hiệu + bản xem trước, bấm vào mở cây đó và bay tới đúng người, có breadcrumb để quay lại (§8.1) |
 | Hồ sơ người | Tên, các tên khác (tên huý, tên tự, tên thường gọi), giới tính, ngày sinh & mất (âm và/hoặc dương, hoặc chỉ biết năm), nơi an táng, ảnh, tiểu sử |
+| Chủ đề cây | Trang trí bảng: nền, khung ảnh polaroid, đồ giữ ảnh, kiểu chỉ và đường khâu cho cả cây, cùng khung ảnh và đồ giữ ảnh cho riêng từng thẻ; mỗi lựa chọn áp dụng cho cả họ hoặc chỉ mình tôi (§13.4) |
 | ⭐ Cây lớn mượt | 1.000–2.000 người vẫn mượt; thu gọn/mở rộng nhánh; minimap; tìm kiếm không dấu rồi bay tới; vẽ theo mức chi tiết |
 | ⭐ Lịch sử & undo | Undo/redo bằng **nút trên thanh công cụ và phím tắt**, dòng thời gian "ai sửa gì, lúc nào", hoàn tác một thay đổi cũ bất kỳ |
 | Nhắc giỗ | Trang "Giỗ sắp tới" (30 ngày) có ghi chú cho các trường hợp đặc biệt; nhắc qua email + Web Push trước 7 ngày và 1 ngày |
@@ -85,6 +86,8 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 | Nối một người với cây khác (§8.1) | ✅ | ✅ | ❌ | ❌ |
 | Thấy dấu hiệu liên kết & mở cây được liên kết | ✅* | ✅* | ✅* | ✅* |
 | Xem lịch sử sửa | ✅ | ✅ | ✅ | ❌ |
+| Trang trí cây và thẻ cho cả họ (§13.4) | ✅ | ✅ | ❌ | ❌ |
+| Trang trí cây và thẻ chỉ cho mình xem (§13.4) | ✅ | ✅ | ✅ | ❌ |
 | Mời thành viên, đổi vai trò | ✅ | ❌ | ❌ | ❌ |
 | Xem liên kết từ dòng họ khác trỏ tới, chặn một dòng họ | ✅ | ❌ | ❌ | ❌ |
 | Tạo/thu hồi link chia sẻ, đổi thuỷ tổ, cài đặt, xoá dòng họ | ✅ | ❌ | ❌ | ❌ |
@@ -180,7 +183,30 @@ Clan {                           // một dòng họ, VD "Họ Nguyễn – Nam 
     daughtersDescendantsDepth: 0 | 1 | 2 | 'all',   // xem §8 (mặc định 1)
     showInLawsByDefault: boolean                     // mặc định true
   },
+  theme: TreeTheme,              // chủ đề chung của cả họ (§13.4); {} = mặc định
   createdAt
+}
+
+TreeTheme {                      // trường nào cũng tuỳ chọn; thiếu thì xét lớp tiếp theo (§13.4)
+  surface?: 'grid-paper' | 'corkboard' | 'fridge',
+  frame?: CardFrame,
+  fastener?: CardFastener,
+  thread?: 'cotton' | 'yarn',
+  stitch?: 'cotton' | 'yarn'
+}
+CardFrame    = 'classic' | 'kraft' | 'vintage'
+CardFastener = 'washi' | 'pushpin' | 'magnet'
+CardStyle {                      // lựa chọn riêng của một thẻ; trường nào cũng tuỳ chọn
+  frame?: CardFrame,
+  fastener?: CardFastener
+}
+
+ViewPreference {                 // "chỉ mình tôi": cách một User tự trang trí một Clan (§13.4)
+  userId, clanId,                // duy nhất (userId, clanId)
+  enabled: boolean,              // false = "Về chủ đề chung" mà không mất các lựa chọn
+  theme: TreeTheme,
+  cards: { [personId]: CardStyle },   // mục của người đã bị xoá được bỏ qua và dọn khi lưu
+  updatedAt
 }
 
 Membership {                     // User nào thuộc dòng họ nào, với vai trò gì
@@ -226,6 +252,7 @@ Person {                         // một người trong gia phả (KHÔNG phả
     shareLinkId?                          // nếu tạo từ một link chia sẻ
   },                             // index trên treeLink.targetClanId (danh sách liên kết trỏ tới)
   photo?: { publicId, version },  // asset trên Cloudinary (§12, lưu trữ ảnh); URL do client dựng
+  cardStyle?: CardStyle,         // lựa chọn chung của cả họ cho thẻ này (§13.4); đổi bằng updatePerson
   bio?, burialPlace?,
   createdAt, updatedAt
 }
@@ -297,6 +324,7 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 | `deleteUnion` | `{ id }` | `restoreUnion` với snapshot |
 | `setParents` | `{ personId, parentUnionId \| null }` | `setParents` với giá trị cũ |
 | `setTreeLink` | `{ personId, treeLink \| null }` | `setTreeLink` với giá trị cũ |
+| `setTreeTheme` | `{ changes }` — các trường `TreeTheme` thay đổi; `null` đưa trường đó về mặc định (§13.4) | `setTreeTheme` với giá trị cũ của đúng các trường đó |
 | `batch` | `{ ops: Operation[] }` (dùng cho AI nhập liệu) | `batch` gồm các inverse theo thứ tự ngược |
 | `restorePerson` / `restoreUnion` | snapshot đầy đủ | `deletePerson` / `deleteUnion` — chỉ sinh ra khi undo, giao diện không gửi trực tiếp |
 
@@ -367,7 +395,7 @@ src/
   features/
     auth/           đăng nhập, đăng ký, quên mật khẩu
     clans/          danh sách dòng họ, thành viên, link mời, cài đặt
-    tree/           ⭐ canvas, layout worker, PersonNode, panel hồ sơ, tìm kiếm, thanh công cụ (undo/redo), liên kết cây
+    tree/           ⭐ canvas, layout worker, PersonNode, panel hồ sơ, tìm kiếm, thanh công cụ (undo/redo), liên kết cây, bảng Trang trí (§13.4)
     history/        dòng thời gian thay đổi, hoàn tác
     reminders/      giỗ sắp tới, cài đặt nhắc, đăng ký push
     import/         AI nhập liệu: prompt, dán JSON, xem trước thay đổi
@@ -403,7 +431,7 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 
 | Dữ liệu | Công cụ | Ghi chú |
 |---|---|---|
-| Danh sách dòng họ, thành viên, giỗ sắp tới, lịch sử, user hiện tại, bản xem trước liên kết | **TanStack Query** | Cache, tải lại, trạng thái loading/error |
+| Danh sách dòng họ, thành viên, giỗ sắp tới, lịch sử, user hiện tại, bản xem trước liên kết, `ViewPreference` của tôi (§13.4) | **TanStack Query** | Cache, tải lại, trạng thái loading/error |
 | Cây đang chỉnh sửa | **Zustand** store `useTreeStore` | `persons`, `unions`, `confirmedVersion`, `confirmedTree`, `pending[]`, `undoStack[]`, `redoStack[]` |
 | State giao diện cục bộ (panel đang mở, người đang chọn) | `useState` / slice Zustand nhỏ | |
 
@@ -446,14 +474,14 @@ Vì dâu/rể không bao giờ mở rộng ngược lên trên (§8), layout là
 
 ### 7.5 Thanh công cụ của cây
 
-Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (hoặc breadcrumb khi đang đi theo liên kết, §8.1) · **↶ Hoàn tác · ↷ Làm lại** · trạng thái lưu · tìm kiếm · menu xem (hiện/ẩn dâu/rể, số đời con cháu của con gái, thu gọn tất cả) · xuất file · vừa màn hình. Trên điện thoại thu thành thanh dưới cùng: Hoàn tác/Làm lại luôn hiện, phần còn lại trong menu "thêm". Mọi nút có nhãn cho trình đọc màn hình và trạng thái focus rõ ràng.
+Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (hoặc breadcrumb khi đang đi theo liên kết, §8.1) · **↶ Hoàn tác · ↷ Làm lại** · trạng thái lưu · tìm kiếm · menu xem (hiện/ẩn dâu/rể, số đời con cháu của con gái, thu gọn tất cả) · **Trang trí** (§13.4) · xuất file · vừa màn hình. Trên điện thoại thu thành thanh dưới cùng: Hoàn tác/Làm lại luôn hiện, phần còn lại trong menu "thêm". Mọi nút có nhãn cho trình đọc màn hình và trạng thái focus rõ ràng.
 
 ### 7.6 Form & nhập liệu
 
 - React Hook Form + resolver Zod (schema từ `packages/shared`).
 - Bấm vào một người mở **panel bên phải** (bottom sheet trên điện thoại) để xem/sửa. Lưu thì tạo op `updatePerson` chỉ chứa các trường đã đổi.
 - `DualDateInput`: nút chuyển **Âm / Dương / Chỉ biết năm**. Nhập một bên thì hiện bên kia và năm Can Chi. Ô "tháng nhuận" hiện khi chọn Âm.
-- Menu chuột phải (và nút trên thẻ ở thiết bị cảm ứng): Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… · Nối với cây gia phả khác · Xoá.
+- Menu chuột phải (và nút trên thẻ ở thiết bị cảm ứng): Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… · Nối với cây gia phả khác · Trang trí thẻ này… (§13.4) · Xoá.
 - Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
 
 **Kéo thả để đổi quan hệ (chỉ người có quyền sửa).** Vị trí luôn do layout tính (§7.4); kéo thả không bao giờ lưu một vị trí tự do.
@@ -701,6 +729,7 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
 
 - **PNG/SVG:** `html-to-image` chụp vùng React Flow, tạm tắt LOD để có đủ chi tiết.
 - **PDF:** `jsPDF`, khổ ngang A4/A3/A1. Cây lớn hơn trang giấy thì chia thành nhiều trang có dấu ghép. Có tiêu đề và ngày xuất. Tuỳ chọn: ẩn dâu/rể, số đời con cháu của con gái.
+- **Chủ đề:** file xuất và link chia sẻ luôn dùng cách trang trí chung của cả họ, không bao giờ dùng lựa chọn "chỉ mình tôi" của ai (§13.4).
 - **Link chia sẻ:** `GET /api/share/:token/tree`. **Server** lọc dữ liệu trước khi trả về: người còn sống chỉ giữ tên, giới tính và quan hệ; bỏ ngày sinh, ảnh và tiểu sử. Lọc ở server vì dữ liệu đã gửi về trình duyệt thì ai cũng xem được qua DevTools. Chủ họ có thể thu hồi link bất cứ lúc nào. Link chia sẻ cũng là một cách để dòng họ khác nối cây vào (§8.1).
 
 ---
@@ -763,13 +792,15 @@ Giao diện không được trông như template SaaS do AI sinh ra. Đối tư�
 
 | Chi tiết | Ý nghĩa |
 |---|---|
-| Ảnh polaroid | một người: ảnh (hoặc chữ cái đầu trên nền màu nhạt) và chú thích viết tay |
-| Màu băng dính washi | chi của người đó, lấy từ bảng màu Okabe–Ito an toàn cho người mù màu. Thuỷ tổ dán băng đỏ cam; dâu/rể dán băng xám trung tính |
+| Ảnh polaroid | một người: ảnh (hoặc chữ cái đầu trên nền màu nhạt), chú thích viết tay và một dòng chữ nhỏ bên dưới |
+| Màu băng dính washi (hoặc màu đinh ghim / nam châm, §13.4) | chi của người đó, lấy từ bảng màu Okabe–Ito an toàn cho người mù màu. Thuỷ tổ dán băng đỏ cam; dâu/rể dán băng xám trung tính |
 | Sợi chỉ có ghim đỏ ở cuối | cha mẹ → con |
 | Đường khâu chấm chấm có nút tròn | vợ chồng |
-| Con dấu đỏ | ngày giỗ (ngày âm lịch) |
-| Sticker vàng tròn | sinh nhật |
+| Dòng dưới chú thích: "Giỗ 15/10 ÂL" | ngày giỗ (ngày âm lịch). Chữ mono màu `photo-muted`, không con dấu, không nghiêng, không màu đỏ, vì đây là ngày tưởng nhớ người đã khuất |
+| Sticker vàng tròn có hình bánh kem vẽ nét | sinh nhật: icon Lucide `Cake` phía trên ngày dương ("21/11"); chữ cho trình đọc màn hình là "Sinh nhật 21/11" |
 | Cột "Ảnh chưa dán" | người chưa nối với cây (§7.6) |
+
+Dòng dưới chú thích hiện ngày giỗ với người đã mất có ngày mất âm lịch, và hiện năm sinh–mất ("1990–") với mọi người khác, nên mọi thẻ đầy đủ cao bằng nhau (thẻ cao thêm từ 124 px lên khoảng 138 px). Sticker sinh nhật vẫn dán ở góc ảnh.
 
 Mỗi thẻ nghiêng nhẹ theo một góc tính từ id của người đó (±2,5°). Bảng trông như làm tay, nhưng một thẻ không bao giờ đổi góc nghiêng giữa các lần vẽ.
 
@@ -786,7 +817,7 @@ Mỗi thẻ nghiêng nhẹ theo một góc tính từ id của người đó (±
 | `accent` / `on-accent` | #2B59FF / #FFFFFF | #7C9CFF / #14161C | liên kết, viền focus, lựa chọn |
 | `success` | #12805C | #3CCB91 | "máy chủ đang hoạt động" và các trạng thái ổn |
 | `thread` / `pin` | #5B5F66 / #D7263D | #A4A9B3 / #FF5A6E | đường quan hệ |
-| `photo`, `photo-ink`, `photo-muted`, `photo-stamp` | #FFFFFF, #1A1A1A, #5B5F66, #B8202F | #E9E6DD, mực giữ nguyên | giấy ảnh và chữ in trên ảnh |
+| `photo`, `photo-ink`, `photo-muted` | #FFFFFF, #1A1A1A, #5B5F66 | #E9E6DD, mực giữ nguyên | giấy ảnh và chữ in trên ảnh (khung `classic`; các khung khác có giá trị riêng, §13.4) |
 | `sticker` / `on-sticker` | #FFD23F / #1A1A1A | giữ nguyên | sticker sinh nhật |
 | `tape-*` | thuỷ tổ #D55E00; các chi #E69F00, #56B4E9, #009E73, #F0E442, #0072B2, #CC79A7; dâu/rể #B8BCC4; chưa dán #C9C9C2 | giữ nguyên | băng dính washi |
 
@@ -795,7 +826,7 @@ Các cặp chữ/nền đạt chuẩn WCAG AA (4,5:1), còn viền và đường
 **Chữ:** cả ba phông đều tự host kèm bộ ký tự tiếng Việt.
 - **Be Vietnam Pro**: chữ giao diện và tiêu đề (700, giãn chữ −0,02em).
 - **Patrick Hand**: chỉ dùng cho chú thích trên ảnh và ghi chú viết tay, không bao giờ dùng cho nút hay chữ nội dung.
-- **JetBrains Mono**: ngày tháng, con dấu và con số.
+- **JetBrains Mono**: ngày tháng, dòng ngày giỗ và con số.
 
 **Checklist chống AI-slop (S9):**
 - ❌ Không gradient tím/chàm, không glassmorphism, không đốm sáng phát quang, không dùng emoji làm icon.
@@ -803,13 +834,68 @@ Các cặp chữ/nền đạt chuẩn WCAG AA (4,5:1), còn viền và đường
 - ❌ Không landing page kiểu "hero + ba thẻ tính năng"; landing page hiển thị một cây gia phả thật (cây mẫu).
 - ❌ Không để thẻ xám giống hệt nhau khắp nơi; thứ bậc thị giác đến từ chữ, khoảng cách và vài điểm nhấn có chủ đích.
 - ❌ Không đổ bóng cho thẻ đang nằm yên; chỉ có độ nổi khi thẻ đang được nhấc lên (kéo).
-- ❌ Không trang trí vô nghĩa: màu băng dính, sợi chỉ, đường khâu, con dấu và sticker luôn mang dữ liệu.
+- ❌ Không trang trí vô nghĩa: màu đồ giữ ảnh, sợi chỉ, đường khâu, dòng ngày giỗ và sticker luôn mang dữ liệu. Chủ đề (§13.4) đổi hình dáng của chi tiết, không bao giờ đổi ý nghĩa.
 - ✅ Màu các chi lấy từ bảng màu Okabe–Ito an toàn cho người mù màu, không chọn màu ngẫu nhiên.
 - ✅ Thiết kế cả giao diện sáng và tối (tối = "bàn làm việc ban đêm").
 - ✅ Chuyển động ngắn và có mục đích (thẻ trôi về chỗ, bay tới, trượt panel); tôn trọng `prefers-reduced-motion`.
 - ✅ Icon từ một bộ thống nhất (Lucide), nét dày 1,75.
 
 Design token nằm ở `apps/web/src/shared/ui/tokens.css` (biến CSS được đưa vào Tailwind bằng `@theme`). Trang `/design` hiển thị mọi token và component ở cả hai giao diện.
+
+### 13.4 Chủ đề cây (trang trí bảng)
+
+Gia đình có thể tự trang trí bảng của mình, giống như chọn cuốn album và sticker. Chủ đề đổi hình dáng của các chi tiết album, không bao giờ đổi ý nghĩa của chúng (§13.3).
+
+**Những gì chọn được.** Bộ mẫu đầu tiên cố ý ít; mẫu nào cũng phải có bản sáng và tối, đủ 3 mức LOD và qua bài test độ tương phản.
+
+| Thành phần | Lựa chọn (bộ đầu tiên) | Cả cây | Một thẻ |
+|---|---|:-:|:-:|
+| Nền | `grid-paper` giấy kẻ ô (mặc định), `corkboard` bảng ghim gỗ bần, `fridge` cửa tủ lạnh | ✅ | ❌ |
+| Khung ảnh polaroid | `classic` trắng (mặc định), `kraft` giấy kraft, `vintage` ảnh cũ viền răng cưa | ✅ | ✅ |
+| Đồ giữ ảnh | `washi` băng dính (mặc định), `pushpin` đinh ghim, `magnet` nam châm | ✅ | ✅ |
+| Sợi chỉ (cha mẹ → con) | `cotton` chỉ thường (mặc định), `yarn` sợi len | ✅ | ❌ |
+| Đường khâu (vợ chồng) | `cotton` nét đứt (mặc định), `yarn` sợi len | ✅ | ❌ |
+
+- Nền và kiểu đường nét thuộc về cả bảng: sợi chỉ hay đường khâu nối hai người, nên không thẻ nào sở hữu riêng.
+- Chọn nền thì đồ giữ ảnh hợp với nền đó cũng được chọn theo (giấy kẻ ô → băng dính, bảng ghim → đinh ghim, tủ lạnh → nam châm). Sau đó vẫn đổi đồ giữ ảnh được.
+- Ý nghĩa giữ nguyên ở mọi mẫu: màu đồ giữ ảnh là màu chi, sợi chỉ vẫn kết thúc bằng ghim, đường khâu vẫn có nút, ly hôn vẫn là đường khâu đứt.
+
+**Hai phạm vi × hai chế độ.**
+
+| | Cả cây | Một thẻ |
+|---|---|---|
+| **Cho cả họ** (Chủ họ/Biên tập) | `Clan.theme`, đổi bằng op `setTreeTheme` | `Person.cardStyle`, đổi bằng op `updatePerson` |
+| **Chỉ mình tôi** (mọi thành viên) | `ViewPreference.theme` | `ViewPreference.cards[personId]` |
+
+- Thay đổi cho cả họ là op bình thường: có trong lịch sử, hoàn tác và khôi phục được, và đi qua luồng 409 (§6).
+- Lựa chọn "chỉ mình tôi" lưu theo tài khoản và dòng họ, nên đổi thiết bị vẫn còn. Chúng không phải op và không bao giờ hiện trong lịch sử của dòng họ. Vai trò Xem cũng dùng được, nên ai cũng trang trí được mà không cần quyền sửa.
+- File xuất và link chia sẻ chỉ dùng các lớp của cả họ (§11).
+
+**Lựa chọn nào thắng.** Với từng thành phần của một thẻ, lớp đầu tiên có giá trị được dùng:
+
+1. Lựa chọn của tôi cho thẻ này (`ViewPreference.cards[personId]`, khi `enabled`)
+2. Lựa chọn của cả họ cho thẻ này (`Person.cardStyle`)
+3. Chủ đề cây của tôi (`ViewPreference.theme`, khi `enabled`)
+4. Chủ đề cây của cả họ (`Clan.theme`)
+5. Mặc định
+
+Hai quy tắc giúp dễ đoán: **thẻ thắng cả cây**, và **của tôi thắng của cả họ**. Vì vậy đổi chủ đề của cả họ không bao giờ xoá cách trang trí riêng của một thẻ, và không bao giờ đè lên lựa chọn một thành viên đã chọn cho riêng mình. Nền, sợi chỉ và đường khâu chỉ xét bước 3–5. Bộ phân giải là hàm thuần trong `packages/shared` (`resolveCardStyle`, `resolveBoardStyle`) có unit test cho từng bước.
+
+**Giao diện.**
+- Nút **Trang trí** trên thanh công cụ của cây (§7.5) mở bảng bên phải (bottom sheet trên điện thoại), có công tắc **Áp dụng cho: Chỉ mình tôi / Cả họ** và mỗi thành phần một hàng ô xem trước nhỏ. Bấm vào một mẫu là bảng đổi ngay. "Cả họ" bị mờ với vai trò Xem, kèm một câu giải thích ngắn.
+- **Trang trí thẻ này…** trong menu thẻ (§7.6) và trong panel hồ sơ mở một bảng nhỏ gồm hàng khung ảnh và đồ giữ ảnh, cùng công tắc đó, và nút **Dùng lại theo chủ đề cây** để bỏ lựa chọn riêng của thẻ.
+- Khi đang có lựa chọn "chỉ mình tôi", một dải báo hiện "Bạn đang xem chủ đề riêng" kèm nút **Về chủ đề chung** (đặt `enabled: false` và giữ lại các lựa chọn). Chọn bất kỳ mẫu nào ở chế độ "Chỉ mình tôi" sẽ đặt lại `enabled: true`. Chủ họ và Biên tập thấy thêm nút **Dùng cho cả họ**, gửi op `setTreeTheme` với các lựa chọn cấp cây của họ; lựa chọn cấp thẻ vẫn là của riêng họ.
+- Bảng hiện "Khác chủ đề cây" ở thẻ hoặc thành phần nào có lựa chọn riêng.
+
+**API.**
+- `GET /api/clans/:id/view-preference` và `PUT /api/clans/:id/view-preference` (mọi thành viên; chỉ tài liệu của chính người gọi). Body được Zod kiểm tra: chỉ nhận giá trị mẫu có sẵn, key `personId` phải là ObjectId, tối đa 5.000 mục thẻ (giới hạn số người của một dòng họ, §5).
+- Thay đổi cho cả họ đi qua `POST /api/clans/:id/ops` như mọi chỉnh sửa khác.
+
+**Hiển thị.**
+- Lựa chọn cấp bảng là data attribute trên phần tử gốc của bảng (`data-surface`, `data-thread`, `data-stitch`); lựa chọn cấp thẻ là data attribute trên từng thẻ (`data-frame`, `data-fastener`). Mỗi mẫu là một bộ biến CSS trong `tokens.css`, nên đổi chủ đề không bao giờ chạy lại layout và không vẽ lại những thẻ có kiểu không đổi.
+- Nền là họa tiết CSS/SVG lặp lại (không dùng ảnh chụp lớn), nên kéo và phóng to vẫn mượt, CSP giữ nguyên và nền nào cũng có bản tối.
+- Đồ giữ ảnh chỉ vẽ ở mức LOD đầy đủ. Mức nhãn tên và dải băng giữ dải màu chi (§7.4).
+- Mỗi khung có giá trị `photo`, `photo-ink` và `photo-muted` riêng, mỗi nền có giá trị `paper` và `thread` riêng. Unit test độ tương phản kiểm tra mọi khung và nền ở cả hai giao diện.
 
 ---
 
@@ -833,12 +919,12 @@ Design token nằm ở `apps/web/src/shared/ui/tokens.css` (biến CSS được 
 
 | Loại | Công cụ | Nội dung chính |
 |---|---|---|
-| Unit | Vitest | `applyOp` cho từng loại op, từng luật nghiệp vụ và tính đúng của inverse (`applyOp(applyOp(t, op), op.inverse) ≡ t`); lunar: golden + property-based (`fast-check`) + differential; `anniversaryFor` cho mọi dòng của §9.2; layout (không chồng lấn, con nằm dưới cha mẹ); `classifyLineage`; dò người trùng |
+| Unit | Vitest | `applyOp` cho từng loại op, từng luật nghiệp vụ và tính đúng của inverse (`applyOp(applyOp(t, op), op.inverse) ≡ t`); lunar: golden + property-based (`fast-check`) + differential; `anniversaryFor` cho mọi dòng của §9.2; layout (không chồng lấn, con nằm dưới cha mẹ); `classifyLineage`; dò người trùng; `resolveCardStyle` / `resolveBoardStyle` cho mọi lớp của §13.4; độ tương phản của mọi khung và nền ở cả hai giao diện |
 | Component | Vitest + Testing Library | `DualDateInput`, màn hình xem trước nhập liệu, panel hồ sơ, trạng thái nút undo/redo, popover liên kết cây (3 trạng thái) |
-| Integration | Supertest + `mongodb-memory-server` (chế độ replica set để có transaction) | Ghi op, 409 khi sai version, quyền viewer/editor, link chia sẻ ẩn người còn sống, quyền xem trước/mở liên kết cây, chặn dòng họ nguồn, job nhắc chạy hai lần chỉ gửi một, bắt kịp sau ngày bị lỡ, độ phủ route OpenAPI |
+| Integration | Supertest + `mongodb-memory-server` (chế độ replica set để có transaction) | Ghi op, 409 khi sai version, quyền viewer/editor, link chia sẻ ẩn người còn sống, quyền xem trước/mở liên kết cây, chặn dòng họ nguồn, job nhắc chạy hai lần chỉ gửi một, bắt kịp sau ngày bị lỡ, độ phủ route OpenAPI, Viewer lưu được `ViewPreference` của mình nhưng bị 403 với `setTreeTheme`, link chia sẻ không bao giờ chứa `ViewPreference` của ai |
 | E2E | Playwright | Đăng ký → tạo dòng họ → thêm 3 đời → nhập ngày mất → thấy giỗ sắp tới → hoàn tác bằng nút trên thanh công cụ → xuất PNG; hai tab cùng sửa → bên sau tự rebase; nối một người với link chia sẻ của dòng họ khác → di chuột thấy xem trước → bấm mở cây đích đúng người → breadcrumb quay lại; link bị thu hồi hiện trạng thái "Không khả dụng"; offline: tải lại khi mất mạng vẫn thấy cây (chỉ đọc) |
 | Hiệu năng | Script seed + React Profiler | S1, S2 với 1.000 và 2.000 người |
-| Hình ảnh | Ảnh chụp Playwright (sáng/tối, điện thoại/máy tính) | Rà soát theo §13.3 |
+| Hình ảnh | Ảnh chụp Playwright (sáng/tối, điện thoại/máy tính) | Rà soát theo §13.3; mỗi nền và mỗi khung một ảnh chụp (§13.4) |
 
 **CI (GitHub Actions)** mỗi lần push/PR: `lint` → `typecheck` → `test` (kèm coverage) → `build` → kiểm tra route OpenAPI. Deploy chỉ chạy khi merge vào `main`.
 
@@ -872,7 +958,7 @@ Biến môi trường được mô tả trong `apps/*/.env.example` (không ch�
 | 2 | `packages/shared`: schema Zod, `applyOp` + test; API ops (transaction, version, 409); Zustand store; cây hiển thị với layout đơn giản | Thêm người, thấy trên cây, tải lại vẫn còn |
 | 3 | Panel hồ sơ, `DualDateInput`, thuật toán âm lịch + golden/property test, `computeGenerations`, `classifyLineage`, hiển thị dâu/rể | Nhập ngày âm/dương; thấy số đời và dâu/rể |
 | 4 | Layout worker, **thanh công cụ undo/redo + phím tắt**, trang lịch sử, rebase khi 409 → **deploy MVP** | MVP online; gia đình bắt đầu nhập liệu |
-| 5 | ⭐ Hiệu năng: seed 2.000 người, LOD, memo, thu gọn, tìm kiếm, minimap, tuỳ chọn xem dâu/rể, đo đạc | Số liệu trước/sau cho CV |
+| 5 | **Chủ đề cây (§13.4)**, sau đó ⭐ hiệu năng: seed 2.000 người, LOD, memo, thu gọn, tìm kiếm, minimap, tuỳ chọn xem dâu/rể, đo đạc (đã có chủ đề) | Bảng được trang trí; số liệu trước/sau cho CV |
 | 6 | Trang giỗ sắp tới + ghi chú, `anniversaryFor` + differential test, job idempotent có bắt kịp, email, **PWA (cài đặt, xem offline, push cả iOS)**, cron worker | Nhận email/push nhắc giỗ thật; app cài được |
 | 7 | AI nhập liệu (prompt, kiểm tra, xem trước, batch); xuất PNG/PDF; link chia sẻ; **liên kết cây (§8.1)** | Nhập một trang sổ thật; từ một người dâu/rể nhảy sang cây của họ bên ấy |
 | 8 | E2E, accessibility, Lighthouse, Sentry, **tài liệu (hướng dẫn sử dụng, kiến trúc, ADR, mã lỗi)**, README có GIF demo, mời người dùng thật | Bản hoàn chỉnh để đưa vào CV |
@@ -972,6 +1058,8 @@ Biến môi trường được mô tả trong `apps/*/.env.example` (không ch�
 | Host web | Netlify | Đã quen; cho phép thương mại; chỉ deploy từ `main` |
 | Kích hoạt nhắc giỗ | Cloudflare Worker Cron + cron-job.org dự phòng + Sentry giám sát + bắt kịp | Không phụ thuộc commit; chịu được cold start; ngày lỡ được gửi trễ chứ không mất |
 | Tài liệu | Hướng dẫn sử dụng + OpenAPI tự sinh + mã lỗi tự sinh + ADR | Đo được (S8); thể hiện sự chuyên nghiệp |
-| Hướng thiết kế | "Album gia đình" trên giấy kẻ ô: ảnh polaroid, màu băng dính = chi, sợi chỉ, tem và sticker (§13.3) | Hợp với người trẻ, có chỗ cho nhắc sinh nhật; mọi chi tiết trang trí đều mang thông tin |
+| Hướng thiết kế | "Album gia đình" trên giấy kẻ ô: ảnh polaroid, màu băng dính = chi, sợi chỉ, dòng ngày giỗ và sticker (§13.3) | Hợp với người trẻ, có chỗ cho nhắc sinh nhật; mọi chi tiết trang trí đều mang thông tin |
 | Sửa quan hệ | Kéo thả trên bảng, có cắt chỉ, câu hỏi tiếp theo và hoàn tác; menu bàn phím để thay thế (§7.6) | Sửa nhầm trực tiếp, không bao giờ vào ngõ cụt |
+| Dấu ngày | Ngày giỗ là một dòng chữ trang nghiêm dưới chú thích ("Giỗ 15/10 ÂL"); sinh nhật là sticker có hình bánh kem vẽ nét (§13.3) | Con dấu đỏ đóng nghiêng trông như "đã duyệt"/"quá hạn", không hợp với ngày tưởng nhớ người đã khuất; chữ "SN" khó hiểu |
+| Chủ đề cây | Các mẫu chọn sẵn cho từng thành phần; cả cây hoặc một thẻ; cho cả họ hoặc chỉ mình tôi; thẻ thắng cả cây, của tôi thắng của cả họ (§13.4) | Gia đình tự trang trí mà không mất ý nghĩa, độ tương phản hay tốc độ; trang trí của ai không bị người khác xoá mất |
 | Lưu trữ ảnh | Một cloud Cloudinary, `ancestors-tree/<env>/clans/<clanId>/people/<personId>/<ngẫu nhiên>`, API ký và kiểm tra mọi lần upload (§12) | Xoá dòng họ hay một người theo tiền tố; URL không lộ tên; dev và prod tách nhau mà không cần tài khoản thứ hai |

@@ -59,34 +59,35 @@ export function SampleFamilyBoard() {
         })}
       </svg>
 
-      {SAMPLE_PEOPLE.map((person) => {
-        const marks = [
-          person.deathAnniversary ? (
-            <DateMark key="death" kind="death-anniversary">
-              {t('scrapbook.deathAnniversary', { date: person.deathAnniversary })}
-            </DateMark>
-          ) : null,
-          person.birthday ? (
-            <DateMark key="birthday" kind="birthday">
-              {t('scrapbook.birthday', { date: person.birthday })}
-            </DateMark>
-          ) : null,
-        ].filter(Boolean);
-
-        return (
-          <Polaroid
-            key={person.id}
-            className="absolute"
-            style={{ left: person.x, top: person.y }}
-            name={person.name}
-            label={t('scrapbook.personLabel', { name: person.name, years: person.years })}
-            lifeYears={person.years}
-            tape={person.tape}
-            tilt={tiltFor(person.id)}
-            marks={marks.length > 0 ? marks : undefined}
-          />
-        );
-      })}
+      {SAMPLE_PEOPLE.map((person) => (
+        <Polaroid
+          key={person.id}
+          className="absolute"
+          style={{ left: person.x, top: person.y }}
+          name={person.name}
+          label={t('scrapbook.personLabel', { name: person.name, years: person.years })}
+          lifeYears={person.years}
+          tape={person.tape}
+          tilt={tiltFor(person.id)}
+          dateLine={
+            person.deathAnniversary ? (
+              <DateMark
+                kind="death-anniversary"
+                label={t('scrapbook.deathAnniversaryLabel', { date: person.deathAnniversary })}
+              >
+                {t('scrapbook.deathAnniversary', { date: person.deathAnniversary })}
+              </DateMark>
+            ) : undefined
+          }
+          marks={
+            person.birthday ? (
+              <DateMark kind="birthday" label={t('scrapbook.birthday', { date: person.birthday })}>
+                {person.birthday}
+              </DateMark>
+            ) : undefined
+          }
+        />
+      ))}
     </Board>
   );
 }

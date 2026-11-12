@@ -7,7 +7,7 @@ import { BRANCH_TAPE_COUNT, tapeColor, type TapeKind } from './tape';
 export type PolaroidLod = 'full' | 'label' | 'strip';
 
 export const POLAROID_SIZE: Record<PolaroidLod, { width: number; height: number }> = {
-  full: { width: 100, height: 124 },
+  full: { width: 100, height: 138 },
   label: { width: 100, height: 40 },
   strip: { width: 100, height: 14 },
 };
@@ -23,7 +23,12 @@ export interface PolaroidProps extends Omit<ComponentProps<'figure'>, 'children'
   lod?: PolaroidLod;
   photoUrl?: string;
   lifeYears?: string;
-  /** Date marks (stamps, stickers), shown on the full card only. */
+  /**
+   * The quiet line under the caption on the full card: the death anniversary (a DateMark).
+   * Falls back to `lifeYears`, so every full card has the same height (spec §13.3).
+   */
+  dateLine?: ReactNode;
+  /** Stickers (birthdays) stuck on the photo's corner, shown on the full card only. */
   marks?: ReactNode;
 }
 
@@ -41,6 +46,7 @@ export function Polaroid({
   lod = 'full',
   photoUrl,
   lifeYears,
+  dateLine,
   marks,
   className,
   style,
@@ -101,7 +107,7 @@ export function Polaroid({
         className="absolute -top-2 left-7 h-3.5 w-11 -rotate-3 opacity-85"
         style={{ backgroundColor: tapeBackground }}
       />
-      {/* Date marks are stuck on the photo's corner, so they never cover the caption. */}
+      {/* Stickers are stuck on the photo's corner, so they never cover the caption. */}
       <div data-part="photo" className="relative">
         {photoUrl ? (
           <img src={photoUrl} alt="" className="h-[74px] w-full object-cover" />
@@ -118,7 +124,15 @@ export function Polaroid({
           <div className="absolute -right-3 bottom-1 flex flex-col items-end gap-1">{marks}</div>
         ) : null}
       </div>
-      <figcaption className="mt-1.5 truncate text-center font-hand text-base">{name}</figcaption>
+      <figcaption className="mt-1.5 text-center">
+        <span className="block truncate font-hand text-base leading-5">{name}</span>
+        <span
+          data-part="date-line"
+          className="mt-0.5 block h-3.5 truncate font-mono text-[11px] leading-[14px] text-photo-muted"
+        >
+          {dateLine ?? lifeYears}
+        </span>
+      </figcaption>
     </figure>
   );
 }
