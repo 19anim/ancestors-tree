@@ -24,4 +24,15 @@ describe('HomePage', () => {
       '/design',
     );
   });
+
+  it('lets keyboard users focus the scrollable board', () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>,
+    );
+    const scroller = screen.getByRole('region', { name: 'Khung cuộn ngang của cây gia phả mẫu' });
+    expect(scroller).toHaveAttribute('tabindex', '0');
+    expect(scroller).toContainElement(screen.getByRole('group', { name: 'Cây gia phả mẫu' }));
+  });
 });

@@ -21,6 +21,13 @@ describe('DesignGalleryPage', () => {
     }
   });
 
+  it('lets keyboard users focus the scrollable thread board', () => {
+    renderWithProviders(<DesignGalleryPage />);
+    const scroller = screen.getByRole('region', { name: 'Khung cuộn ngang của cây gia phả mẫu' });
+    expect(scroller).toHaveAttribute('tabindex', '0');
+    expect(scroller).toContainElement(screen.getByRole('group', { name: 'Cây gia phả mẫu' }));
+  });
+
   it('lists the color and tape tokens', () => {
     renderWithProviders(<DesignGalleryPage />);
     for (const token of ['--paper', '--ink', '--stamp', '--tape-progenitor', '--tape-6']) {

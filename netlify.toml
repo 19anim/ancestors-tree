@@ -37,6 +37,9 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    # Everything is self-hosted (fonts included). 'unsafe-inline' for styles only: React style
+    # attributes (card positions, tilt, tape colors) and Radix positioning need it.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
 
 # Vite fingerprints everything in /assets, so it can be cached forever.
 [[headers]]

@@ -10,19 +10,22 @@
   "scripts": {
     "dev": "pnpm -r --parallel --filter \"./apps/*\" run dev",
     "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck",
+    "typecheck": "pnpm -r run typecheck && tsc --noEmit -p e2e/tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test",
     "docs:errors": "node packages/shared/scripts/generate-error-docs.ts",
     "docs:errors:check": "node packages/shared/scripts/generate-error-docs.ts --check",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm docs:errors:check && pnpm build"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^10.14.0",

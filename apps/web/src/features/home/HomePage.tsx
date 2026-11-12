@@ -15,7 +15,13 @@ export function HomePage() {
         </Button>
       </div>
       <figure className="m-0 min-w-0">
-        <div className="overflow-x-auto pb-2">
+        {/* Keyboard users can focus the board and scroll it with the arrow keys on small screens. */}
+        <div
+          role="region"
+          aria-label={t('home.boardScroll')}
+          tabIndex={0}
+          className="overflow-x-auto pb-2"
+        >
           <SampleFamilyBoard />
         </div>
         <figcaption className="mt-3 max-w-[560px] text-sm text-ink-muted">

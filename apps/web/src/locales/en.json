@@ -18,6 +18,7 @@
     "title": "Your family tree, one photo at a time.",
     "galleryLink": "See the design system",
     "boardLabel": "Sample family tree",
+    "boardScroll": "Sample family tree, scrolls sideways",
     "legend": "Threads with a red pin join parents to children · stitches join spouses · red stamps are death anniversaries · yellow stickers are birthdays."
   },
   "scrapbook": {

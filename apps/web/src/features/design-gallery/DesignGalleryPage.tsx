@@ -189,7 +189,13 @@ export function DesignGalleryPage() {
       </Section>
 
       <Section id="gallery-threads" title={t('designGallery.sections.threads')}>
-        <div className="overflow-x-auto pb-2">
+        {/* Keyboard users can focus the board and scroll it with the arrow keys on small screens. */}
+        <div
+          role="region"
+          aria-label={t('home.boardScroll')}
+          tabIndex={0}
+          className="overflow-x-auto pb-2"
+        >
           <SampleFamilyBoard />
         </div>
         <p className="mt-4 text-sm text-ink-muted">{t('designGallery.threads.note')}</p>
