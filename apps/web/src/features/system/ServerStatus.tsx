@@ -3,6 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { apiRequest } from '../../shared/lib/apiClient';
 import { errorMessageKey } from '../../shared/lib/apiError';
+import { cn } from '../../shared/lib/cn';
+import { Button } from '../../shared/ui';
+
+type ServerState = 'checking' | 'error' | 'ok';
+
+const DOT: Record<ServerState, string> = {
+  checking: 'bg-line-strong',
+  error: 'bg-stamp',
+  ok: 'bg-success',
+};
 
 export function ServerStatus() {
   const { t } = useTranslation();
@@ -11,20 +21,34 @@ export function ServerStatus() {
     queryFn: () => apiRequest('/health', HealthResponseSchema),
   });
 
-  if (health.isPending) {
-    return <p role="status">{t('system.serverStatus.checking')}</p>;
+  let state: ServerState = 'checking';
+  let message = t('system.serverStatus.checking');
+  if (health.isSuccess) {
+    state = 'ok';
+    message = t('system.serverStatus.ok', { version: health.data.version });
+  } else if (health.isError && !health.isFetching) {
+    state = 'error';
+    message = t(errorMessageKey(health.error));
   }
 
-  if (health.isError) {
-    return (
-      <div role="alert">
-        <p>{t(errorMessageKey(health.error))}</p>
-        <button type="button" onClick={() => void health.refetch()}>
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      <span aria-hidden="true" className={cn('size-2 shrink-0 rounded-full', DOT[state])} />
+      {/* One persistent live region: screen readers hear every change of state. */}
+      <p role="status" aria-live="polite" data-state={state} className="text-ink-muted">
+        {message}
+      </p>
+      {/* TanStack Query v5 resets a refetch of a query without data to pending, so isError is false while retrying. */}
+      {!health.isSuccess && health.errorUpdateCount > 0 ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={health.isFetching}
+          onClick={() => void health.refetch()}
+        >
           {t('system.serverStatus.retry')}
-        </button>
-      </div>
-    );
-  }
-
-  return <p role="status">{t('system.serverStatus.ok', { version: health.data.version })}</p>;
+        </Button>
+      ) : null}
+    </div>
+  );
 }

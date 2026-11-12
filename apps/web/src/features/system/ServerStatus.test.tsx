@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/render';
@@ -15,30 +15,59 @@ afterEach(() => {
 });
 
 describe('ServerStatus', () => {
-  it('shows a checking message, then the running version', async () => {
+  it('announces checking, then the running version, in one polite live region', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => healthy()),
     );
     renderWithProviders(<ServerStatus />);
-    expect(screen.getByRole('status')).toHaveTextContent('Đang kết nối máy chủ…');
-    expect(await screen.findByText('Máy chủ đang hoạt động (phiên bản 1.4.0)')).toBeInTheDocument();
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toHaveTextContent('Đang kết nối máy chủ…');
+
+    await waitFor(() =>
+      expect(status).toHaveTextContent('Máy chủ đang hoạt động (phiên bản 1.4.0)'),
+    );
+    expect(status).toHaveAttribute('data-state', 'ok');
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
   });
 
-  it('shows a translated error and retries on demand', async () => {
+  it('shows a translated error, then progress while retrying, then the version', async () => {
+    const user = userEvent.setup();
+    let finishRetry: (response: Response) => void = () => undefined;
     const fetchMock = vi
       .fn<() => Promise<Response>>()
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
-      .mockResolvedValueOnce(healthy());
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finishRetry = resolve;
+          }),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     renderWithProviders(<ServerStatus />);
+    const status = screen.getByRole('status');
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.');
+    await waitFor(() =>
+      expect(status).toHaveTextContent(
+        'Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.',
+      ),
+    );
+    expect(status).toHaveAttribute('data-state', 'error');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect(await screen.findByText('Máy chủ đang hoạt động (phiên bản 1.4.0)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    await waitFor(() => expect(status).toHaveTextContent('Đang kết nối máy chủ…'));
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeDisabled();
+
+    finishRetry(healthy());
+
+    await waitFor(() =>
+      expect(status).toHaveTextContent('Máy chủ đang hoạt động (phiên bản 1.4.0)'),
+    );
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
