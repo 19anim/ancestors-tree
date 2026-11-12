@@ -69,7 +69,10 @@ export function useLogout() {
     mutationFn: () => apiRequest('/auth/logout', z.undefined(), { method: 'POST' }),
     onSettled: () => {
       // Nothing of the previous user may stay on screen.
-      queryClient.clear();
+      // Keep the mutation cache: this very mutation is still settling in it.
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== CURRENT_USER_KEY[0],
+      });
       queryClient.setQueryData(CURRENT_USER_KEY, null);
     },
   });

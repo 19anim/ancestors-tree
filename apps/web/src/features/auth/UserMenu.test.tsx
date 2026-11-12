@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createQueryClient } from '../../app/providers';
 import { mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
 
@@ -33,11 +34,16 @@ describe('UserMenu', () => {
       'GET /me': () => ({ body: LAN }),
       'POST /auth/logout': () => ({ status: 204 }),
     });
-    renderRoute('/');
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(['clans'], [{ id: 'previous-user-data' }]);
+    renderRoute('/', queryClient);
     expect(await screen.findByText('Nguyễn Thị Lan')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Dòng họ' })).toHaveAttribute('href', '/clans');
     await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
     expect(await screen.findByRole('link', { name: 'Đăng nhập' })).toBeInTheDocument();
     expect(api.calls.some((call) => call.path === '/auth/logout')).toBe(true);
+    expect(screen.queryByRole('link', { name: 'Dòng họ' })).not.toBeInTheDocument();
+    expect(queryClient.getQueryData(['me'])).toBeNull();
+    expect(queryClient.getQueryData(['clans'])).toBeUndefined();
   });
 });

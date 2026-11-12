@@ -35,8 +35,13 @@ describe('password reset pages', () => {
         },
       }),
     });
+    // The memory router leaves the address bar alone, so seed it like a real link click.
+    window.history.replaceState(null, '', `/reset-password#token=${'t'.repeat(43)}`);
     renderRoute(`/reset-password#token=${'t'.repeat(43)}`);
     await user.type(await screen.findByLabelText('Mật khẩu mới'), 'brand-new-password');
+    // The token is gone from the address bar before anything is submitted.
+    expect(window.location.hash).toBe('');
+    expect(window.location.pathname).toBe('/reset-password');
     await user.click(screen.getByRole('button', { name: 'Lưu mật khẩu mới' }));
     await vi.waitFor(() =>
       expect(api.calls.find((call) => call.path === '/auth/reset-password')?.body).toEqual({
