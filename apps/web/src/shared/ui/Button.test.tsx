@@ -21,6 +21,8 @@ describe('Button', () => {
     const button = screen.getByRole('button', { name: 'Xoá' });
     expect(button).toHaveAttribute('data-variant', 'danger');
     expect(button.className).toContain('bg-stamp');
+    // A dedicated token: stamp/85 over paper leaves on-stamp text below 4.5:1.
+    expect(button.className).toContain('hover:bg-stamp-hover');
     expect(button.className).toContain('h-8');
   });
 

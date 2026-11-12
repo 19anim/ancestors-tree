@@ -11,7 +11,7 @@ export const buttonVariants = cva(
         primary: 'bg-ink text-paper hover:bg-ink/85',
         secondary: 'border border-line-strong bg-surface text-ink hover:bg-paper-grid',
         ghost: 'text-ink hover:bg-paper-grid',
-        danger: 'bg-stamp text-on-stamp hover:bg-stamp/85',
+        danger: 'bg-stamp text-on-stamp hover:bg-stamp-hover',
       },
       size: {
         sm: 'h-8 px-3 text-sm',

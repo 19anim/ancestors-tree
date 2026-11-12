@@ -32,6 +32,7 @@ Light is "grid paper by day", dark is "desk at night". Polaroid paper stays ligh
 | `ink` / `ink-muted`                                | #1A1A1A / #5B5F66                                                                                                | #ECEAE4 / #A4A9B3  | text                                         |
 | `line` / `line-strong`                             | #E2E2DC / #8A8F98                                                                                                | #2C303A / #737882  | decorative borders / control borders (≥ 3:1) |
 | `stamp` / `on-stamp`                               | #D7263D / #FFFFFF                                                                                                | #FF5A6E / #14161C  | anniversaries, destructive actions           |
+| `stamp-hover`                                      | #B8202F                                                                                                          | #FF7A8B            | danger button hover (`on-stamp` ≥ 4.5:1)     |
 | `accent` / `on-accent`                             | #2B59FF / #FFFFFF                                                                                                | #7C9CFF / #14161C  | links, focus ring, selection                 |
 | `success`                                          | #12805C                                                                                                          | #3CCB91            | "server is running" and other OK states      |
 | `thread` / `pin`                                   | #5B5F66 / #D7263D                                                                                                | #A4A9B3 / #FF5A6E  | relationship lines                           |
@@ -73,12 +74,12 @@ Headings (`h1` to `h3`) are Be Vietnam Pro 700 with −0.02em letter spacing and
 
 ### Button
 
-| Variant     | Look                                     | Use for                                                                          |
-| ----------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
-| `primary`   | ink background, paper text (the default) | the one main action of a view                                                    |
-| `secondary` | surface background, `line-strong` border | other actions, and links styled as buttons                                       |
-| `ghost`     | text only, grid tint on hover            | low-emphasis actions such as "see more" and icon buttons                         |
-| `danger`    | `stamp` background, `on-stamp` text      | destructive actions only (deleting a person, leaving a clan); never for emphasis |
+| Variant     | Look                                                         | Use for                                                                          |
+| ----------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `primary`   | ink background, paper text (the default)                     | the one main action of a view                                                    |
+| `secondary` | surface background, `line-strong` border                     | other actions, and links styled as buttons                                       |
+| `ghost`     | text only, grid tint on hover                                | low-emphasis actions such as "see more" and icon buttons                         |
+| `danger`    | `stamp` background (`stamp-hover` on hover), `on-stamp` text | destructive actions only (deleting a person, leaving a clan); never for emphasis |
 
 Sizes are `sm` (32 px high), `md` (40 px, the default) and `icon` (40 × 40 px, which needs an `aria-label`). A button is `type="button"` unless told otherwise. With `asChild` it styles its single child, for example a router `Link`. Disabled buttons are at half opacity and ignore pointer events.
 

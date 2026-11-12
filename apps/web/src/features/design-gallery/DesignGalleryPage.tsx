@@ -23,6 +23,7 @@ const COLOR_TOKENS = [
   'line',
   'line-strong',
   'stamp',
+  'stamp-hover',
   'on-stamp',
   'accent',
   'on-accent',

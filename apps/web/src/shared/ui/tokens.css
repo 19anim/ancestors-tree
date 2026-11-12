@@ -23,6 +23,7 @@
   --line: #e2e2dc;
   --line-strong: #8a8f98;
   --stamp: #d7263d;
+  --stamp-hover: #b8202f;
   --on-stamp: #ffffff;
   --accent: #2b59ff;
   --on-accent: #ffffff;
@@ -67,6 +68,7 @@
   --line: #2c303a;
   --line-strong: #737882;
   --stamp: #ff5a6e;
+  --stamp-hover: #ff7a8b;
   --on-stamp: #14161c;
   --accent: #7c9cff;
   --on-accent: #14161c;
@@ -113,6 +115,7 @@
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-stamp: var(--stamp);
+  --color-stamp-hover: var(--stamp-hover);
   --color-on-stamp: var(--on-stamp);
   --color-accent: var(--accent);
   --color-on-accent: var(--on-accent);
