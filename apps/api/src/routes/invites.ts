@@ -162,9 +162,11 @@ export function registerInviteRoutes(api: RouteRegistry): void {
       } catch (error) {
         // The same person accepted twice at the same moment: the unique index keeps one.
         if ((error as { code?: unknown }).code !== DUPLICATE_KEY) throw error;
+        const stored = await Membership.findOne({ clanId, userId: userId() });
+        if (!stored) throw error;
         return {
           status: 200,
-          body: { clanId, role: InviteRoleSchema.parse(invite.role), alreadyMember: true },
+          body: { clanId, role: ClanRoleSchema.parse(stored.role), alreadyMember: true },
         };
       }
       return {

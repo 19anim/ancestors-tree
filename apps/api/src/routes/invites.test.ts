@@ -1,6 +1,7 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Invite } from '../models/Invite.ts';
+import { Membership } from '../models/Membership.ts';
 import { createTestApp } from '../test/app.ts';
 import { addMember, createClan } from '../test/clans.ts';
 import { useTestDatabase } from '../test/database.ts';
@@ -108,5 +109,112 @@ describe('invites', () => {
     const second = await ownerWithClan();
     const invite = (await first.owner.agent.post(first.path).send({ role: 'viewer' })).body;
     expect((await second.owner.agent.delete(`${second.path}/${invite.id}`)).status).toBe(404);
+  });
+
+  it('keeps one membership when the same person accepts twice at once', async () => {
+    const { owner, clan, path } = await ownerWithClan();
+    const { token } = (await owner.agent.post(path).send({ role: 'editor' })).body;
+    const lan = await signUp(app);
+    const accept = `/api/invites/${token}/accept`;
+    const [first, second] = await Promise.all([lan.agent.post(accept), lan.agent.post(accept)]);
+    expect([first.status, second.status]).toEqual([200, 200]);
+    const joined = [first.body, second.body].filter((body) => body.alreadyMember === false);
+    expect(joined).toHaveLength(1);
+    expect([first.body.role, second.body.role]).toEqual(['editor', 'editor']);
+    expect(await Membership.countDocuments({ clanId: clan.id, userId: lan.user.id })).toBe(1);
+  });
+
+  it('answers the duplicate-key race with the role actually stored', async () => {
+    const { owner, clan, path } = await ownerWithClan();
+    const { token } = (await owner.agent.post(path).send({ role: 'editor' })).body;
+    const lan = await signUp(app);
+    // The other request already stored "viewer", but this one has not seen it yet.
+    await addMember(clan.id, lan.user.id, 'viewer');
+    const spy = vi.spyOn(Membership, 'findOne').mockResolvedValueOnce(null);
+    try {
+      const response = await lan.agent.post(`/api/invites/${token}/accept`);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ clanId: clan.id, role: 'viewer', alreadyMember: true });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await Membership.countDocuments({ clanId: clan.id, userId: lan.user.id })).toBe(1);
+  });
+
+  it('refuses to accept an expired invite and adds nobody', async () => {
+    const { owner, clan } = await ownerWithClan();
+    await Invite.create({
+      clanId: clan.id,
+      token: 'x'.repeat(32),
+      role: 'viewer',
+      createdBy: owner.user.id,
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    const joiner = await signUp(app);
+    const response = await joiner.agent.post(`/api/invites/${'x'.repeat(32)}/accept`);
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_TOKEN');
+    expect(await Membership.countDocuments({ clanId: clan.id, userId: joiner.user.id })).toBe(0);
+  });
+
+  it('does not let an invite grant the owner role', async () => {
+    const { owner, path } = await ownerWithClan();
+    const response = await owner.agent.post(path).send({ role: 'owner' });
+    expect(response.status).toBe(400);
+    expect(await Invite.countDocuments({})).toBe(0);
+  });
+
+  it('expires invites with a TTL index on expiresAt', async () => {
+    await Invite.syncIndexes();
+    const indexes = await Invite.collection.indexes();
+    const ttl = indexes.find((index) => index.key?.expiresAt === 1);
+    expect(ttl?.expireAfterSeconds).toBe(0);
+  });
+
+  it('checks the clan in the path on every owner route', async () => {
+    const first = await ownerWithClan();
+    const second = await ownerWithClan();
+    const invite = (await first.owner.agent.post(first.path).send({ role: 'viewer' })).body;
+    const outsider = await signUp(app);
+    const malformed = '/api/clans/not-an-id/invites';
+
+    // Cross-clan: the owner of clan B gets 404 on clan A, and A's invite is untouched.
+    expect((await second.owner.agent.get(first.path)).status).toBe(404);
+    expect((await second.owner.agent.post(first.path).send({ role: 'viewer' })).status).toBe(404);
+    expect((await second.owner.agent.delete(`${first.path}/${invite.id}`)).status).toBe(404);
+    // Non-members and malformed clan ids look the same.
+    expect((await outsider.agent.get(first.path)).status).toBe(404);
+    expect((await outsider.agent.post(first.path).send({ role: 'viewer' })).status).toBe(404);
+    expect((await outsider.agent.delete(`${first.path}/${invite.id}`)).status).toBe(404);
+    expect((await first.owner.agent.get(malformed)).status).toBe(404);
+    expect((await first.owner.agent.post(malformed).send({ role: 'viewer' })).status).toBe(404);
+    expect((await first.owner.agent.delete(`${malformed}/${invite.id}`)).status).toBe(404);
+    // A malformed invite id is a validation error, never a 500.
+    expect((await first.owner.agent.delete(`${first.path}/nope`)).status).toBe(400);
+
+    expect(await Invite.countDocuments({ clanId: first.clan.id })).toBe(1);
+    expect(await Invite.countDocuments({ clanId: second.clan.id })).toBe(0);
+  });
+
+  it('gives a viewer 403 on every invite route and changes nothing', async () => {
+    const { owner, clan, path } = await ownerWithClan();
+    const invite = (await owner.agent.post(path).send({ role: 'viewer' })).body;
+    const viewer = await signUp(app);
+    await addMember(clan.id, viewer.user.id, 'viewer');
+    expect((await viewer.agent.get(path)).status).toBe(403);
+    expect((await viewer.agent.post(path).send({ role: 'viewer' })).status).toBe(403);
+    expect((await viewer.agent.delete(`${path}/${invite.id}`)).status).toBe(403);
+    expect(await Invite.countDocuments({ clanId: clan.id })).toBe(1);
+  });
+
+  it('writes and removes the invite row on create and revoke', async () => {
+    const { owner, clan, path } = await ownerWithClan();
+    const created = (await owner.agent.post(path).send({ role: 'editor' })).body;
+    const row = await Invite.findOne({ clanId: clan.id });
+    expect(row).toMatchObject({ token: created.token, role: 'editor' });
+    expect(row?.createdBy.toString()).toBe(owner.user.id);
+    expect((await owner.agent.delete(`${path}/${created.id}`)).status).toBe(204);
+    expect(await Invite.countDocuments({ clanId: clan.id })).toBe(0);
+    expect((await owner.agent.delete(`${path}/${created.id}`)).status).toBe(404);
   });
 });

@@ -58,12 +58,6 @@ function toRow(membership: {
   };
 }
 
-async function findTarget(clanId: string, userId: string) {
-  const target = await Membership.findOne({ clanId, userId });
-  if (!target) throw new AppError('NOT_FOUND', 'This person is not a member of the clan');
-  return target;
-}
-
 export function registerMemberRoutes(api: RouteRegistry): void {
   api.define({
     method: 'get',
@@ -93,9 +87,13 @@ export function registerMemberRoutes(api: RouteRegistry): void {
       if (params.userId === membership().userId) {
         throw new AppError('FORBIDDEN', 'The owner’s role cannot change');
       }
-      const target = await findTarget(params.id, params.userId);
-      target.role = body.role;
-      await target.save();
+      // One atomic write: a member who left in the meantime is a 404, not a 500.
+      const target = await Membership.findOneAndUpdate(
+        { clanId: params.id, userId: params.userId },
+        { role: body.role },
+        { returnDocument: 'after' },
+      );
+      if (!target) throw new AppError('NOT_FOUND', 'This person is not a member of the clan');
       const [member] = await describeMembers([toRow(target)], membership());
       if (!member) throw new Error('Member disappeared while updating');
       return { status: 200, body: member };
@@ -119,8 +117,10 @@ export function registerMemberRoutes(api: RouteRegistry): void {
       if (!leaving && !hasRoleAtLeast(caller.role, 'owner')) {
         throw new AppError('FORBIDDEN', 'Only the owner can remove members');
       }
-      const target = await findTarget(params.id, params.userId);
-      await target.deleteOne();
+      const result = await Membership.deleteOne({ clanId: params.id, userId: params.userId });
+      if (result.deletedCount === 0) {
+        throw new AppError('NOT_FOUND', 'This person is not a member of the clan');
+      }
       return { status: 204 };
     },
   });

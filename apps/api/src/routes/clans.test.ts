@@ -71,4 +71,18 @@ describe('clans', () => {
     expect(changed.status).toBe(200);
     expect(changed.body).toMatchObject({ name: 'Họ Nguyễn', description: 'Gia phả họ Nguyễn' });
   });
+
+  it('gives a viewer 403 and a stranger 404 on clan settings, and changes nothing', async () => {
+    const owner = await signUp(app);
+    const viewer = await signUp(app);
+    const stranger = await signUp(app);
+    const clan = await createClan(owner.agent);
+    await addMember(clan.id, viewer.user.id, 'viewer');
+
+    const path = `/api/clans/${clan.id}`;
+    expect((await viewer.agent.patch(path).send({ name: 'Đổi tên' })).status).toBe(403);
+    expect((await stranger.agent.patch(path).send({ name: 'Đổi tên' })).status).toBe(404);
+    expect((await owner.agent.patch('/api/clans/not-an-id').send({ name: 'X' })).status).toBe(404);
+    expect((await Clan.findById(clan.id))?.name).toBe(clan.name);
+  });
 });
