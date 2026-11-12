@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createQueryClient } from '../../app/providers';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
 
@@ -71,5 +72,19 @@ describe('LoginPage', () => {
       'href',
       '/api/auth/google/start?returnTo=%2Fclans',
     );
+  });
+
+  it('never shows the previous user data to the next person who signs in', async () => {
+    const user = userEvent.setup();
+    mockApi({ 'POST /auth/login': () => ({ body: LAN }) });
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(['clans'], [{ id: 'previous-user-clan' }]);
+    renderRoute('/login?returnTo=/design', queryClient);
+    await user.type(await screen.findByLabelText('Email'), 'lan@example.test');
+    await user.type(screen.getByLabelText('Mật khẩu'), 'long-enough-password');
+    await user.click(screen.getByRole('button', { name: 'Đăng nhập' }));
+    await screen.findByRole('heading', { level: 1, name: 'Bộ thiết kế' });
+    expect(queryClient.getQueryData(['clans'])).toBeUndefined();
+    expect(queryClient.getQueryData(['me'])).toEqual(LAN);
   });
 });

@@ -1,4 +1,4 @@
-export { CURRENT_USER_KEY, useCurrentUser } from './api';
+export { clearUserData, CURRENT_USER_KEY, useCurrentUser } from './api';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { LoginPage } from './LoginPage';
 export { RegisterPage } from './RegisterPage';

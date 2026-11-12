@@ -92,6 +92,21 @@ describe('JoinPage', () => {
     );
   });
 
+  it('explains that a removed member needs a new link', async () => {
+    const user = userEvent.setup();
+    mockApi(
+      previewRoutes({
+        'GET /me': () => ({ body: ME }),
+        [`POST /invites/${TOKEN}/accept`]: () => apiErrorReply('FORBIDDEN', 403),
+      }),
+    );
+    renderRoute(`/join/${TOKEN}`);
+    await user.click(await screen.findByRole('button', { name: 'Tham gia' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Bạn không thể tham gia họ này bằng đường link này/,
+    );
+  });
+
   it('explains a link that no longer works', async () => {
     mockApi({ [`GET /invites/${TOKEN}`]: () => apiErrorReply('INVALID_TOKEN', 400) });
     renderRoute(`/join/${TOKEN}`);

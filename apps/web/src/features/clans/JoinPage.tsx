@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
-import { errorMessageKey } from '../../shared/lib/apiError';
+import { ApiError, errorMessageKey } from '../../shared/lib/apiError';
 import { buttonVariants, Button } from '../../shared/ui';
 import { useCurrentUser } from '../auth';
 import { useAcceptInvite, useInvitePreview } from './api';
@@ -48,7 +48,9 @@ export function JoinPage() {
           </p>
           {accept.isError ? (
             <p role="alert" className="text-sm font-medium text-stamp">
-              {t(errorMessageKey(accept.error))}
+              {accept.error instanceof ApiError && accept.error.code === 'FORBIDDEN'
+                ? t('clans.join.forbidden')
+                : t(errorMessageKey(accept.error))}
             </p>
           ) : null}
           {me.isError ? (

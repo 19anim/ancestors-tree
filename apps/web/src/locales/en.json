@@ -196,7 +196,7 @@
       "remove": "Remove from clan",
       "removeNamed": "Remove {{name}} from the clan",
       "removeTitle": "Remove {{name}} from the clan?",
-      "removeBody": "{{name}} will no longer be able to view or edit this family tree. You can invite them again later.",
+      "removeBody": "{{name}} will no longer be able to view or edit this family tree. Invite links created before now will no longer let them join; to bring them back, create a new link.",
       "leave": "Leave clan",
       "leaveTitle": "Leave {{clan}}?",
       "leaveBody": "You will no longer see this family tree until someone invites you again.",
@@ -227,7 +227,8 @@
       "accept": "Join",
       "signIn": "Sign in to join",
       "register": "Create an account",
-      "home": "Back to home"
+      "home": "Back to home",
+      "forbidden": "You cannot join this clan with this link. Ask the owner for a new invitation."
     }
   }
 }

@@ -7,12 +7,23 @@ import {
   type RegisterRequest,
   type ResetPasswordRequest,
 } from '@ancestors-tree/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest } from '../../shared/lib/apiClient';
 import { ApiError } from '../../shared/lib/apiError';
 
 export const CURRENT_USER_KEY = ['me'] as const;
+
+/**
+ * Removes every cached query except the current user, so one user's clan, member and invite data
+ * can never show to the next person signing in on the same tab. Keeps the mutation cache: the
+ * mutation that triggers this may still be settling in it.
+ */
+export function clearUserData(queryClient: QueryClient): void {
+  queryClient.removeQueries({
+    predicate: (query) => query.queryKey[0] !== CURRENT_USER_KEY[0],
+  });
+}
 
 async function fetchCurrentUser(signal: AbortSignal): Promise<CurrentUser | null> {
   try {
@@ -46,6 +57,8 @@ function useSignInMutation<Input>(path: string) {
     mutationFn: (input: Input) =>
       apiRequest(path, CurrentUserSchema, { method: 'POST', json: input }),
     onSuccess: (user) => {
+      // A different person may be signing in over the previous one's cached data.
+      clearUserData(queryClient);
       queryClient.setQueryData(CURRENT_USER_KEY, user);
     },
   });
@@ -69,10 +82,7 @@ export function useLogout() {
     mutationFn: () => apiRequest('/auth/logout', z.undefined(), { method: 'POST' }),
     onSettled: () => {
       // Nothing of the previous user may stay on screen.
-      // Keep the mutation cache: this very mutation is still settling in it.
-      queryClient.removeQueries({
-        predicate: (query) => query.queryKey[0] !== CURRENT_USER_KEY[0],
-      });
+      clearUserData(queryClient);
       queryClient.setQueryData(CURRENT_USER_KEY, null);
     },
   });

@@ -196,7 +196,7 @@
       "remove": "Xoá khỏi dòng họ",
       "removeNamed": "Xoá {{name}} khỏi dòng họ",
       "removeTitle": "Xoá {{name}} khỏi dòng họ?",
-      "removeBody": "{{name}} sẽ không xem hay sửa được cây gia phả này nữa. Bạn có thể mời lại sau.",
+      "removeBody": "{{name}} sẽ không xem hay sửa được cây gia phả này nữa. Các đường link mời tạo trước lúc này sẽ không cho họ tham gia lại nữa; muốn mời lại, hãy tạo link mới.",
       "leave": "Rời dòng họ",
       "leaveTitle": "Rời {{clan}}?",
       "leaveBody": "Bạn sẽ không xem được cây gia phả này nữa, cho tới khi có người mời lại.",
@@ -227,7 +227,8 @@
       "accept": "Tham gia",
       "signIn": "Đăng nhập để tham gia",
       "register": "Tạo tài khoản",
-      "home": "Về trang chủ"
+      "home": "Về trang chủ",
+      "forbidden": "Bạn không thể tham gia họ này bằng đường link này. Hãy nhờ Chủ họ gửi lời mời mới."
     }
   }
 }
