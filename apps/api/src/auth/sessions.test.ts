@@ -1,11 +1,12 @@
 import { Types } from 'mongoose';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Session } from '../models/Session.ts';
 import { useTestDatabase } from '../test/database.ts';
 import {
   CONCURRENT_REFRESH_WINDOW_MS,
   REFRESH_TOKEN_TTL_MS,
   revokeAllSessions,
+  revokeFamily,
   revokeSessionOf,
   rotateSession,
   startSession,
@@ -73,5 +74,25 @@ describe('refresh sessions', () => {
     const tablet = await startSession(user);
     await revokeAllSessions(user);
     expect((await rotateSession(tablet)).kind).toBe('invalid');
+  });
+});
+
+describe('rotation racing a revoke', () => {
+  it('ends the new token when the family was revoked after the old one was claimed', async () => {
+    const token = await startSession(userId());
+    const family = (await Session.findOne())?.familyId ?? '';
+    // The revoke lands between claiming the old token and storing the new one.
+    const create = Session.create.bind(Session) as (...args: unknown[]) => Promise<unknown>;
+    const spy = vi.spyOn(Session, 'create').mockImplementationOnce((async (...args: unknown[]) => {
+      await revokeFamily(family);
+      return create(...args);
+    }) as never);
+    try {
+      expect(await rotateSession(token)).toEqual({ kind: 'invalid' });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await Session.countDocuments({ familyId: family, revokedAt: null })).toBe(0);
+    expect(await Session.countDocuments({ familyId: family })).toBe(2);
   });
 });

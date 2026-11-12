@@ -2,6 +2,7 @@ import { AuthProvidersSchema, ReturnToSchema } from '@ancestors-tree/shared';
 import type { Logger } from 'pino';
 import { z } from 'zod';
 import { GOOGLE_STATE_COOKIE } from '../auth/cookieNames.ts';
+import { REFRESH_COOKIE } from '../auth/cookieNames.ts';
 import { clearGoogleStateCookie, googleStateCookie, readCookie } from '../auth/cookies.ts';
 import { codeChallengeFor, type GoogleOAuthClient } from '../auth/google.ts';
 import type { AuthService } from '../auth/service.ts';
@@ -135,7 +136,10 @@ export function registerGoogleRoutes(api: RouteRegistry, deps: GoogleRouteDeps):
           redirectUri,
           nonce: saved.nonce,
         });
-        const { cookies } = await deps.auth.signInWithGoogle(profile);
+        const { cookies } = await deps.auth.signInWithGoogle(
+          profile,
+          readCookie(req, REFRESH_COOKIE),
+        );
         return { status: 302, redirect: saved.returnTo, cookies: [clearState, ...cookies] };
       } catch (error) {
         deps.logger.warn({ errorName: (error as Error).name }, 'Google sign-in failed');

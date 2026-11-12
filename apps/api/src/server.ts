@@ -5,6 +5,7 @@ import { BCRYPT_COST } from './auth/passwords.ts';
 import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
 import { createMailer } from './mail/mailer.ts';
 import { connectDatabase, disconnectDatabase } from './db/connect.ts';
+import { ensureIndexes } from './db/indexes.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -26,6 +27,13 @@ try {
     { errorName: (error as Error).name },
     'Could not connect to MongoDB (check MONGODB_URI and Atlas network access)',
   );
+  process.exit(1);
+}
+
+try {
+  await ensureIndexes();
+} catch (error) {
+  logger.fatal({ errorName: (error as Error).name }, 'Could not build the MongoDB indexes');
   process.exit(1);
 }
 

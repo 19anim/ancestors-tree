@@ -43,8 +43,13 @@ function isDuplicateKey(error: unknown): boolean {
 const emailTaken = () => new AppError('EMAIL_TAKEN', 'An account with this email already exists');
 
 export function createAuthService({ tokens, passwords, secureCookies }: AuthServiceDeps) {
-  async function signIn(user: UserDocument): Promise<SignedIn> {
+  /**
+   * `previousRefreshToken`: the rt cookie the request came with. Its family ends here, so signing
+   * in over an old session does not leave that session alive for 30 days.
+   */
+  async function signIn(user: UserDocument, previousRefreshToken?: string): Promise<SignedIn> {
     const userId = user.id as string;
+    if (previousRefreshToken) await revokeSessionOf(previousRefreshToken);
     const [accessToken, refreshToken] = await Promise.all([
       tokens.sign(userId),
       startSession(userId),
@@ -65,7 +70,7 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
   return {
     signIn,
 
-    async register(input: RegisterRequest): Promise<SignedIn> {
+    async register(input: RegisterRequest, previousRefreshToken?: string): Promise<SignedIn> {
       if (await User.exists({ email: input.email })) throw emailTaken();
       const passwordHash = await passwords.hash(input.password);
       try {
@@ -75,7 +80,7 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
           locale: input.locale ?? 'vi',
           passwordHash,
         });
-        return await signIn(user);
+        return await signIn(user, previousRefreshToken);
       } catch (error) {
         // Two sign-ups with the same email at the same moment: the unique index decides.
         if (isDuplicateKey(error)) throw emailTaken();
@@ -83,18 +88,21 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
       }
     },
 
-    async login(input: LoginRequest): Promise<SignedIn> {
+    async login(input: LoginRequest, previousRefreshToken?: string): Promise<SignedIn> {
       const user = await User.findOne({ email: input.email });
       const valid = await passwords.verify(input.password, user?.passwordHash);
       if (!user || !valid) throw new AppError('INVALID_CREDENTIALS', 'Wrong email or password');
-      return signIn(user);
+      return signIn(user, previousRefreshToken);
     },
 
-    async signInWithGoogle(profile: GoogleProfile): Promise<SignedIn> {
+    async signInWithGoogle(
+      profile: GoogleProfile,
+      previousRefreshToken?: string,
+    ): Promise<SignedIn> {
       if (!profile.emailVerified) throw new Error('Google account email is not verified');
 
       const linked = await User.findOne({ googleId: profile.googleId });
-      if (linked) return signIn(linked);
+      if (linked) return signIn(linked, previousRefreshToken);
 
       const sameEmail = await User.findOne({ email: profile.email });
       if (sameEmail) {
@@ -112,7 +120,7 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
         sameEmail.emailVerifiedAt ??= new Date();
         await sameEmail.save();
         if (wasUnverified) await revokeAllSessions(sameEmail.id as string);
-        return signIn(sameEmail);
+        return signIn(sameEmail, previousRefreshToken);
       }
 
       const user = await User.create({
@@ -121,7 +129,7 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
         googleId: profile.googleId,
         emailVerifiedAt: new Date(),
       });
-      return signIn(user);
+      return signIn(user, previousRefreshToken);
     },
 
     async refresh(refreshToken: string | undefined): Promise<RefreshOutcome> {

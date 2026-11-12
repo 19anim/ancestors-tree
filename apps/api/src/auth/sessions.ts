@@ -36,7 +36,14 @@ export async function rotateSession(token: string, now = new Date()): Promise<Ro
   );
   if (claimed) {
     const userId = claimed.userId.toString();
-    return { kind: 'rotated', userId, token: await issue(userId, claimed.familyId, now) };
+    const token = await issue(userId, claimed.familyId, now);
+    // The family may have been revoked after the claim but before the new token existed: that
+    // revoke missed the new token, so look again and end it.
+    if (await Session.exists({ familyId: claimed.familyId, revokedAt: { $ne: null } })) {
+      await revokeFamily(claimed.familyId, now);
+      return { kind: 'invalid' };
+    }
+    return { kind: 'rotated', userId, token };
   }
 
   const session = await Session.findOne({ tokenHash });

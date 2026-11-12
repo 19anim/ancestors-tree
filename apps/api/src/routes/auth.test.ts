@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
+import { Session } from '../models/Session.ts';
 import { User } from '../models/User.ts';
 import { createTestApp } from '../test/app.ts';
 import { useTestDatabase } from '../test/database.ts';
@@ -170,5 +171,36 @@ describe('login throttle per email', () => {
       const response = await request(limited).post('/api/auth/login').send({ email: 5 });
       expect(response.status).toBe(400);
     }
+  });
+});
+
+describe('signing in over an existing session', () => {
+  it('revokes the refresh family of the old rt cookie', async () => {
+    const { agent } = await signUp(app, { email: 'switch@example.test' });
+    const oldRt = cookieValue(setCookies(await agent.post('/api/auth/refresh')).get('rt'));
+    const other = await signUp(app, { email: 'second@example.test' });
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('Cookie', `rt=${oldRt}`)
+      .send({ email: 'second@example.test', password: TEST_PASSWORD });
+    expect(response.status).toBe(200);
+    expect(
+      await Session.countDocuments({
+        userId: (await User.findOne({ email: 'switch@example.test' }))?._id,
+        revokedAt: null,
+      }),
+    ).toBe(0);
+    expect((await request(app).post('/api/auth/refresh').set('Cookie', `rt=${oldRt}`)).status).toBe(
+      401,
+    );
+    // The new session is untouched.
+    expect(
+      (
+        await request(app)
+          .post('/api/auth/refresh')
+          .set('Cookie', `rt=${cookieValue(setCookies(response).get('rt'))}`)
+      ).status,
+    ).toBe(204);
+    expect(other.user.email).toBe('second@example.test');
   });
 });

@@ -32,9 +32,13 @@ const EnvSchema = z
         message:
           'APP_ORIGIN must be an origin such as https://ancestorstree.netlify.app (no path, no trailing slash)',
       })
-      .default('http://localhost:5173'),
+      .optional(),
     // Proxies in front of the API: 0 locally, 2 on Render behind the Netlify proxy.
-    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+    // Empty counts as not set (z.coerce would turn "" into 0).
+    TRUST_PROXY_HOPS: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.coerce.number().int().min(0).max(5).optional(),
+    ),
     // Interactive docs at /api/docs; on by default outside production.
     API_DOCS: z.enum(['on', 'off']).optional(),
     MONGODB_URI: optionalSetting(
@@ -72,6 +76,18 @@ const EnvSchema = z
       .default('ancestors-tree/dev'),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production') {
+      // No development defaults in production: a wrong guess breaks every write, reset link or sign-in.
+      for (const key of ['APP_ORIGIN', 'TRUST_PROXY_HOPS'] as const) {
+        if (env[key] === undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required in production (see render.yaml)`,
+          });
+        }
+      }
+    }
     if (env.NODE_ENV !== 'test') {
       for (const key of ['MONGODB_URI', 'JWT_SECRET'] as const) {
         if (env[key] === undefined) {
@@ -90,7 +106,12 @@ const EnvSchema = z
         message: 'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET together, or neither',
       });
     }
-  });
+  })
+  .transform((env) => ({
+    ...env,
+    APP_ORIGIN: env.APP_ORIGIN ?? 'http://localhost:5173',
+    TRUST_PROXY_HOPS: env.TRUST_PROXY_HOPS ?? 0,
+  }));
 
 export type Config = z.infer<typeof EnvSchema>;
 

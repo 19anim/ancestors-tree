@@ -3,6 +3,8 @@ import {
   ForgotPasswordRequestSchema,
   ResetPasswordRequestSchema,
 } from '@ancestors-tree/shared';
+import { REFRESH_COOKIE } from '../auth/cookieNames.ts';
+import { readCookie } from '../auth/cookies.ts';
 import type { Logger } from 'pino';
 import type { PasswordResets } from '../auth/passwordResets.ts';
 import type { AuthService } from '../auth/service.ts';
@@ -48,9 +50,9 @@ export function registerPasswordResetRoutes(
         schema: CurrentUserSchema,
       },
     },
-    handler: async ({ body }) => {
+    handler: async ({ body, req }) => {
       const user = await deps.resets.reset(body.token, body.password);
-      const signedIn = await deps.auth.signIn(user);
+      const signedIn = await deps.auth.signIn(user, readCookie(req, REFRESH_COOKIE));
       return { status: 200, body: signedIn.user, cookies: signedIn.cookies };
     },
   });

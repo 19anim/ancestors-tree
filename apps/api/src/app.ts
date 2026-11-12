@@ -4,6 +4,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
+import { serializeRequest, serializeResponse } from './http/logSerializers.ts';
 import { createErrorHandler } from './http/errorHandler.ts';
 import { notFoundHandler } from './http/notFound.ts';
 import { createOriginCheck } from './http/originCheck.ts';
@@ -117,7 +118,13 @@ export function createApp(options: AppOptions): CreatedApp {
     app.use('/api/docs', apiReference({ url: '/api/openapi.json', cdn: SCALAR_CDN }));
   }
   app.use(helmet());
-  if (options.httpLogging) app.use(pinoHttp({ logger: options.logger }));
+  if (options.httpLogging)
+    app.use(
+      pinoHttp({
+        logger: options.logger,
+        serializers: { req: serializeRequest, res: serializeResponse },
+      }),
+    );
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use('/api', createOriginCheck(options.appOrigin));

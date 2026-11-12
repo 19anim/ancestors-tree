@@ -43,6 +43,8 @@ describe('mailers', () => {
     const info = vi.spyOn(logger, 'info');
     const config = loadConfig({
       NODE_ENV: 'production',
+      APP_ORIGIN: 'https://app.example.test',
+      TRUST_PROXY_HOPS: '0',
       MONGODB_URI: 'mongodb+srv://db.example.test/app',
       JWT_SECRET: 'test-only-secret-with-at-least-32-chars',
     });

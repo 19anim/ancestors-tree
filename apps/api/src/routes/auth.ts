@@ -20,8 +20,8 @@ export function registerAuthRoutes(api: RouteRegistry, deps: { auth: AuthService
     responses: {
       201: { description: 'Signed in; session cookies set', schema: CurrentUserSchema },
     },
-    handler: async ({ body }) => {
-      const { user, cookies } = await deps.auth.register(body);
+    handler: async ({ body, req }) => {
+      const { user, cookies } = await deps.auth.register(body, readCookie(req, REFRESH_COOKIE));
       return { status: 201, body: user, cookies };
     },
   });
@@ -36,8 +36,8 @@ export function registerAuthRoutes(api: RouteRegistry, deps: { auth: AuthService
     responses: {
       200: { description: 'Signed in; session cookies set', schema: CurrentUserSchema },
     },
-    handler: async ({ body }) => {
-      const { user, cookies } = await deps.auth.login(body);
+    handler: async ({ body, req }) => {
+      const { user, cookies } = await deps.auth.login(body, readCookie(req, REFRESH_COOKIE));
       return { status: 200, body: user, cookies };
     },
   });

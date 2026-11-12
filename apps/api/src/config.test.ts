@@ -37,6 +37,30 @@ describe('loadConfig', () => {
     expect(loadConfig(REQUIRED).JWT_SECRET).toBe(REQUIRED.JWT_SECRET);
   });
 
+  it('requires APP_ORIGIN and TRUST_PROXY_HOPS in production, with no development defaults', () => {
+    const production = { ...REQUIRED, NODE_ENV: 'production' };
+    const message = messageOf(() => loadConfig(production));
+    expect(message).toMatch(/APP_ORIGIN is required in production/);
+    expect(message).toMatch(/TRUST_PROXY_HOPS is required in production/);
+    // Empty is missing, not 0.
+    expect(() =>
+      loadConfig({
+        ...production,
+        APP_ORIGIN: 'https://ancestorstree.netlify.app',
+        TRUST_PROXY_HOPS: '',
+      }),
+    ).toThrow(/TRUST_PROXY_HOPS is required in production/);
+    expect(() => loadConfig({ ...production, TRUST_PROXY_HOPS: '2' })).toThrow(
+      /APP_ORIGIN is required in production/,
+    );
+    const ok = loadConfig({
+      ...production,
+      APP_ORIGIN: 'https://ancestorstree.netlify.app',
+      TRUST_PROXY_HOPS: '0',
+    });
+    expect(ok.TRUST_PROXY_HOPS).toBe(0);
+  });
+
   it('accepts every optional integration', () => {
     const config = loadConfig({
       ...REQUIRED,
@@ -117,6 +141,13 @@ describe('loadConfig', () => {
   });
 });
 
+const PRODUCTION = {
+  ...REQUIRED,
+  NODE_ENV: 'production',
+  APP_ORIGIN: 'https://ancestorstree.netlify.app',
+  TRUST_PROXY_HOPS: '2',
+};
+
 describe('apiDocsEnabled', () => {
   it('is on outside production unless turned off', () => {
     expect(apiDocsEnabled(loadConfig({ NODE_ENV: 'test' }))).toBe(true);
@@ -124,10 +155,8 @@ describe('apiDocsEnabled', () => {
   });
 
   it('is off in production unless turned on', () => {
-    expect(apiDocsEnabled(loadConfig({ ...REQUIRED, NODE_ENV: 'production' }))).toBe(false);
-    expect(
-      apiDocsEnabled(loadConfig({ ...REQUIRED, NODE_ENV: 'production', API_DOCS: 'on' })),
-    ).toBe(true);
+    expect(apiDocsEnabled(loadConfig(PRODUCTION))).toBe(false);
+    expect(apiDocsEnabled(loadConfig({ ...PRODUCTION, API_DOCS: 'on' }))).toBe(true);
   });
 });
 
