@@ -1,6 +1,6 @@
 import { apiReference } from '@scalar/express-api-reference';
 import cookieParser from 'cookie-parser';
-import express, { type Express, type RequestHandler } from 'express';
+import express, { type Express } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
@@ -19,6 +19,9 @@ import {
 } from './http/routeRegistry.ts';
 import { buildOpenApiDocument, type OpenApiDocument } from './openapi/document.ts';
 import { registerAuthRoutes } from './routes/auth.ts';
+import { createRequireClanRole } from './clans/access.ts';
+import { registerClanRoutes } from './routes/clans.ts';
+import { registerMemberRoutes } from './routes/members.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
 import { createPasswordResets } from './auth/passwordResets.ts';
@@ -65,11 +68,6 @@ export interface CreatedApp {
   openApiDocument: OpenApiDocument;
 }
 
-/** Replaced in Task 10 (clan roles). */
-const notConfigured: RequestHandler = (_req, _res, next) => {
-  next(new Error('Access policies are not configured yet'));
-};
-
 export function createApp(options: AppOptions): CreatedApp {
   const tokens = createAccessTokens(options.auth.jwtSecret);
   const passwords = createPasswords(options.auth.bcryptCost);
@@ -77,7 +75,10 @@ export function createApp(options: AppOptions): CreatedApp {
 
   // One shared per-user budget across every protected route.
   const signedIn = [createRequireAuth(tokens), createUserRateLimit(options.rateLimits.user)];
-  const policies: AccessPolicies = { signedIn, clanRole: () => [notConfigured] };
+  const policies: AccessPolicies = {
+    signedIn,
+    clanRole: (role) => [...signedIn, createRequireClanRole(role)],
+  };
 
   const api = createRouteRegistry({ policies });
   registerHealthRoutes(api, { version: options.version });
@@ -96,6 +97,8 @@ export function createApp(options: AppOptions): CreatedApp {
     secureCookies: options.auth.secureCookies,
     logger: options.logger,
   });
+  registerClanRoutes(api);
+  registerMemberRoutes(api);
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();
