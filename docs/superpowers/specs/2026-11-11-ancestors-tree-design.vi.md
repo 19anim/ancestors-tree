@@ -170,8 +170,22 @@ User {                           // người đăng nhập vào web
   name, avatarUrl,
   googleId?,                     // đăng nhập Google
   passwordHash?,                 // đăng nhập mật khẩu (bcrypt)
+  emailVerifiedAt?,              // đặt khi đăng nhập Google hoặc đặt lại mật khẩu; quyết định việc đăng nhập
+                                 // Google có được tiếp quản tài khoản mật khẩu đã có hay không (§12)
   locale: 'vi' | 'en',
   createdAt
+}
+
+Session {                        // một refresh token (§12); có TTL index trên expiresAt
+  userId, familyId,              // mọi token cấp ra từ một lần đăng nhập dùng chung familyId
+  tokenHash,                     // SHA-256 của token ngẫu nhiên; không bao giờ lưu chính token
+  expiresAt,
+  usedAt?, revokedAt?
+}
+
+PasswordReset {                  // một link đặt lại mật khẩu (§12)
+  userId, tokenHash, expiresAt,
+  usedAt?
 }
 
 Clan {                           // một dòng họ, VD "Họ Nguyễn – Nam Định"
@@ -219,6 +233,7 @@ Invite {                         // link mời: /join/:token
   role,                          // vai trò khi chấp nhận
   createdBy, expiresAt           // hết hạn sau 7 ngày
 }
+// Thu hồi lời mời nghĩa là xoá document Invite.
 
 ShareLink {                      // link công khai chỉ xem: /share/:token
   clanId, token,
@@ -415,9 +430,9 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 
 | Đường dẫn | Nội dung |
 |---|---|
-| `/login`, `/register`, `/forgot-password` | Tài khoản |
+| `/login`, `/register`, `/forgot-password`, `/reset-password` | Tài khoản |
 | `/clans` | Các dòng họ của tôi + tạo mới |
-| `/clans/:id/tree` | ⭐ Cây gia phả (trang chính); `?focus=:personId` để bay tới một người |
+| `/clans/:id/tree` | ⭐ Cây gia phả (trang chính); `?focus=:personId` để bay tới một người. Khi trang cây chưa có (tới P5), `/clans/:id` mở trang thành viên |
 | `/clans/:id/upcoming` | Giỗ sắp tới |
 | `/clans/:id/history` | Lịch sử sửa |
 | `/clans/:id/members` | Thành viên & link mời |
@@ -737,9 +752,15 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
 ## 12. Bảo mật
 
 - Mật khẩu băm bằng bcrypt (cost 12).
-- Phiên đăng nhập: **JWT** trong cookie `httpOnly; Secure; SameSite=Lax`. Access token 15 phút; refresh token 30 ngày, có xoay vòng.
+- Phiên đăng nhập (cookie `httpOnly`, `SameSite=Lax`, thêm `Secure` ở production):
+  - **Access token:** JWT (HS256), 15 phút, cookie `at`, path `/api`.
+  - **Refresh token:** chuỗi ngẫu nhiên không mang thông tin, cookie `rt`, path `/api/auth`, 30 ngày. Chỉ lưu mã băm SHA-256 của nó (`Session`). Mỗi lần dùng là xoay sang token mới. Dùng lại một token cũ sau hơn 10 giây kể từ lần dùng đầu thì thu hồi cả họ token (phát hiện bị đánh cắp); trong vòng 10 giây thì coi là một tab khác làm mới cùng lúc.
+  - **CSRF:** `SameSite=Lax` cộng kiểm tra header `Origin` trên mọi request `/api` không phải GET (request mang `Origin` lạ bị từ chối; trình duyệt luôn gửi `Origin` khi ghi chéo trang).
+  - **Đăng nhập Google:** qua chuyển hướng (authorization code + PKCE, `state` và `nonce` giữ trong cookie sống ngắn); chỉ nhận email Google đã xác minh. Đăng nhập Google tiếp quản tài khoản có email chưa từng được xác minh bằng cách xoá mật khẩu và đăng xuất khỏi mọi thiết bị.
+  - **Đặt lại mật khẩu:** link có hiệu lực 1 giờ, dùng một lần, token nằm trong phần fragment của URL (`/reset-password#token=…`) nên không gửi tới máy chủ hay log. Yêu cầu luôn trả lời giống nhau dù email có tồn tại hay không. Đặt lại mật khẩu sẽ đăng xuất mọi thiết bị.
+  - **Sau proxy:** `trust proxy` đặt theo số tầng proxy (`TRUST_PROXY_HOPS`); logger che cookie và `Authorization`.
 - Mọi route `/clans/:id/*` kiểm tra Membership + vai trò ở middleware. Không bao giờ tin `clanId` trong body; luôn kiểm tra `Person.clanId === :id`.
-- `helmet`, `express-rate-limit` (đăng nhập: 5 lần/phút/IP; API chung: 300 lần/phút/user).
+- `helmet`, `express-rate-limit` (đăng nhập, đăng ký, quên mật khẩu và đặt lại mật khẩu: 5 lần/phút theo từng IP và từng endpoint; API chung: 300 lần/phút/user).
 - Upload ảnh: client xin **chữ ký upload** từ API rồi upload thẳng lên Cloudinary; tối đa 2 MB; chỉ jpg/png/webp. Đường dẫn và các bước kiểm tra: xem "Lưu trữ ảnh" bên dưới.
 - `/internal/*` yêu cầu `X-Cron-Secret` khớp biến môi trường.
 - Token mời/chia sẻ: 32 ký tự từ `crypto.randomBytes`.
@@ -775,7 +796,7 @@ ancestors-tree/                      gốc trên Cloudinary
   ```json
   { "error": { "code": "VERSION_CONFLICT", "message": "The tree was updated by someone else" } }
   ```
-  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, từ `applyOp`), `RATE_LIMITED` (429).
+  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, từ `applyOp`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
 - **Client:** api client chuyển lỗi thành `ApiError { code, message }`, giao diện hiện câu tiếng Việt tương ứng với `code`. Mỗi feature được bọc trong một **Error Boundary**. Thao tác lỗi thì hiện toast. Mất mạng khi gửi op thì giữ trong `pending` và thử lại kiểu **exponential backoff** (1 s, 2 s, 4 s…); thanh công cụ hiện "Chưa lưu".
 - **Render cold start (~30–60 giây):** lần tải đầu hiện màn hình "Đang khởi động máy chủ…" thay vì trang trắng.
 - **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production.
@@ -906,7 +927,7 @@ Hai quy tắc giúp dễ đoán: **thẻ thắng cả cây**, và **của tôi t
 | Người dùng | **Hướng dẫn sử dụng**: bắt đầu, dựng cây, ngày tháng & âm lịch, giỗ & nhắc giỗ, cài app (Android/iOS), AI nhập liệu, liên kết cây, chia sẻ & riêng tư, câu hỏi thường gặp — có ảnh chụp màn hình | Trong app `/help` (tiếng Việt) + `docs/user-guide/` (tiếng Anh) |
 | Developer | **README**: giới thiệu, GIF demo, sơ đồ kiến trúc, số liệu hiệu năng, cách chạy nhanh | `README.md` |
 | Developer | **Kiến trúc**: các module, luồng dữ liệu, mô hình Operation, thuật toán layout (sơ đồ Mermaid) | `docs/architecture.md` |
-| Developer | **Tài liệu API**: sinh từ schema Zod (`@asteasolutions/zod-to-openapi`) thành OpenAPI 3.1, xem tại `/api/docs` (Scalar) | Tự sinh; CI báo lỗi nếu route Express nào chưa có trong tài liệu |
+| Developer | **Tài liệu API**: sinh từ schema Zod (`@asteasolutions/zod-to-openapi`) thành OpenAPI 3.1, xem tại `/api/docs` (Scalar; chỉ bật ngoài production, đặt `API_DOCS=on` để bật ở production) | Tự sinh; CI báo lỗi nếu route Express nào chưa có trong tài liệu |
 | Developer | **Mã lỗi**: mã, HTTP status, ý nghĩa, cách client xử lý | `docs/error-codes.md`, sinh từ `ERROR_CODES` |
 | Developer | **ADR**: mỗi quyết định lớn một file ngắn (monorepo, Operation log, React Flow + layout tự viết, thuật toán âm lịch UTC+7, cron nhiều lớp, proxy Netlify, liên kết cây) | `docs/adr/0001-*.md` |
 | Developer | **Đóng góp**: cài đặt, script, quy ước (chỉ tiếng Anh trong code, kiểu commit, thư mục theo feature), test | `CONTRIBUTING.md` |
@@ -938,7 +959,7 @@ Hai quy tắc giúp dễ đoán: **thẻ thắng cả cây**, và **của tôi t
 | API | Render | Ngủ sau 15 phút không dùng → có màn hình chờ khởi động |
 | Database | MongoDB Atlas M0 | 512 MB, có transaction |
 | Ảnh | Cloudinary | Gói miễn phí: 25 credit/tháng (tính chung dung lượng, băng thông và biến đổi ảnh); một cloud, dev và prod tách bằng thư mục (§12) |
-| Email | Resend | 3.000 email/tháng |
+| Email | Resend | 3.000 email/tháng. Khi chưa xác minh tên miền, Resend chỉ gửi tới địa chỉ email của chủ tài khoản Resend, nên cho tới lúc xác minh tên miền, API production chưa thể gửi email cho người dùng khác; khi đã xác minh, đặt `MAIL_FROM` là một địa chỉ thuộc tên miền đó |
 | Push | Web Push (VAPID) | Miễn phí |
 | Cron chính | Cloudflare Workers Cron Trigger | Free: 5 trigger/tài khoản, tối đa 15 phút mỗi lần chạy |
 | Cron dự phòng | cron-job.org | Timeout 30 giây, cảnh báo qua email, không tự thử lại |
@@ -1063,3 +1084,6 @@ Biến môi trường được mô tả trong `apps/*/.env.example` (không ch�
 | Dấu ngày | Ngày giỗ là một dòng chữ trang nghiêm dưới chú thích ("Giỗ 15/10 ÂL"); sinh nhật là sticker có hình bánh kem vẽ nét (§13.3) | Con dấu đỏ đóng nghiêng trông như "đã duyệt"/"quá hạn", không hợp với ngày tưởng nhớ người đã khuất; chữ "SN" khó hiểu |
 | Chủ đề cây | Các mẫu chọn sẵn cho từng thành phần; cả cây hoặc một thẻ; cho cả họ hoặc chỉ mình tôi; thẻ thắng cả cây, của tôi thắng của cả họ (§13.4) | Gia đình tự trang trí mà không mất ý nghĩa, độ tương phản hay tốc độ; trang trí của ai không bị người khác xoá mất |
 | Lưu trữ ảnh | Một cloud Cloudinary, `ancestors-tree/<env>/clans/<clanId>/people/<personId>/<ngẫu nhiên>`, API ký và kiểm tra mọi lần upload (§12) | Xoá dòng họ hay một người theo tiền tố; URL không lộ tên; dev và prod tách nhau mà không cần tài khoản thứ hai |
+| Phiên đăng nhập | Cookie httpOnly: JWT 15 phút cộng refresh token ngẫu nhiên xoay vòng mỗi lần dùng (§12; ADR 0005) | Script không đọc được token (chống XSS); kiểm tra không cần tra database; vẫn thu hồi được phiên |
+| Đăng nhập Google | Chuyển hướng toàn trang (authorization code + PKCE), không nạp script của Google vào trang | CSP giữ nguyên; chạy được trên iOS không cần popup |
+| Gửi email | Resend sau một interface `Mailer` (ghi log khi phát triển, lưu trong bộ nhớ khi test) | Đổi nhà cung cấp mà không sửa nơi gọi; chạy được cả khi chưa có key |
