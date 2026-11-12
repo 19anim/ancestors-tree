@@ -138,6 +138,10 @@ test('runs under the production Content-Security-Policy without violations', asy
   await expect(page.getByRole('heading', { level: 1, name: 'Bộ thiết kế' })).toBeVisible();
   await page.getByRole('button', { name: 'Mở hộp thoại mẫu' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  // Fonts load lazily; a blocked font would only be reported after it is requested.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
 
   expect(violations).toEqual([]);
 });
