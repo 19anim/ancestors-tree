@@ -5,7 +5,8 @@ import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
 import { RouteError } from './RouteError';
 
-// The gallery is a separate chunk: visitors of the home page never download it.
+// Only the gallery's own code is a separate chunk that home-page visitors never download.
+// Shared components it uses (such as Dialog and TextField) stay in the main bundle.
 const DesignGalleryPage = lazy(() =>
   import('../features/design-gallery').then((module) => ({ default: module.DesignGalleryPage })),
 );
