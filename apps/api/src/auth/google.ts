@@ -92,6 +92,7 @@ export function createGoogleOAuthClient(options: GoogleClientOptions): GoogleOAu
       if (!response.ok) throw new Error(`Google token endpoint answered ${response.status}`);
       const { id_token: idToken } = TokenResponseSchema.parse(await response.json());
       const { payload } = await jwtVerify(idToken, keys, {
+        algorithms: ['RS256'],
         issuer: ISSUERS,
         audience: options.clientId,
       });

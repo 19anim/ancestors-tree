@@ -113,6 +113,70 @@ describe('Google sign-in', () => {
     expect(login.body).toMatchObject({ hasGoogle: true, hasPassword: true });
   });
 
+  it('signs a returning Google user in without creating a second account', async () => {
+    await signInWithGoogle();
+    const { agent, callback } = await signInWithGoogle();
+    expect(callback.headers.location).toBe('/clans');
+    expect((await agent.get('/api/me')).status).toBe(200);
+    expect(await User.countDocuments({ email: 'lan@gmail.example' })).toBe(1);
+  });
+
+  it('refuses an email that is already linked to a different Google account', async () => {
+    await User.create({
+      email: 'lan@gmail.example',
+      name: 'Lan',
+      googleId: 'google-0',
+      emailVerifiedAt: new Date(),
+    });
+    const { callback } = await signInWithGoogle();
+    expect(callback.headers.location).toBe('/login?error=google');
+    expect(setCookies(callback).has('at')).toBe(false);
+    expect((await User.findOne({ email: 'lan@gmail.example' }))?.googleId).toBe('google-0');
+  });
+
+  it('sends every malformed callback to the failure redirect and clears g_state', async () => {
+    const agent = request.agent(app);
+    await agent.get('/api/auth/google/start');
+    const state = google.lastAuthorization?.state ?? '';
+    const queries = [
+      '',
+      `state=${state}`,
+      'code=code-1',
+      `code=${'a'.repeat(5000)}&state=${state}`,
+      `code=code-1&state=${'s'.repeat(5000)}`,
+      `error=${'e'.repeat(5000)}`,
+      `code=code-1&code=code-2&state=${state}`,
+      `code[a]=1&state[]=${state}`,
+    ];
+    for (const query of queries) {
+      const response = await agent.get(`/api/auth/google/callback?${query}`);
+      expect(response.status, query.slice(0, 40)).toBe(302);
+      expect(response.headers.location).toBe('/login?error=google');
+      expect(setCookies(response).get('g_state')).toMatch(/^g_state=;/);
+      expect(setCookies(response).has('at')).toBe(false);
+    }
+  });
+
+  it('fails safely on a tampered g_state cookie', async () => {
+    const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    const valid = { state: 's', nonce: 'n', verifier: 'v', returnTo: '/clans' };
+    const cookies = [
+      '!!!not-base64-json!!!',
+      encode({ ...valid, returnTo: 'https://evil.example.test' }),
+      encode({ ...valid, returnTo: '//evil.example.test' }),
+      encode({ state: 's' }),
+    ];
+    for (const value of cookies) {
+      const response = await request(app)
+        .get('/api/auth/google/callback')
+        .set('Cookie', `g_state=${value}`)
+        .query({ code: 'code-1', state: 's' });
+      expect(response.status).toBe(302);
+      expect(response.headers.location).toBe('/login?error=google');
+      expect(setCookies(response).has('at')).toBe(false);
+    }
+  });
+
   it('takes over an unverified account: drops its password and signs it out', async () => {
     // Someone registered this email without proving they own it.
     const { agent: squatter } = await signUp(app, { email: 'lan@gmail.example' });

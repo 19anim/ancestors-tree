@@ -10,6 +10,8 @@ import type { RouteRegistry } from '../http/routeRegistry.ts';
 
 const DEFAULT_RETURN_TO = '/clans';
 const FAILURE_REDIRECT = '/login?error=google';
+const MAX_CODE_LENGTH = 2048;
+const MAX_STATE_LENGTH = 256;
 
 /** What the g_state cookie remembers between /start and /callback. */
 const GoogleStateSchema = z.object({
@@ -99,10 +101,12 @@ export function registerGoogleRoutes(api: RouteRegistry, deps: GoogleRouteDeps):
     tags: ['Auth'],
     access: 'public',
     request: {
+      // Lenient on purpose: whatever the browser sends must end in the failure redirect
+      // (clearing g_state), never in a JSON 400 page.
       query: z.object({
-        code: z.string().max(2048).optional(),
-        state: z.string().max(256).optional(),
-        error: z.string().max(256).optional(),
+        code: z.unknown().optional(),
+        state: z.unknown().optional(),
+        error: z.unknown().optional(),
       }),
     },
     responses: {
@@ -111,11 +115,17 @@ export function registerGoogleRoutes(api: RouteRegistry, deps: GoogleRouteDeps):
         redirect: true,
       },
     },
-    handler: async ({ query, req }) => {
+    handler: async ({ query: raw, req }) => {
+      // Anything but a plain string (repeated or nested parameters) counts as missing.
+      const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
+      const query = { code: text(raw.code), state: text(raw.state), error: text(raw.error) };
       const clearState = clearGoogleStateCookie(deps.secureCookies);
       const failure = { status: 302 as const, redirect: FAILURE_REDIRECT, cookies: [clearState] };
       const saved = decodeState(readCookie(req, GOOGLE_STATE_COOKIE));
       if (!deps.google || !saved || !query.code || query.error || query.state !== saved.state) {
+        return failure;
+      }
+      if (query.code.length > MAX_CODE_LENGTH || query.state.length > MAX_STATE_LENGTH) {
         return failure;
       }
       try {

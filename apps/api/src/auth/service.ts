@@ -98,16 +98,20 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
 
       const sameEmail = await User.findOne({ email: profile.email });
       if (sameEmail) {
-        if (!sameEmail.emailVerifiedAt) {
-          // Nobody has proved they own this email: a stranger may have registered it to get
-          // into the real owner's account later. Google proves ownership, so the unproven
-          // password goes and every session of the old account ends.
-          sameEmail.passwordHash = undefined;
-          await revokeAllSessions(sameEmail.id as string);
+        if (sameEmail.googleId && sameEmail.googleId !== profile.googleId) {
+          // A recycled or reassigned address must not take over the account of its old owner.
+          throw new Error('Email is linked to another Google account');
         }
+        const wasUnverified = !sameEmail.emailVerifiedAt;
+        // Nobody has proved they own an unverified email: a stranger may have registered it to
+        // get into the real owner's account later. Google proves ownership, so the unproven
+        // password goes first and only then do the old sessions end (a session made in between
+        // would otherwise survive the revoke).
+        if (wasUnverified) sameEmail.passwordHash = undefined;
         sameEmail.googleId = profile.googleId;
         sameEmail.emailVerifiedAt ??= new Date();
         await sameEmail.save();
+        if (wasUnverified) await revokeAllSessions(sameEmail.id as string);
         return signIn(sameEmail);
       }
 

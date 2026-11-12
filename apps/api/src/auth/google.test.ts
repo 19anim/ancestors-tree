@@ -15,14 +15,15 @@ async function idToken(
   privateKey: CryptoKey,
   claims: Record<string, unknown>,
   audience = CLIENT_ID,
+  { issuer = 'https://accounts.google.com', expiresAt = '5m' as string | number } = {},
 ): Promise<string> {
   return new SignJWT(claims)
     .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
-    .setIssuer('https://accounts.google.com')
+    .setIssuer(issuer)
     .setAudience(audience)
     .setSubject('google-123')
     .setIssuedAt()
-    .setExpirationTime('5m')
+    .setExpirationTime(expiresAt)
     .sign(privateKey);
 }
 
@@ -114,9 +115,65 @@ describe('Google OAuth client', () => {
     );
     await expect(
       clientWith(Response.json({ id_token: wrongAudience })).exchangeCode(input),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/aud/);
     await expect(
       clientWith(new Response('denied', { status: 400 })).exchangeCode(input),
     ).rejects.toThrow(/400/);
+  });
+
+  describe('ID token checks', () => {
+    const input = { code: 'c', codeVerifier: 'v', redirectUri: REDIRECT_URI, nonce: 'expected' };
+    const claims = { email: 'a@b.example', email_verified: true, nonce: 'expected' };
+    const exchange = async (
+      token: string,
+      keys: Awaited<ReturnType<typeof signingSetup>>['keys'],
+    ) =>
+      createGoogleOAuthClient({
+        clientId: CLIENT_ID,
+        clientSecret: 'test-secret',
+        fetch: async () => Response.json({ id_token: token }),
+        keys,
+      }).exchangeCode(input);
+
+    it('rejects a token signed with a different key', async () => {
+      const trusted = await signingSetup();
+      const attacker = await signingSetup();
+      const forged = await idToken(attacker.privateKey, claims);
+      await expect(exchange(forged, trusted.keys)).rejects.toThrow(/signature/);
+    });
+
+    it('rejects an expired token', async () => {
+      const { privateKey, keys } = await signingSetup();
+      const expired = await idToken(privateKey, claims, CLIENT_ID, {
+        expiresAt: Math.floor(Date.now() / 1000) - 60,
+      });
+      await expect(exchange(expired, keys)).rejects.toThrow(/exp/);
+    });
+
+    it('rejects a wrong issuer and accepts the bare accounts.google.com one', async () => {
+      const { privateKey, keys } = await signingSetup();
+      const wrong = await idToken(privateKey, claims, CLIENT_ID, {
+        issuer: 'https://evil.example.test',
+      });
+      await expect(exchange(wrong, keys)).rejects.toThrow(/iss/);
+      const bare = await idToken(privateKey, claims, CLIENT_ID, { issuer: 'accounts.google.com' });
+      await expect(exchange(bare, keys)).resolves.toMatchObject({ googleId: 'google-123' });
+    });
+
+    it('rejects a missing or wrong nonce', async () => {
+      const { privateKey, keys } = await signingSetup();
+      const missing = await idToken(privateKey, { email: 'a@b.example' });
+      await expect(exchange(missing, keys)).rejects.toThrow(/nonce/);
+      const wrong = await idToken(privateKey, { ...claims, nonce: 'other' });
+      await expect(exchange(wrong, keys)).rejects.toThrow(/nonce/);
+    });
+
+    it('reports an unverified or missing email_verified claim as unverified', async () => {
+      const { privateKey, keys } = await signingSetup();
+      const unverified = await idToken(privateKey, { ...claims, email_verified: false });
+      expect((await exchange(unverified, keys)).emailVerified).toBe(false);
+      const missing = await idToken(privateKey, { email: 'a@b.example', nonce: 'expected' });
+      expect((await exchange(missing, keys)).emailVerified).toBe(false);
+    });
   });
 });

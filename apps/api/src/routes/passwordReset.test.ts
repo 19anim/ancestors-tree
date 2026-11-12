@@ -42,6 +42,7 @@ describe('POST /api/auth/forgot-password', () => {
     expect(response.status).toBe(204);
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mailer.sent.length).toBe(before);
+    expect(await PasswordReset.countDocuments()).toBe(0);
   });
 });
 
@@ -74,12 +75,41 @@ describe('POST /api/auth/reset-password', () => {
   it('works only once', async () => {
     await signUp(app, { email: 'hoa@example.test' });
     const token = await requestReset('hoa@example.test');
-    await request(app).post('/api/auth/reset-password').send({ token, password: 'new-password-1' });
+    const first = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'new-password-1' });
+    expect(first.status).toBe(200);
     const again = await request(app)
       .post('/api/auth/reset-password')
       .send({ token, password: 'new-password-2' });
     expect(again.status).toBe(400);
     expect(again.body.error.code).toBe('INVALID_TOKEN');
+  });
+
+  it('invalidates the other reset links of the user', async () => {
+    await signUp(app, { email: 'mai@example.test' });
+    const first = await requestReset('mai@example.test');
+    const second = await requestReset('mai@example.test');
+    const used = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: first, password: 'new-password-1' });
+    expect(used.status).toBe(200);
+    const other = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: second, password: 'new-password-2' });
+    expect(other.status).toBe(400);
+    expect(other.body.error.code).toBe('INVALID_TOKEN');
+  });
+
+  it('lets only one of two concurrent resets with the same token succeed', async () => {
+    await signUp(app, { email: 'binh@example.test' });
+    const token = await requestReset('binh@example.test');
+    const responses = await Promise.all(
+      ['new-password-1', 'new-password-2'].map((password) =>
+        request(app).post('/api/auth/reset-password').send({ token, password }),
+      ),
+    );
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
   });
 
   it('rejects an expired link', async () => {
