@@ -2,6 +2,9 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+// The API port behind /api: 3000 for `pnpm dev`, 3100 for the Playwright API (API_PORT).
+const apiTarget = `http://localhost:${process.env.API_PORT ?? '3000'}`;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
@@ -23,11 +26,12 @@ export default defineConfig({
       },
     },
   },
+  preview: { proxy: { '/api': { target: apiTarget } } },
   server: {
     port: 5173,
     proxy: {
       // Same-origin /api in development, mirroring the Netlify proxy used in production.
-      '/api': { target: 'http://localhost:3000' },
+      '/api': { target: apiTarget },
     },
   },
 });
