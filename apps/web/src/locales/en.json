@@ -12,6 +12,17 @@
   "common": {
     "close": "Close"
   },
+  "home": {
+    "title": "Your family tree, one photo at a time.",
+    "galleryLink": "See the design system",
+    "boardLabel": "Sample family tree",
+    "legend": "Threads with a red pin join parents to children · stitches join spouses · red stamps are death anniversaries · yellow stickers are birthdays."
+  },
+  "scrapbook": {
+    "personLabel": "{{name}}, {{years}}",
+    "deathAnniversary": "Memorial {{date}}",
+    "birthday": "Bday {{date}}"
+  },
   "system": {
     "serverStatus": {
       "checking": "Connecting to the server…",

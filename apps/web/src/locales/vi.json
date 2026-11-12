@@ -12,6 +12,17 @@
   "common": {
     "close": "Đóng"
   },
+  "home": {
+    "title": "Gia phả nhà mình, dán từng tấm ảnh.",
+    "galleryLink": "Xem bộ thiết kế",
+    "boardLabel": "Cây gia phả mẫu",
+    "legend": "Sợi chỉ có ghim đỏ nối cha mẹ với con · đường khâu nối vợ chồng · tem đỏ là ngày giỗ · sticker vàng là sinh nhật."
+  },
+  "scrapbook": {
+    "personLabel": "{{name}}, {{years}}",
+    "deathAnniversary": "Giỗ {{date}}",
+    "birthday": "SN {{date}}"
+  },
   "system": {
     "serverStatus": {
       "checking": "Đang kết nối máy chủ…",
