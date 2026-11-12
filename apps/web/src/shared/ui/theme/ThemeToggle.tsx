@@ -23,7 +23,7 @@ export function ThemeToggle() {
         <label
           key={value}
           title={t(labelKey)}
-          className="grid size-8 cursor-pointer place-items-center rounded-full text-ink-muted transition-colors duration-(--duration-fast) hover:text-ink has-[:checked]:bg-ink has-[:checked]:text-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
+          className="grid size-8 cursor-pointer place-items-center rounded-full text-ink-muted transition-colors duration-(--duration-fast) ease-settle hover:text-ink has-[:checked]:bg-ink has-[:checked]:text-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
         >
           <input
             type="radio"
