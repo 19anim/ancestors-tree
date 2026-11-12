@@ -166,5 +166,63 @@
       "signOut": "Sign out",
       "signedInAs": "Signed in as {{name}}"
     }
+  },
+  "clans": {
+    "title": "My clans",
+    "empty": "You are not in any clan yet. Create your first clan, or open an invite link a relative sent you.",
+    "memberCount": "{{n}} members",
+    "roles": {
+      "owner": "Owner",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
+    "create": {
+      "title": "Create a new clan",
+      "name": "Clan name",
+      "namePlaceholder": "Nguyen family – Nam Dinh",
+      "hometown": "Hometown",
+      "description": "About the clan",
+      "submit": "Create clan"
+    },
+    "tabs": {
+      "label": "Clan sections",
+      "members": "Members",
+      "settings": "Settings"
+    },
+    "members": {
+      "you": "(you)",
+      "role": "Role of {{name}}",
+      "remove": "Remove from clan",
+      "removeTitle": "Remove {{name}} from the clan?",
+      "removeBody": "{{name}} will no longer be able to view or edit this family tree. You can invite them again later.",
+      "leave": "Leave clan",
+      "leaveTitle": "Leave {{clan}}?",
+      "leaveBody": "You will no longer see this family tree until someone invites you again.",
+      "cancel": "Cancel"
+    },
+    "invites": {
+      "title": "Invite links",
+      "intro": "Anyone with the link can join within 7 days. Send it to relatives through Zalo or Messenger.",
+      "role": "Role when joining",
+      "create": "Create invite link",
+      "empty": "No invite links are active.",
+      "link": "Invite link ({{role}})",
+      "expires": "Expires {{date}}",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "revoke": "Revoke"
+    },
+    "settings": {
+      "save": "Save changes",
+      "saved": "Changes saved"
+    },
+    "join": {
+      "title": "Clan invitation",
+      "offer": "{{inviter}} invites you to {{clan}} as {{role}}.",
+      "accept": "Join",
+      "signIn": "Sign in to join",
+      "register": "Create an account",
+      "home": "Back to home"
+    }
   }
 }

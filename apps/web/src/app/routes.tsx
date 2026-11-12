@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import type { RouteObject } from 'react-router';
+import { Navigate, type RouteObject } from 'react-router';
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -7,6 +7,13 @@ import {
   RequireAuth,
   ResetPasswordPage,
 } from '../features/auth';
+import {
+  ClanLayout,
+  ClanMembersPage,
+  ClanSettingsPage,
+  ClansPage,
+  JoinPage,
+} from '../features/clans';
 import { HomePage } from '../features/home';
 import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
@@ -33,9 +40,20 @@ export const routes: RouteObject[] = [
       { path: 'reset-password', element: <ResetPasswordPage /> },
       {
         element: <RequireAuth />,
-        // Filled in Task 14.
-        children: [{ path: 'clans', element: null }],
+        children: [
+          { path: 'clans', element: <ClansPage /> },
+          {
+            path: 'clans/:id',
+            element: <ClanLayout />,
+            children: [
+              { index: true, element: <Navigate to="members" replace /> },
+              { path: 'members', element: <ClanMembersPage /> },
+              { path: 'settings', element: <ClanSettingsPage /> },
+            ],
+          },
+        ],
       },
+      { path: 'join/:token', element: <JoinPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
