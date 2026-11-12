@@ -42,6 +42,11 @@ export function AppShell() {
                   {t('nav.home')}
                 </NavLink>
               </li>
+              <li>
+                <NavLink to="/design" className={navLinkClass}>
+                  {t('nav.designGallery')}
+                </NavLink>
+              </li>
             </ul>
           </nav>
           <ThemeToggle />

@@ -28,7 +28,8 @@
   "nav": {
     "skipToContent": "Bỏ qua, tới nội dung chính",
     "primary": "Điều hướng chính",
-    "home": "Trang chủ"
+    "home": "Trang chủ",
+    "designGallery": "Bộ thiết kế"
   },
   "notFound": {
     "title": "Không tìm thấy trang này",
@@ -39,6 +40,53 @@
     "title": "Trang này gặp lỗi",
     "body": "Hãy tải lại trang. Nếu vẫn lỗi, quay về trang chủ.",
     "reload": "Tải lại trang"
+  },
+  "designGallery": {
+    "title": "Bộ thiết kế",
+    "intro": "Mọi màu, chữ và thành phần của AncestorsTree ở cùng một chỗ. Đổi giao diện sáng/tối ở góc trên để xem cả hai.",
+    "sections": {
+      "colors": "Màu",
+      "type": "Chữ",
+      "controls": "Nút và ô nhập",
+      "dialog": "Hộp thoại",
+      "photos": "Ảnh polaroid theo mức thu phóng",
+      "marks": "Tem ngày",
+      "threads": "Chỉ và đường khâu"
+    },
+    "type": {
+      "display": "Gia phả họ Nguyễn",
+      "body": "Mỗi người là một tấm ảnh. Màu băng dính cho biết người đó thuộc chi nào.",
+      "hand": "Ông nội giỗ rằm tháng Mười",
+      "mono": "GIỖ 15/10 · SN 21/11 · 1931–2004"
+    },
+    "controls": {
+      "primary": "Lưu thay đổi",
+      "secondary": "Huỷ",
+      "ghost": "Xem thêm",
+      "danger": "Xoá người này",
+      "nameLabel": "Họ và tên",
+      "nameHint": "Viết đầy đủ, có dấu. Ví dụ: Nguyễn Văn Thịnh.",
+      "dateLabel": "Ngày mất (âm lịch)",
+      "dateError": "Tháng Mười âm lịch năm đó chỉ có 29 ngày."
+    },
+    "dialog": {
+      "open": "Mở hộp thoại mẫu",
+      "title": "Xoá Cô Hà khỏi cây?",
+      "body": "Cô Hà sẽ được cất vào “Ảnh chưa dán”. Bạn có thể hoàn tác ngay sau đó.",
+      "confirm": "Xoá khỏi cây",
+      "cancel": "Giữ lại"
+    },
+    "photos": {
+      "full": "Phóng to: ảnh đầy đủ",
+      "label": "Vừa: nhãn tên",
+      "strip": "Thu nhỏ: dải băng dính"
+    },
+    "marks": {
+      "note": "Tem đỏ là ngày giỗ (âm lịch), sticker vàng là sinh nhật."
+    },
+    "threads": {
+      "note": "Sợi chỉ có ghim đỏ nối cha mẹ với con. Đường khâu có nút tròn nối vợ chồng."
+    }
   },
   "system": {
     "serverStatus": {

@@ -28,7 +28,8 @@
   "nav": {
     "skipToContent": "Skip to main content",
     "primary": "Main navigation",
-    "home": "Home"
+    "home": "Home",
+    "designGallery": "Design system"
   },
   "notFound": {
     "title": "We could not find this page",
@@ -39,6 +40,53 @@
     "title": "Something went wrong on this page",
     "body": "Reload the page. If it keeps failing, go back to the home page.",
     "reload": "Reload page"
+  },
+  "designGallery": {
+    "title": "Design system",
+    "intro": "Every color, typeface and component of AncestorsTree in one place. Switch between light and dark at the top to see both.",
+    "sections": {
+      "colors": "Colors",
+      "type": "Type",
+      "controls": "Buttons and inputs",
+      "dialog": "Dialog",
+      "photos": "Polaroids by zoom level",
+      "marks": "Date marks",
+      "threads": "Threads and stitches"
+    },
+    "type": {
+      "display": "The Nguyễn family tree",
+      "body": "Each person is a photo. The color of the tape shows which branch they belong to.",
+      "hand": "Grandpa's memorial is on the full moon of the tenth month",
+      "mono": "MEMORIAL 15/10 · BDAY 21/11 · 1931–2004"
+    },
+    "controls": {
+      "primary": "Save changes",
+      "secondary": "Cancel",
+      "ghost": "See more",
+      "danger": "Delete this person",
+      "nameLabel": "Full name",
+      "nameHint": "Write it in full, with diacritics. Example: Nguyễn Văn Thịnh.",
+      "dateLabel": "Date of death (lunar)",
+      "dateError": "The tenth lunar month of that year has only 29 days."
+    },
+    "dialog": {
+      "open": "Open sample dialog",
+      "title": "Remove Cô Hà from the tree?",
+      "body": "Cô Hà will be moved to “Loose photos”. You can undo right after.",
+      "confirm": "Remove from tree",
+      "cancel": "Keep"
+    },
+    "photos": {
+      "full": "Zoomed in: full photo",
+      "label": "Medium: name label",
+      "strip": "Zoomed out: tape strip"
+    },
+    "marks": {
+      "note": "Red stamps are death anniversaries (lunar), yellow stickers are birthdays."
+    },
+    "threads": {
+      "note": "Threads with a red pin join parents to children. Stitches with a round knot join spouses."
+    }
   },
   "system": {
     "serverStatus": {

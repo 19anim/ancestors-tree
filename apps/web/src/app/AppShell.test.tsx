@@ -40,4 +40,15 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Về trang chủ' })).toHaveAttribute('href', '/');
   });
+
+  it('opens the design gallery from the navigation', async () => {
+    renderRoute('/design');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Bộ thiết kế' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bộ thiết kế' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
 });
