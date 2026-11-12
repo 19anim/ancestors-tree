@@ -8,8 +8,9 @@ import { AppError } from '../http/AppError.ts';
 import type { CookieInstruction } from '../http/routeRegistry.ts';
 import { User, type UserDocument } from '../models/User.ts';
 import { clearSessionCookies, sessionCookies } from './cookies.ts';
+import type { GoogleProfile } from './google.ts';
 import type { Passwords } from './passwords.ts';
-import { revokeSessionOf, rotateSession, startSession } from './sessions.ts';
+import { revokeAllSessions, revokeSessionOf, rotateSession, startSession } from './sessions.ts';
 import type { AccessTokens } from './tokens.ts';
 import { toCurrentUser } from './userDto.ts';
 
@@ -86,6 +87,36 @@ export function createAuthService({ tokens, passwords, secureCookies }: AuthServ
       const user = await User.findOne({ email: input.email });
       const valid = await passwords.verify(input.password, user?.passwordHash);
       if (!user || !valid) throw new AppError('INVALID_CREDENTIALS', 'Wrong email or password');
+      return signIn(user);
+    },
+
+    async signInWithGoogle(profile: GoogleProfile): Promise<SignedIn> {
+      if (!profile.emailVerified) throw new Error('Google account email is not verified');
+
+      const linked = await User.findOne({ googleId: profile.googleId });
+      if (linked) return signIn(linked);
+
+      const sameEmail = await User.findOne({ email: profile.email });
+      if (sameEmail) {
+        if (!sameEmail.emailVerifiedAt) {
+          // Nobody has proved they own this email: a stranger may have registered it to get
+          // into the real owner's account later. Google proves ownership, so the unproven
+          // password goes and every session of the old account ends.
+          sameEmail.passwordHash = undefined;
+          await revokeAllSessions(sameEmail.id as string);
+        }
+        sameEmail.googleId = profile.googleId;
+        sameEmail.emailVerifiedAt ??= new Date();
+        await sameEmail.save();
+        return signIn(sameEmail);
+      }
+
+      const user = await User.create({
+        email: profile.email,
+        name: profile.name,
+        googleId: profile.googleId,
+        emailVerifiedAt: new Date(),
+      });
       return signIn(user);
     },
 

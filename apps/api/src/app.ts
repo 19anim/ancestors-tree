@@ -24,6 +24,8 @@ import { registerMeRoutes } from './routes/me.ts';
 import { createPasswordResets } from './auth/passwordResets.ts';
 import type { Mailer } from './mail/mailer.ts';
 import { registerPasswordResetRoutes } from './routes/passwordReset.ts';
+import type { GoogleOAuthClient } from './auth/google.ts';
+import { registerGoogleRoutes } from './routes/google.ts';
 import { createPasswords } from './auth/passwords.ts';
 import { createRequireAuth } from './auth/requireAuth.ts';
 import { createAuthService } from './auth/service.ts';
@@ -46,6 +48,8 @@ export interface AppOptions {
   rateLimits: { auth: number; user: number };
   /** Sends password reset emails (createMailer). */
   mailer: Mailer;
+  /** Google sign-in; off when GOOGLE_CLIENT_ID is not set. */
+  google?: GoogleOAuthClient;
   auth: {
     /** JWT_SECRET: signs the access tokens. */
     jwtSecret: string;
@@ -85,6 +89,13 @@ export function createApp(options: AppOptions): CreatedApp {
     passwords,
   });
   registerPasswordResetRoutes(api, { auth, resets, logger: options.logger });
+  registerGoogleRoutes(api, {
+    google: options.google,
+    auth,
+    appOrigin: options.appOrigin,
+    secureCookies: options.auth.secureCookies,
+    logger: options.logger,
+  });
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();

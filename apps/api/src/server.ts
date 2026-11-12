@@ -1,5 +1,6 @@
 import { pino } from 'pino';
 import { createApp } from './app.ts';
+import { createGoogleOAuthClient } from './auth/google.ts';
 import { BCRYPT_COST } from './auth/passwords.ts';
 import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
 import { createMailer } from './mail/mailer.ts';
@@ -37,6 +38,13 @@ const { app } = createApp({
   apiDocs: apiDocsEnabled(config),
   rateLimits: { auth: 5, user: 300 },
   mailer: createMailer(config, logger),
+  google:
+    config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET
+      ? createGoogleOAuthClient({
+          clientId: config.GOOGLE_CLIENT_ID,
+          clientSecret: config.GOOGLE_CLIENT_SECRET,
+        })
+      : undefined,
   auth: {
     jwtSecret: requireSetting(config.JWT_SECRET, 'JWT_SECRET'),
     secureCookies: config.NODE_ENV === 'production',
