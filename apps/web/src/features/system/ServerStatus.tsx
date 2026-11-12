@@ -40,11 +40,15 @@ export function ServerStatus() {
       </p>
       {/* TanStack Query v5 resets a refetch of a query without data to pending, so isError is false while retrying. */}
       {!health.isSuccess && health.errorUpdateCount > 0 ? (
+        // aria-disabled, not disabled: a disabled button would drop keyboard focus mid-retry.
         <Button
           variant="secondary"
           size="sm"
-          disabled={health.isFetching}
-          onClick={() => void health.refetch()}
+          aria-disabled={health.isFetching}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          onClick={() => {
+            if (!health.isFetching) void health.refetch();
+          }}
         >
           {t('system.serverStatus.retry')}
         </Button>

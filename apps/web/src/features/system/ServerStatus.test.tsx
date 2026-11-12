@@ -57,10 +57,16 @@ describe('ServerStatus', () => {
     );
     expect(status).toHaveAttribute('data-state', 'error');
 
-    await user.click(screen.getByRole('button', { name: 'Thử lại' }));
+    const retry = screen.getByRole('button', { name: 'Thử lại' });
+    await user.click(retry);
 
     await waitFor(() => expect(status).toHaveTextContent('Đang kết nối máy chủ…'));
-    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeDisabled();
+    // aria-disabled instead of disabled: a disabled button would drop keyboard focus.
+    expect(retry).toHaveAttribute('aria-disabled', 'true');
+    expect(retry).toHaveFocus();
+
+    await user.click(retry);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     finishRetry(healthy());
 
