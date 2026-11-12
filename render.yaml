@@ -31,10 +31,26 @@ services:
         value: info
       - key: APP_VERSION
         value: 0.1.0
+      - key: APP_ORIGIN
+        value: https://ancestorstree.netlify.app
+      # Netlify proxy + Render load balancer. Verify req.ip in the P8 deploy review.
+      - key: TRUST_PROXY_HOPS
+        value: '2'
+      - key: MAIL_FROM
+        value: AncestorsTree <onboarding@resend.dev>
       - key: CLOUDINARY_FOLDER
         value: ancestors-tree/prod
+      # Generated once by Render; rotating it signs everyone out.
+      - key: JWT_SECRET
+        generateValue: true
       # Secrets: entered in the Render dashboard (Environment), never committed.
       - key: MONGODB_URI
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: RESEND_API_KEY
         sync: false
       - key: CLOUDINARY_URL
         sync: false
