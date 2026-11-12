@@ -10,6 +10,7 @@ import { createOriginCheck } from './http/originCheck.ts';
 import {
   AUTH_RATE_LIMITED_PATHS,
   createAuthRateLimit,
+  createLoginEmailRateLimit,
   createUserRateLimit,
 } from './http/rateLimits.ts';
 import {
@@ -48,8 +49,11 @@ export interface AppOptions {
   trustProxyHops: number;
   /** Serve the interactive reference at /api/docs (see apiDocsEnabled). */
   apiDocs: boolean;
-  /** Requests per minute: `auth` per IP and endpoint, `user` per signed-in user. */
-  rateLimits: { auth: number; user: number };
+  /**
+   * Requests per minute: `auth` per IP and endpoint, `user` per signed-in user. `loginEmail`:
+   * login attempts per email per 15 minutes (default 10).
+   */
+  rateLimits: { auth: number; user: number; loginEmail?: number };
   /** Sends password reset emails (createMailer). */
   mailer: Mailer;
   /** Google sign-in; off when GOOGLE_CLIENT_ID is not set. */
@@ -89,6 +93,7 @@ export function createApp(options: AppOptions): CreatedApp {
     mailer: options.mailer,
     appOrigin: options.appOrigin,
     passwords,
+    logger: options.logger,
   });
   registerPasswordResetRoutes(api, { auth, resets, logger: options.logger });
   registerGoogleRoutes(api, {
@@ -117,6 +122,8 @@ export function createApp(options: AppOptions): CreatedApp {
   app.use(express.json({ limit: '1mb' }));
   app.use('/api', createOriginCheck(options.appOrigin));
   app.use(AUTH_RATE_LIMITED_PATHS, createAuthRateLimit(options.rateLimits.auth));
+  // After express.json: the key is the email in the body.
+  app.use('/api/auth/login', createLoginEmailRateLimit(options.rateLimits.loginEmail ?? 10));
   app.get('/api/openapi.json', (_req, res) => {
     res.json(openApiDocument);
   });

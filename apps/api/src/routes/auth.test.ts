@@ -135,3 +135,40 @@ describe('POST /api/auth/logout', () => {
     expect(refresh.status).toBe(401);
   });
 });
+
+describe('login throttle per email', () => {
+  it('answers 429 after the budget for one email, whatever the IP', async () => {
+    const limited = createTestApp({
+      trustProxyHops: 1,
+      rateLimits: { auth: 1000, user: 1000, loginEmail: 3 },
+    }).app;
+    await signUp(limited, { email: 'target@example.test' });
+    const attempt = (email: string, ip: string) =>
+      request(limited)
+        .post('/api/auth/login')
+        .set('X-Forwarded-For', ip)
+        .send({ email, password: 'wrong-password-here' });
+
+    expect((await attempt('target@example.test', '10.0.0.1')).status).toBe(401);
+    expect((await attempt(' Target@Example.TEST ', '10.0.0.2')).status).toBe(401);
+    expect((await attempt('target@example.test', '10.0.0.3')).status).toBe(401);
+    const blocked = await attempt('TARGET@example.test', '10.0.0.4');
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error.code).toBe('RATE_LIMITED');
+    // The right password does not get through either, and other emails are unaffected.
+    const right = await request(limited)
+      .post('/api/auth/login')
+      .set('X-Forwarded-For', '10.0.0.5')
+      .send({ email: 'target@example.test', password: TEST_PASSWORD });
+    expect(right.status).toBe(429);
+    expect((await attempt('other@example.test', '10.0.0.6')).status).toBe(401);
+  });
+
+  it('ignores requests without a string email', async () => {
+    const limited = createTestApp({ rateLimits: { auth: 1000, user: 1000, loginEmail: 1 } }).app;
+    for (let i = 0; i < 3; i += 1) {
+      const response = await request(limited).post('/api/auth/login').send({ email: 5 });
+      expect(response.status).toBe(400);
+    }
+  });
+});

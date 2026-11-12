@@ -24,6 +24,11 @@ async function requestReset(email: string): Promise<string> {
   return token;
 }
 
+/** Pretends the reset links so far were requested `ms` ago (createdAt is immutable in Mongoose). */
+async function ageResets(ms: number) {
+  await PasswordReset.collection.updateMany({}, { $set: { createdAt: new Date(Date.now() - ms) } });
+}
+
 describe('POST /api/auth/forgot-password', () => {
   it('emails a reset link in the user language', async () => {
     await signUp(app, { email: 'lan@example.test', locale: 'en' });
@@ -43,6 +48,47 @@ describe('POST /api/auth/forgot-password', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mailer.sent.length).toBe(before);
     expect(await PasswordReset.countDocuments()).toBe(0);
+  });
+
+  it('sends one email for two requests within a minute, still answering 204', async () => {
+    await signUp(app, { email: 'quick@example.test' });
+    await requestReset('quick@example.test');
+    const before = mailer.sent.length;
+    const second = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'quick@example.test' });
+    expect(second.status).toBe(204);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(mailer.sent.length).toBe(before);
+    expect(await PasswordReset.countDocuments()).toBe(1);
+
+    await ageResets(61 * 1000);
+    await requestReset('quick@example.test');
+    expect(await PasswordReset.countDocuments()).toBe(2);
+  });
+
+  it('sends nothing for the sixth request within 24 hours', async () => {
+    const { user } = await signUp(app, { email: 'many@example.test' });
+    await PasswordReset.insertMany(
+      Array.from({ length: 5 }, (_, index) => ({
+        userId: user.id,
+        tokenHash: `hash-${index}`,
+        expiresAt: new Date(Date.now() + 60_000),
+      })),
+    );
+    await ageResets(2 * 60 * 60 * 1000);
+    const before = mailer.sent.length;
+    const response = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'many@example.test' });
+    expect(response.status).toBe(204);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(mailer.sent.length).toBe(before);
+    expect(await PasswordReset.countDocuments()).toBe(5);
+
+    // Resets older than a day no longer count.
+    await ageResets(25 * 60 * 60 * 1000);
+    await requestReset('many@example.test');
   });
 });
 
@@ -89,6 +135,7 @@ describe('POST /api/auth/reset-password', () => {
   it('invalidates the other reset links of the user', async () => {
     await signUp(app, { email: 'mai@example.test' });
     const first = await requestReset('mai@example.test');
+    await ageResets(2 * 60 * 1000);
     const second = await requestReset('mai@example.test');
     const used = await request(app)
       .post('/api/auth/reset-password')
