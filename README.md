@@ -30,7 +30,7 @@ pnpm dev
 
 - Web: http://localhost:5173
 - API reference: http://localhost:3000/api/docs
-- More: [CONTRIBUTING.md](CONTRIBUTING.md) · [API error codes](docs/error-codes.md) · [ADRs](docs/adr/)
+- More: [CONTRIBUTING.md](CONTRIBUTING.md) · [API error codes](docs/error-codes.md) · [ADRs](docs/adr/) · [Deployment](docs/deployment.md)
 
 ## Design docs
 

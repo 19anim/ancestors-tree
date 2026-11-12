@@ -1,0 +1,45 @@
+# Netlify configuration for apps/web. Dashboard settings and the full checklist: docs/deployment.md
+#
+# Node comes from .nvmrc (24) and pnpm from "packageManager" in package.json (Corepack),
+# so no NODE_VERSION / PNPM_VERSION variables are needed.
+
+[build]
+  base = "/"
+  command = "pnpm --filter @ancestors-tree/web build"
+  publish = "apps/web/dist"
+  # Exit 0 = skip the build, exit 1 = build. Production deploys cost 15 credits each on the
+  # free plan, so skip builds when nothing the web app depends on has changed. Always build
+  # when there is no previous build to compare with (first deploy, cleared cache, retries).
+  ignore = '''
+    if [ -z "$CACHED_COMMIT_REF" ] || [ "$CACHED_COMMIT_REF" = "$COMMIT_REF" ]; then exit 1; fi
+    git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- apps/web packages/shared package.json pnpm-lock.yaml pnpm-workspace.yaml .nvmrc netlify.toml
+  '''
+
+# Same-origin API: the browser calls /api/* on the Netlify domain and Netlify proxies it to
+# Render, so auth cookies stay first-party and no CORS setup is needed.
+# If Render gives the service a different URL, update it here (see docs/deployment.md).
+[[redirects]]
+  from = "/api/*"
+  to = "https://ancestors-tree-api.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# Single-page app: every other path serves index.html (client-side routing).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Vite fingerprints everything in /assets, so it can be cached forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

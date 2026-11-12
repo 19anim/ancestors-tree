@@ -1,0 +1,33 @@
+# Render Blueprint for apps/api. Dashboard settings and the full checklist: docs/deployment.md
+#
+# Node comes from .nvmrc (24). Render sets NODE_ENV=production and PORT at runtime.
+services:
+  - type: web
+    name: ancestors-tree-api
+    runtime: node
+    plan: free
+    # Closest region to Vietnam. Cannot be changed after the service is created.
+    region: singapore
+    branch: main
+    # Corepack installs the pnpm version pinned in package.json ("packageManager").
+    # --prod skips dev tooling; the API runs its TypeScript sources directly (ADR 0002).
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod --filter @ancestors-tree/api...
+    startCommand: cd apps/api && node src/server.ts
+    healthCheckPath: /api/health
+    # Deploy a new commit on main only after its GitHub checks (CI) pass.
+    autoDeployTrigger: checksPass
+    # Only rebuild when something the API depends on changes.
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/shared/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - .nvmrc
+        - render.yaml
+    envVars:
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_VERSION
+        value: 0.1.0
