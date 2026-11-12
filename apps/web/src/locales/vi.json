@@ -9,6 +9,9 @@
     "dark": "Tối",
     "system": "Theo máy"
   },
+  "common": {
+    "close": "Đóng"
+  },
   "system": {
     "serverStatus": {
       "checking": "Đang kết nối máy chủ…",

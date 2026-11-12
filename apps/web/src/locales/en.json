@@ -9,6 +9,9 @@
     "dark": "Dark",
     "system": "Match device"
   },
+  "common": {
+    "close": "Close"
+  },
   "system": {
     "serverStatus": {
       "checking": "Connecting to the server…",
