@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { ClanRemoval } from '../models/ClanRemoval.ts';
 import { Invite } from '../models/Invite.ts';
 import { Membership } from '../models/Membership.ts';
 import { createTestApp } from '../test/app.ts';
@@ -216,5 +217,50 @@ describe('invites', () => {
     expect((await owner.agent.delete(`${path}/${created.id}`)).status).toBe(204);
     expect(await Invite.countDocuments({ clanId: clan.id })).toBe(0);
     expect((await owner.agent.delete(`${path}/${created.id}`)).status).toBe(404);
+  });
+
+  describe('after the owner removed someone', () => {
+    async function removedMember() {
+      const { owner, clan, path } = await ownerWithClan();
+      const { token } = (await owner.agent.post(path).send({ role: 'editor' })).body;
+      const member = await signUp(app);
+      expect((await member.agent.post(`/api/invites/${token}/accept`)).status).toBe(200);
+      const removed = await owner.agent.delete(`/api/clans/${clan.id}/members/${member.user.id}`);
+      expect(removed.status).toBe(204);
+      return { owner, clan, path, token, member };
+    }
+
+    it('refuses the old link and creates no membership', async () => {
+      const { clan, token, member } = await removedMember();
+      expect(await ClanRemoval.countDocuments({ clanId: clan.id, userId: member.user.id })).toBe(1);
+      const response = await member.agent.post(`/api/invites/${token}/accept`);
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+      expect(await Membership.countDocuments({ clanId: clan.id, userId: member.user.id })).toBe(0);
+    });
+
+    it('lets them in with a link made after the removal, and forgets the removal', async () => {
+      const { owner, clan, path, member } = await removedMember();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const fresh = (await owner.agent.post(path).send({ role: 'viewer' })).body;
+      const response = await member.agent.post(`/api/invites/${fresh.token}/accept`);
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ role: 'viewer', alreadyMember: false });
+      expect(await Membership.countDocuments({ clanId: clan.id, userId: member.user.id })).toBe(1);
+      expect(await ClanRemoval.countDocuments()).toBe(0);
+    });
+
+    it('does not block someone who left by themselves', async () => {
+      const { owner, clan, path } = await ownerWithClan();
+      const { token } = (await owner.agent.post(path).send({ role: 'editor' })).body;
+      const member = await signUp(app);
+      await member.agent.post(`/api/invites/${token}/accept`);
+      const left = await member.agent.delete(`/api/clans/${clan.id}/members/${member.user.id}`);
+      expect(left.status).toBe(204);
+      expect(await ClanRemoval.countDocuments()).toBe(0);
+      const again = await member.agent.post(`/api/invites/${token}/accept`);
+      expect(again.status).toBe(200);
+      expect(again.body.alreadyMember).toBe(false);
+    });
   });
 });

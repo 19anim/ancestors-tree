@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { AppError } from '../http/AppError.ts';
 import type { ClanMembership } from '../http/locals.ts';
 import type { RouteRegistry } from '../http/routeRegistry.ts';
+import { ClanRemoval } from '../models/ClanRemoval.ts';
 import { Membership } from '../models/Membership.ts';
 import { User } from '../models/User.ts';
 
@@ -120,6 +121,14 @@ export function registerMemberRoutes(api: RouteRegistry): void {
       const result = await Membership.deleteOne({ clanId: params.id, userId: params.userId });
       if (result.deletedCount === 0) {
         throw new AppError('NOT_FOUND', 'This person is not a member of the clan');
+      }
+      if (!leaving) {
+        // Old invite links must not let them straight back in (see invite accept).
+        await ClanRemoval.updateOne(
+          { clanId: params.id, userId: params.userId },
+          { $set: { removedAt: new Date() } },
+          { upsert: true },
+        );
       }
       return { status: 204 };
     },

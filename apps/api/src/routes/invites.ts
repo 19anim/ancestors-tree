@@ -13,6 +13,7 @@ import { randomToken } from '../auth/tokens.ts';
 import { AppError } from '../http/AppError.ts';
 import type { RouteRegistry } from '../http/routeRegistry.ts';
 import { Clan } from '../models/Clan.ts';
+import { ClanRemoval } from '../models/ClanRemoval.ts';
 import { Invite } from '../models/Invite.ts';
 import { Membership } from '../models/Membership.ts';
 import { User } from '../models/User.ts';
@@ -157,6 +158,14 @@ export function registerInviteRoutes(api: RouteRegistry): void {
           body: { clanId, role: ClanRoleSchema.parse(existing.role), alreadyMember: true },
         };
       }
+      // Removed by the owner after this link was made: only a newer link lets them back in.
+      const removal = await ClanRemoval.findOne({ clanId, userId: userId() });
+      if (removal && removal.removedAt >= invite.createdAt) {
+        throw new AppError(
+          'FORBIDDEN',
+          'You were removed from this clan. Ask the owner for a new link',
+        );
+      }
       try {
         await Membership.create({ clanId, userId: userId(), role: invite.role });
       } catch (error) {
@@ -169,6 +178,7 @@ export function registerInviteRoutes(api: RouteRegistry): void {
           body: { clanId, role: ClanRoleSchema.parse(stored.role), alreadyMember: true },
         };
       }
+      if (removal) await ClanRemoval.deleteOne({ _id: removal._id });
       return {
         status: 200,
         body: { clanId, role: InviteRoleSchema.parse(invite.role), alreadyMember: false },
