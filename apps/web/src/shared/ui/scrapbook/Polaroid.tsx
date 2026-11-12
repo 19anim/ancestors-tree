@@ -101,21 +101,24 @@ export function Polaroid({
         className="absolute -top-2 left-7 h-3.5 w-11 -rotate-3 opacity-85"
         style={{ backgroundColor: tapeBackground }}
       />
-      {photoUrl ? (
-        <img src={photoUrl} alt="" className="h-[74px] w-full object-cover" />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="flex h-[74px] items-center justify-center text-2xl font-bold"
-          style={{ backgroundColor: `color-mix(in oklab, ${tapeBackground} 18%, var(--photo))` }}
-        >
-          {initialsOf(name)}
-        </span>
-      )}
+      {/* Date marks are stuck on the photo's corner, so they never cover the caption. */}
+      <div data-part="photo" className="relative">
+        {photoUrl ? (
+          <img src={photoUrl} alt="" className="h-[74px] w-full object-cover" />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex h-[74px] items-center justify-center text-2xl font-bold"
+            style={{ backgroundColor: `color-mix(in oklab, ${tapeBackground} 18%, var(--photo))` }}
+          >
+            {initialsOf(name)}
+          </span>
+        )}
+        {marks ? (
+          <div className="absolute -right-3 bottom-1 flex flex-col items-end gap-1">{marks}</div>
+        ) : null}
+      </div>
       <figcaption className="mt-1.5 truncate text-center font-hand text-base">{name}</figcaption>
-      {marks ? (
-        <div className="absolute -right-3 bottom-3 flex flex-col items-end gap-1">{marks}</div>
-      ) : null}
     </figure>
   );
 }

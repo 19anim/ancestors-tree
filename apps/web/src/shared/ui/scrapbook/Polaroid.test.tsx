@@ -36,6 +36,16 @@ describe('Polaroid', () => {
     expect(screen.queryByText('Giỗ 15/10')).not.toBeInTheDocument();
   });
 
+  it('sticks date marks on the photo, not over the caption', () => {
+    render(
+      <Polaroid name="Ông Thịnh" label={LABEL} tape="progenitor" marks={<span>Giỗ 15/10</span>} />,
+    );
+    const card = screen.getByRole('figure', { name: LABEL });
+    const mark = screen.getByText('Giỗ 15/10');
+    expect(card.querySelector('[data-part="photo"]')).toContainElement(mark);
+    expect(within(card).getByText('Ông Thịnh')).not.toContainElement(mark);
+  });
+
   it('renders a taped name label at medium zoom', () => {
     render(<Polaroid name="Bố Tuấn" label="Bố Tuấn, 1962" tape={0} lod="label" lifeYears="1962" />);
     const card = screen.getByRole('figure', { name: 'Bố Tuấn, 1962' });
