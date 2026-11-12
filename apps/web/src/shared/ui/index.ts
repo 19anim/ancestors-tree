@@ -31,3 +31,17 @@ export {
 } from './scrapbook/Polaroid';
 export { BRANCH_TAPE_COUNT, tapeColor, type TapeKind } from './scrapbook/tape';
 export { MAX_TILT, tiltFor } from './scrapbook/tilt';
+export { Board, type BoardProps } from './scrapbook/Board';
+export { Stitch } from './scrapbook/Stitch';
+export { Thread } from './scrapbook/Thread';
+export {
+  midpoint,
+  PIN_OFFSET,
+  pinPoint,
+  stitchEnds,
+  stitchPath,
+  THREAD_DROP,
+  threadPath,
+  type Point,
+  type Size,
+} from './scrapbook/threads';
