@@ -94,6 +94,7 @@
     "serverStatus": {
       "checking": "Connecting to the server…",
       "ok": "Server is running (version {{version}})",
+      "databaseDown": "The server is running (version {{version}}) but cannot reach the database",
       "retry": "Try again"
     }
   },

@@ -5,16 +5,42 @@ import { renderWithProviders } from '../../test/render';
 import { ServerStatus } from './ServerStatus';
 
 const healthy = () =>
-  new Response(JSON.stringify({ status: 'ok', version: '1.4.0', uptimeSeconds: 12 }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  new Response(
+    JSON.stringify({ status: 'ok', version: '1.4.0', uptimeSeconds: 12, database: 'connected' }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe('ServerStatus', () => {
+  it('warns when the server cannot reach the database', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              status: 'ok',
+              version: '1.4.0',
+              uptimeSeconds: 12,
+              database: 'disconnected',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+    renderWithProviders(<ServerStatus />);
+    const status = await screen.findByText(
+      'Máy chủ đang chạy (phiên bản 1.4.0) nhưng chưa kết nối được cơ sở dữ liệu',
+    );
+    expect(status).toHaveAttribute('data-state', 'degraded');
+  });
+
   it('announces checking, then the running version, in one polite live region', async () => {
     vi.stubGlobal(
       'fetch',

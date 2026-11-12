@@ -7,4 +7,4 @@ export {
   type ErrorCode,
   type ErrorDetail,
 } from './errors.ts';
-export { HealthResponseSchema, type HealthResponse } from './api/health.ts';
+export { DatabaseStateSchema, HealthResponseSchema, type HealthResponse } from './api/health.ts';

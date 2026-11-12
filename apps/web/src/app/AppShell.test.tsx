@@ -7,10 +7,18 @@ beforeEach(() => {
     'fetch',
     vi.fn(
       async () =>
-        new Response(JSON.stringify({ status: 'ok', version: '0.1.0', uptimeSeconds: 1 }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({
+            status: 'ok',
+            version: '0.1.0',
+            uptimeSeconds: 1,
+            database: 'connected',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
     ),
   );
 });

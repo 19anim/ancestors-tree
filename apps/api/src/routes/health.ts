@@ -1,4 +1,5 @@
 import { HealthResponseSchema } from '@ancestors-tree/shared';
+import { databaseState } from '../db/connect.ts';
 import type { RouteRegistry } from '../http/routeRegistry.ts';
 
 export function registerHealthRoutes(api: RouteRegistry, info: { version: string }): void {
@@ -14,6 +15,7 @@ export function registerHealthRoutes(api: RouteRegistry, info: { version: string
         status: 'ok',
         version: info.version,
         uptimeSeconds: Math.round(process.uptime()),
+        database: databaseState(),
       },
     }),
   });

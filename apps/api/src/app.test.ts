@@ -18,6 +18,7 @@ describe('createApp', () => {
     const body = HealthResponseSchema.parse(response.body);
     expect(body.status).toBe('ok');
     expect(body.version).toBe('9.9.9-test');
+    expect(body.database).toBe('disconnected');
   });
 
   it('returns NOT_FOUND JSON for unknown API routes', async () => {

@@ -6,11 +6,12 @@ import { errorMessageKey } from '../../shared/lib/apiError';
 import { cn } from '../../shared/lib/cn';
 import { Button } from '../../shared/ui';
 
-type ServerState = 'checking' | 'error' | 'ok';
+type ServerState = 'checking' | 'error' | 'degraded' | 'ok';
 
 const DOT: Record<ServerState, string> = {
   checking: 'bg-line-strong',
   error: 'bg-stamp',
+  degraded: 'bg-stamp',
   ok: 'bg-success',
 };
 
@@ -24,8 +25,13 @@ export function ServerStatus() {
   let state: ServerState = 'checking';
   let message = t('system.serverStatus.checking');
   if (health.isSuccess) {
-    state = 'ok';
-    message = t('system.serverStatus.ok', { version: health.data.version });
+    if (health.data.database === 'connected') {
+      state = 'ok';
+      message = t('system.serverStatus.ok', { version: health.data.version });
+    } else {
+      state = 'degraded';
+      message = t('system.serverStatus.databaseDown', { version: health.data.version });
+    }
   } else if (health.isError && !health.isFetching) {
     state = 'error';
     message = t(errorMessageKey(health.error));
