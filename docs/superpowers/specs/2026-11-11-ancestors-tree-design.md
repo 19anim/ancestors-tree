@@ -223,7 +223,8 @@ Person {                         // a person in the genealogy (NOT a User)
     access: 'membership' | 'shareLink',   // how the link was created
     shareLinkId?                          // when created from a share link
   },                             // index on treeLink.targetClanId (incoming-links list)
-  avatarUrl?, bio?, burialPlace?,
+  photo?: { publicId, version },  // Cloudinary asset (§12, image storage); URLs are built on the client
+  bio?, burialPlace?,
   createdAt, updatedAt
 }
 
@@ -371,7 +372,8 @@ src/
     export/         PNG/SVG/PDF export, share links
     help/           in-app user guide
   shared/
-    ui/             design-system components (shadcn/ui based), DualDateInput, InfoHint
+    ui/             design tokens, base components (shadcn/ui patterns on Radix), scrapbook primitives
+                    (Polaroid, DateMark, Thread, Stitch, Board), theme, DualDateInput, InfoHint
     lib/            api client, removeDiacritics, formatters
   locales/          vi.json, en.json
   sw/               service worker entry (vite-plugin-pwa / Workbox)
@@ -431,7 +433,7 @@ Because in-laws never expand upward (§8), the layout is a pure descendant tree:
 |---|---|
 | React Flow `onlyRenderVisibleElements` | Only nodes inside the viewport are rendered |
 | `React.memo` on PersonNode + per-id selectors | Editing one person re-renders only that card |
-| Level of detail (LOD) by zoom | < 0.4: name + branch color · 0.4–0.8: + years · > 0.8: full card with photo |
+| Level of detail (LOD) by zoom | < 0.4: a strip of washi tape in the branch color · 0.4–0.8: a taped name label with life years · > 0.8: the full polaroid with photo and date marks (§13.3) |
 | Layout in a Web Worker | Re-layout never freezes the UI |
 | Re-layout only on structural changes | Renaming or editing dates does not recompute positions |
 | Collapse/expand branches | Fewer nodes on very large trees |
@@ -449,7 +451,30 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
 - React Hook Form + Zod resolver (schemas from `packages/shared`).
 - Clicking a person opens a **side panel** (bottom sheet on mobile) to view/edit. Saving creates an `updatePerson` op with only the changed fields.
 - `DualDateInput`: toggle **Lunar / Solar / Year only**. Entering one side shows the converted other side and the Can Chi year. A "leap month" checkbox appears in Lunar mode.
-- Context menu (and card buttons on touch devices): Add child · Add spouse · Add parent (if missing) · Link to another family tree · Delete.
+- Context menu (and card buttons on touch devices): Add child · Add spouse · Add parent (if missing) · Change relationship… · Link to another family tree · Delete.
+- People are created through forms and AI import (§10), never by dragging. Dragging only **changes relationships**.
+
+**Drag to relate (editors only).** Positions always come from the layout (§7.4); a drag never stores a free position.
+
+- **Drop zones.** Dropping card A on the top, middle or bottom third of card B makes A a **parent**, **spouse** or **child** of B. The zones are labelled on B while hovering, and the status line says exactly what the drop will do.
+- **Replace, don't stack.** Any existing direct relationship between A and B (spouse, parent or child) is replaced by the new one. When a couple becomes parent and child, their shared children stay with the person who becomes the child.
+- **Follow-up questions instead of dead ends.**
+  - If B has several spouses, making A a child of B asks "child of B with whom?" (or "only B").
+  - If B already has two parents, making A a parent of B asks which parent A replaces.
+  - If either partner has children with only one known parent, making A and B spouses asks whether those children are shared.
+  - Every question has a "Cancel, change nothing" option.
+- **Blocked only when impossible.** A drop is blocked only when it would create an impossible state, such as someone becoming an ancestor of themselves through other people. Blocked zones are crossed out with the reason before the drop, and the reason says how to proceed. Validation runs the same `applyOp` as the server, so the UI never accepts a drop the server would reject.
+- **Undo.** Each completed drop is a single `batch` op, so it is one undo step. A toast confirms the change and offers "Undo".
+- **Cancel a drag.** Press Esc, or drop the card on empty space more than about one card width from its place.
+- **Cut.**
+  - Clicking a thread or its red pin, or a marriage knot, shows **Cut**.
+  - Cutting a parent → child thread is `setParents(null)`.
+  - Cutting a marriage with shared children asks who the children stay with. The other partner is removed from that Union with `updateUnion`.
+  - A divorce where both stay parents is recorded as Union status `divorced` (shown as a broken stitch), not by cutting.
+- **Loose photos.** Anyone left unconnected moves to the **Loose photos** tray instead of being deleted. A detached branch moves as one stack and can be dropped back onto the tree.
+- **Nudge.** Dropping a card within about one card width of its place keeps a small display offset, so short threads stay easy to reach. Offsets are per device (localStorage), are not ops and are not shared. **Tidy up** clears them.
+- **Touch.** A long press (about 400 ms) picks a card up; a normal swipe still pans the tree.
+- **Keyboard and screen reader.** The card menu item **Change relationship…** lists each relationship with a **Remove** button and offers the same add and replace choices.
 
 ### 7.7 PWA
 
@@ -462,7 +487,7 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
 ### 7.8 Responsive & accessibility
 
 - Touch pan/zoom (built into React Flow); panel becomes a bottom sheet on small screens.
-- Keyboard: Tab through cards, Enter opens the profile, arrow keys move between parent/child/siblings.
+- Keyboard: Tab through cards, Enter opens the profile, arrow keys move between parent/child/siblings. "Change relationship…" in the card menu is the keyboard alternative to drag-to-relate (§7.6).
 - WCAG AA contrast. Each card has an `aria-label` with name, life years and generation.
 
 ---
@@ -684,9 +709,30 @@ The prompt instructs the AI to: return only JSON in this format; never invent in
 - Sessions: **JWT** in `httpOnly; Secure; SameSite=Lax` cookies. Access token 15 min; refresh token 30 days with rotation.
 - Every `/clans/:id/*` route checks Membership + role in middleware. A `clanId` in the request body is never trusted; `Person.clanId === :id` is always verified.
 - `helmet`, `express-rate-limit` (sign-in: 5/min/IP; general API: 300/min/user).
-- Image upload: the client requests a **signed upload** from the API, then uploads directly to Cloudinary; max 2 MB; jpg/png/webp only.
+- Image upload: the client requests a **signed upload** from the API, then uploads directly to Cloudinary; max 2 MB; jpg/png/webp only. Paths and checks: "Image storage" below.
 - `/internal/*` requires `X-Cron-Secret` to match an environment variable.
 - Invite/share tokens: 32 chars from `crypto.randomBytes`.
+
+### Image storage (Cloudinary)
+
+One Cloudinary cloud serves every environment. The API decides every path; the browser never chooses one.
+
+```
+ancestors-tree/                      Cloudinary root
+├─ dev/                              CLOUDINARY_FOLDER=ancestors-tree/dev (local development)
+└─ prod/                             CLOUDINARY_FOLDER=ancestors-tree/prod (Render)
+   └─ clans/<clanId>/
+      └─ people/<personId>/
+         └─ <random>                 one asset per uploaded photo
+```
+
+- **Per clan, then per person.** Deleting a clan deletes the prefix `…/clans/<clanId>/`; deleting a person for good deletes `…/people/<personId>/`. Storage per clan can be measured by prefix.
+- **No names in paths.** IDs are database IDs and the last segment is 16 random characters (`crypto.randomBytes`). Photo URLs can leak (screenshots, browser history), so they reveal no names or dates and cannot be guessed.
+- **Signed by the API.** `POST /api/clans/:id/people/:personId/photo-upload` (Editor or Owner) signs exactly: `public_id` (the full path), `asset_folder` (its folder part, so both Cloudinary folder modes give the same tree), `allowed_formats=jpg,png,webp`, `tags=clan_<clanId>`, and an incoming transformation `c_limit,w_1600,h_1600` that re-encodes the image and drops its metadata (including GPS location). The client rejects files over 2 MB before uploading.
+- **Verified on save.** The client saves `photo: { publicId, version }` with a normal `updatePerson` op. The server accepts it only if `publicId` starts with this clan's and person's prefix and the asset exists with at most 2 MB (Admin API); otherwise it answers 422 and deletes the asset.
+- **Old photos are kept** while an op that references them can still be undone or reverted (§6.4). Cleaning up unreferenced assets is Phase 2.
+- **Delivery.** The browser builds URLs from the public cloud name (`VITE_CLOUDINARY_CLOUD_NAME`), `publicId`, `version` and named transformations: polaroid `c_fill,g_face,w_172,h_148,f_auto,q_auto` (twice the 86×74 photo area), profile `c_fill,g_face,w_480,h_480,f_auto,q_auto`. Share links (§11) remove `photo` from living people on the server, so their URLs are never sent.
+- **Secrets.** `CLOUDINARY_URL` (API key and secret) exists only in the API's environment.
 
 ---
 
@@ -707,23 +753,60 @@ The prompt instructs the AI to: return only JSON in this format; never invent in
 
 Skeletons shaped like the real content (no generic spinners on main pages). Empty clan → guided first step ("Add the progenitor"). Empty upcoming list → explains what is needed (lunar death dates).
 
-### 13.3 Visual direction: "modern heritage" (anti-slop)
+### 13.3 Visual direction: "family scrapbook" (anti-slop)
 
-The UI must not look like a generic AI-generated SaaS template.
+The UI must not look like a generic AI-generated SaaS template. It is aimed at younger family members, stays readable for older relatives, and must still fit when birthday reminders are added.
 
-**Direction:** a calm, archival feel inspired by Vietnamese lacquerware and *dó* paper — warm paper-toned surfaces, deep ink text, one restrained lacquer-red accent and a muted gold for highlights, generous whitespace, and a refined serif for headings paired with a clean sans-serif for UI text. Both typefaces must fully support Vietnamese diacritics (final picks made in the design-system step, week 1).
+**Direction:** a family scrapbook laid out on grid paper. Every decorative device carries information:
+
+| Element | Meaning |
+|---|---|
+| Polaroid card | one person: photo (or initials on a tinted block) and a handwritten caption |
+| Washi tape color | the person's branch, taken from the Okabe–Ito colorblind-safe palette. The progenitor has vermilion tape; in-laws have neutral grey tape |
+| Thread ending in a red pin | parent → child |
+| Dashed stitch with a round knot | marriage |
+| Red rubber stamp | death anniversary (lunar date) |
+| Round yellow sticker | birthday |
+| "Loose photos" tray | people not connected to the tree (§7.6) |
+
+Each card tilts slightly by an angle derived from the person id (±2.5°). The board feels hand-made, but a card never changes its tilt between renders.
+
+**Color tokens** (light = "grid paper by day", dark = "desk at night"). Polaroid paper stays light in both themes.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `paper` / `paper-grid` | #FAFAF8 / #ECECE7 | #14161C / #1E2129 | page and board background, 22 px grid |
+| `surface` | #FFFFFF | #1C1F27 | panels, dialogs, inputs |
+| `ink` / `ink-muted` | #1A1A1A / #5B5F66 | #ECEAE4 / #A4A9B3 | text |
+| `line` / `line-strong` | #E2E2DC / #8A8F98 | #2C303A / #737882 | decorative borders / control borders (≥ 3:1) |
+| `stamp` / `on-stamp` | #D7263D / #FFFFFF | #FF5A6E / #14161C | anniversaries, destructive actions |
+| `accent` / `on-accent` | #2B59FF / #FFFFFF | #7C9CFF / #14161C | links, focus ring, selection |
+| `success` | #12805C | #3CCB91 | "server is running" and other OK states |
+| `thread` / `pin` | #5B5F66 / #D7263D | #A4A9B3 / #FF5A6E | relationship lines |
+| `photo`, `photo-ink`, `photo-muted`, `photo-stamp` | #FFFFFF, #1A1A1A, #5B5F66, #B8202F | #E9E6DD, same inks | polaroid paper and what is printed on it |
+| `sticker` / `on-sticker` | #FFD23F / #1A1A1A | same | birthday stickers |
+| `tape-*` | progenitor #D55E00; branches #E69F00, #56B4E9, #009E73, #F0E442, #0072B2, #CC79A7; in-law #B8BCC4; loose #C9C9C2 | same | washi tape |
+
+Text pairs meet WCAG AA (4.5:1), and borders and lines meet 3:1. A unit test checks every pair in both themes.
+
+**Type:** all three typefaces are self-hosted with their Vietnamese subsets.
+- **Be Vietnam Pro**: UI text and headings (700, −0.02em tracking).
+- **Patrick Hand**: only captions on photos and handwritten notes. It is never used for controls or body text.
+- **JetBrains Mono**: dates, stamps and numbers.
 
 **Anti-slop checklist (S9):**
 - ❌ No purple/indigo gradients, no glassmorphism, no glowing blobs, no emoji as icons.
-- ❌ No default shadcn look shipped as-is: tokens (color, radius, spacing, type scale, shadows) are customized first.
-- ❌ No "hero + three feature cards" landing cliché; the landing page shows a real tree.
+- ❌ No default shadcn look shipped as-is: tokens (color, radius, spacing, type scale, shadows) are customized first, and Tailwind's default palette is removed so only tokens can be used.
+- ❌ No "hero + three feature cards" landing cliché; the landing page shows a real (sample) tree.
 - ❌ No identical gray cards everywhere; hierarchy comes from type, spacing and a few deliberate accents.
-- ✅ Branch colors come from a curated, colorblind-safe palette in OKLCH, not random hues.
-- ✅ Light and dark themes both designed (dark = "lacquer black").
-- ✅ Motion is purposeful and short (fly-to, panel slide); respects `prefers-reduced-motion`.
-- ✅ Icons from one consistent set (Lucide), consistent stroke width.
+- ❌ No drop shadows on resting cards; depth appears only while a card is lifted (dragged).
+- ❌ No decoration without meaning: tape color, threads, stitches, stamps and stickers always encode data.
+- ✅ Branch colors come from the Okabe–Ito colorblind-safe palette, not random hues.
+- ✅ Light and dark themes both designed (dark = "desk at night").
+- ✅ Motion is purposeful and short (card settle, fly-to, panel slide); respects `prefers-reduced-motion`.
+- ✅ Icons from one consistent set (Lucide) at stroke width 1.75.
 
-Design tokens live in `apps/web/src/shared/ui/tokens.css` (CSS variables consumed by Tailwind).
+Design tokens live in `apps/web/src/shared/ui/tokens.css` (CSS variables mapped into Tailwind with `@theme`). The `/design` page shows every token and component in both themes.
 
 ---
 
@@ -765,7 +848,7 @@ Design tokens live in `apps/web/src/shared/ui/tokens.css` (CSS variables consume
 | Web | **Netlify** | Accounts created on/after 2025-09-04 get 300 credits/month; each production deploy costs 15 (~20 deploys/month) → **deploy only on merge to `main`, disable deploy previews**. Out of credits = sites paused until next month. Fallback: Cloudflare Pages |
 | API | Render | Sleeps after 15 idle minutes → wake-up screen |
 | Database | MongoDB Atlas M0 | 512 MB, supports transactions |
-| Images | Cloudinary | |
+| Images | Cloudinary | Free plan: 25 credits/month (storage, bandwidth and transformations together); one cloud, dev and prod kept apart by folder (§12) |
 | Email | Resend | 3,000 emails/month |
 | Push | Web Push (VAPID) | Free |
 | Primary cron | Cloudflare Workers Cron Trigger | Free: 5 triggers/account, up to 15 min per run |
@@ -886,3 +969,6 @@ Environment variables are documented in `apps/*/.env.example` (no real values).
 | Web hosting | Netlify | Familiar; commercial use allowed; deploy only from `main` |
 | Reminder triggering | Cloudflare Worker Cron + cron-job.org backup + Sentry monitor + catch-up | Independent of commits; tolerates cold starts; missed days are sent late, not lost |
 | Docs | User guide + generated OpenAPI + generated error codes + ADRs | Measurable (S8); signals engineering maturity |
+| Visual direction | "Family scrapbook" on grid paper: polaroids, washi tape = branch, threads, stamps and stickers (§13.3) | Appeals to younger users and leaves room for birthdays; every decoration encodes data |
+| Relationship editing | Drag to relate on the board, with cut, follow-up questions and undo; keyboard menu as an alternative (§7.6) | Fixing mistakes is direct and never a dead end |
+| Image storage | One Cloudinary cloud, `ancestors-tree/<env>/clans/<clanId>/people/<personId>/<random>`, every upload signed and verified by the API (§12) | Clans and people are deleted by prefix; no names in URLs; dev and prod stay apart without a second account |
