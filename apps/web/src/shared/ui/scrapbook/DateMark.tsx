@@ -16,7 +16,7 @@ export function DateMark({ kind, children, className }: DateMarkProps) {
       <span
         data-kind={kind}
         className={cn(
-          'inline-block -rotate-[10deg] rounded-[3px] border-[1.5px] border-photo-stamp bg-photo px-1 py-px font-mono text-[10px] leading-tight font-bold whitespace-nowrap text-photo-stamp uppercase',
+          'inline-block -rotate-[10deg] rounded-[3px] border-[1.5px] border-photo-stamp bg-photo px-1 py-px font-mono text-[11px] leading-tight font-bold whitespace-nowrap text-photo-stamp uppercase',
           className,
         )}
       >
@@ -28,7 +28,7 @@ export function DateMark({ kind, children, className }: DateMarkProps) {
     <span
       data-kind={kind}
       className={cn(
-        'inline-flex size-10 rotate-[8deg] items-center justify-center rounded-full bg-sticker text-center font-mono text-[9px] leading-tight font-bold text-on-sticker',
+        'inline-flex size-11 rotate-[8deg] items-center justify-center rounded-full bg-sticker text-center font-mono text-[11px] leading-tight font-bold text-on-sticker',
         className,
       )}
     >

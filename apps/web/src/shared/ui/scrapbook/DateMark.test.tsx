@@ -16,4 +16,15 @@ describe('DateMark', () => {
     expect(mark).toHaveAttribute('data-kind', 'birthday');
     expect(mark.className).toContain('bg-sticker');
   });
+
+  it('keeps the date readable: stamp and sticker text is 11 px', () => {
+    render(
+      <>
+        <DateMark kind="death-anniversary">Giỗ 15/10</DateMark>
+        <DateMark kind="birthday">SN 21/11</DateMark>
+      </>,
+    );
+    expect(screen.getByText('Giỗ 15/10').className).toContain('text-[11px]');
+    expect(screen.getByText('SN 21/11').className).toContain('text-[11px]');
+  });
 });
