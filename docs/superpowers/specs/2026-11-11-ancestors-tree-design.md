@@ -780,6 +780,7 @@ Each card tilts slightly by an angle derived from the person id (±2.5°). The b
 | `ink` / `ink-muted` | #1A1A1A / #5B5F66 | #ECEAE4 / #A4A9B3 | text |
 | `line` / `line-strong` | #E2E2DC / #8A8F98 | #2C303A / #737882 | decorative borders / control borders (≥ 3:1) |
 | `stamp` / `on-stamp` | #D7263D / #FFFFFF | #FF5A6E / #14161C | anniversaries, destructive actions |
+| `stamp-hover` | #B8202F | #FF7A8B | hover of destructive actions (keeps `on-stamp` at 4.5:1) |
 | `accent` / `on-accent` | #2B59FF / #FFFFFF | #7C9CFF / #14161C | links, focus ring, selection |
 | `success` | #12805C | #3CCB91 | "server is running" and other OK states |
 | `thread` / `pin` | #5B5F66 / #D7263D | #A4A9B3 / #FF5A6E | relationship lines |

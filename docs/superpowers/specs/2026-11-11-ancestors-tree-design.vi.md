@@ -782,6 +782,7 @@ Mỗi thẻ nghiêng nhẹ theo một góc tính từ id của người đó (±
 | `ink` / `ink-muted` | #1A1A1A / #5B5F66 | #ECEAE4 / #A4A9B3 | chữ |
 | `line` / `line-strong` | #E2E2DC / #8A8F98 | #2C303A / #737882 | viền trang trí / viền của nút và ô nhập (≥ 3:1) |
 | `stamp` / `on-stamp` | #D7263D / #FFFFFF | #FF5A6E / #14161C | ngày giỗ, thao tác xoá |
+| `stamp-hover` | #B8202F | #FF7A8B | khi rê chuột lên thao tác xoá (giữ `on-stamp` đạt 4.5:1) |
 | `accent` / `on-accent` | #2B59FF / #FFFFFF | #7C9CFF / #14161C | liên kết, viền focus, lựa chọn |
 | `success` | #12805C | #3CCB91 | "máy chủ đang hoạt động" và các trạng thái ổn |
 | `thread` / `pin` | #5B5F66 / #D7263D | #A4A9B3 / #FF5A6E | đường quan hệ |
