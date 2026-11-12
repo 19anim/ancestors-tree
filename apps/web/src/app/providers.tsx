@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
+import { shouldRetryQuery } from '../shared/lib/apiError';
 import { ThemeProvider } from '../shared/ui';
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
-      queries: { retry: 1, staleTime: 30_000, refetchOnWindowFocus: false },
+      queries: { retry: shouldRetryQuery, staleTime: 30_000, refetchOnWindowFocus: false },
     },
   });
 }
