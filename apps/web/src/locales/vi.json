@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "AncestorsTree",
-    "tagline": "Cùng con cháu dựng cây gia phả, không quên ngày giỗ."
+    "tagline": "Cùng con cháu dựng cây gia phả, không quên ngày giỗ.",
+    "description": "AncestorsTree — cùng con cháu dựng cây gia phả, không quên ngày giỗ."
   },
   "theme": {
     "legend": "Giao diện",
@@ -10,7 +11,8 @@
     "system": "Theo máy"
   },
   "common": {
-    "close": "Đóng"
+    "close": "Đóng",
+    "loading": "Đang tải…"
   },
   "home": {
     "title": "Gia phả nhà mình, dán từng tấm ảnh.",
@@ -22,6 +24,21 @@
     "personLabel": "{{name}}, {{years}}",
     "deathAnniversary": "Giỗ {{date}}",
     "birthday": "SN {{date}}"
+  },
+  "nav": {
+    "skipToContent": "Bỏ qua, tới nội dung chính",
+    "primary": "Điều hướng chính",
+    "home": "Trang chủ"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang này",
+    "body": "Đường dẫn có thể đã cũ hoặc bị gõ nhầm.",
+    "home": "Về trang chủ"
+  },
+  "routeError": {
+    "title": "Trang này gặp lỗi",
+    "body": "Hãy tải lại trang. Nếu vẫn lỗi, quay về trang chủ.",
+    "reload": "Tải lại trang"
   },
   "system": {
     "serverStatus": {

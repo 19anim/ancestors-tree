@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "AncestorsTree",
-    "tagline": "Build your family tree together and never miss a death anniversary."
+    "tagline": "Build your family tree together and never miss a death anniversary.",
+    "description": "AncestorsTree — build your family tree together and never miss a death anniversary."
   },
   "theme": {
     "legend": "Appearance",
@@ -10,7 +11,8 @@
     "system": "Match device"
   },
   "common": {
-    "close": "Close"
+    "close": "Close",
+    "loading": "Loading…"
   },
   "home": {
     "title": "Your family tree, one photo at a time.",
@@ -22,6 +24,21 @@
     "personLabel": "{{name}}, {{years}}",
     "deathAnniversary": "Memorial {{date}}",
     "birthday": "Bday {{date}}"
+  },
+  "nav": {
+    "skipToContent": "Skip to main content",
+    "primary": "Main navigation",
+    "home": "Home"
+  },
+  "notFound": {
+    "title": "We could not find this page",
+    "body": "The link may be outdated or mistyped.",
+    "home": "Back to home"
+  },
+  "routeError": {
+    "title": "Something went wrong on this page",
+    "body": "Reload the page. If it keeps failing, go back to the home page.",
+    "reload": "Reload page"
   },
   "system": {
     "serverStatus": {

@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe('App', () => {
-  it('renders the app name, the Vietnamese tagline and the server status', async () => {
+  it('renders the home page inside the app shell with the server status', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -20,9 +20,8 @@ describe('App', () => {
       ),
     );
     renderWithProviders(<App />);
-    expect(screen.getByRole('heading', { level: 1, name: 'AncestorsTree' })).toBeInTheDocument();
     expect(
-      screen.getByText('Cùng con cháu dựng cây gia phả, không quên ngày giỗ.'),
+      await screen.findByRole('heading', { level: 1, name: 'Gia phả nhà mình, dán từng tấm ảnh.' }),
     ).toBeInTheDocument();
     expect(await screen.findByText('Máy chủ đang hoạt động (phiên bản 2.0.0)')).toBeInTheDocument();
   });
