@@ -14,9 +14,9 @@ describe('loadConfig', () => {
 
   it('accepts MongoDB and Cloudinary settings', () => {
     const config = loadConfig({
-      MONGODB_URI:
-        'mongodb+srv://app:pw@cluster0.abcde.mongodb.net/ancestors-tree-dev?retryWrites=true',
-      CLOUDINARY_URL: 'cloudinary://123456789012345:abcDEF_123-xyz@my-cloud',
+      // Obviously fake values: a credential-shaped fixture gets flagged by GitHub secret scanning.
+      MONGODB_URI: 'mongodb+srv://db.example.test/ancestors-tree-dev?retryWrites=true',
+      CLOUDINARY_URL: 'cloudinary://test-key:test-secret@example-cloud',
       CLOUDINARY_FOLDER: 'ancestors-tree/prod',
     });
     expect(config.MONGODB_URI).toMatch(/^mongodb\+srv:/);
@@ -33,7 +33,7 @@ describe('loadConfig', () => {
   it('requires a database name in MONGODB_URI', () => {
     expect(() =>
       loadConfig({
-        MONGODB_URI: 'mongodb+srv://app:pw@cluster0.abcde.mongodb.net/?retryWrites=true',
+        MONGODB_URI: 'mongodb+srv://db.example.test/?retryWrites=true',
       }),
     ).toThrow(/MONGODB_URI/);
   });
