@@ -100,6 +100,9 @@
   },
   "errors": {
     "VALIDATION_ERROR": "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.",
+    "INVALID_TOKEN": "Đường link này không dùng được nữa: link sai, đã hết hạn hoặc đã được dùng.",
+    "INVALID_CREDENTIALS": "Email hoặc mật khẩu chưa đúng.",
+    "EMAIL_TAKEN": "Email này đã có tài khoản. Hãy đăng nhập hoặc lấy lại mật khẩu.",
     "UNAUTHENTICATED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
     "NOT_FOUND": "Không tìm thấy nội dung bạn cần.",

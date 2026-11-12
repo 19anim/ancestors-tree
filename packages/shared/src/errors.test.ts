@@ -5,9 +5,12 @@ describe('ERROR_CODES', () => {
   it('lists every code in a stable order', () => {
     expect(ERROR_CODE_LIST).toEqual([
       'VALIDATION_ERROR',
+      'INVALID_TOKEN',
       'UNAUTHENTICATED',
+      'INVALID_CREDENTIALS',
       'FORBIDDEN',
       'NOT_FOUND',
+      'EMAIL_TAKEN',
       'VERSION_CONFLICT',
       'RULE_VIOLATION',
       'RATE_LIMITED',

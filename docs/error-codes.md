@@ -11,9 +11,12 @@ Every API error response has this shape:
 | Code | HTTP status | Meaning | Client handling |
 | --- | --- | --- | --- |
 | `VALIDATION_ERROR` | 400 | The request data failed validation; `details` lists each problem. | Show the field errors next to the inputs. |
+| `INVALID_TOKEN` | 400 | The link (password reset or invite) is wrong, has expired or was already used. | Explain that the link no longer works and offer to get a new one. |
 | `UNAUTHENTICATED` | 401 | There is no valid session, or it has expired. | Redirect to the sign-in page. |
+| `INVALID_CREDENTIALS` | 401 | The email or password is wrong (the response never says which). | Show the message on the sign-in form; do not redirect. |
 | `FORBIDDEN` | 403 | The user is signed in but their role does not allow this action. | Show a "no permission" message; do not retry. |
 | `NOT_FOUND` | 404 | The requested resource or route does not exist. | Show a not-found state. |
+| `EMAIL_TAKEN` | 409 | An account with this email already exists. | Show the message next to the email field and offer sign-in or password reset. |
 | `VERSION_CONFLICT` | 409 | The tree changed after the client's baseVersion; newer operations must be fetched first. | Fetch missing operations, rebase pending changes, then resend. |
 | `RULE_VIOLATION` | 422 | The change breaks a genealogy business rule enforced by applyOp. | Show the reason and discard the change. |
 | `RATE_LIMITED` | 429 | Too many requests in a short time window. | Wait, then retry with exponential backoff. |

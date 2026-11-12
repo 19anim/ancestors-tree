@@ -100,6 +100,9 @@
   },
   "errors": {
     "VALIDATION_ERROR": "Some data is invalid. Please check it.",
+    "INVALID_TOKEN": "This link no longer works: it is wrong, expired or already used.",
+    "INVALID_CREDENTIALS": "The email or password is wrong.",
+    "EMAIL_TAKEN": "This email already has an account. Sign in or reset your password.",
     "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
     "FORBIDDEN": "You do not have permission to do this.",
     "NOT_FOUND": "We could not find what you were looking for.",
