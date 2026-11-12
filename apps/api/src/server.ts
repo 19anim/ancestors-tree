@@ -1,6 +1,6 @@
 import { pino } from 'pino';
 import { createApp } from './app.ts';
-import { loadConfig, requireSetting } from './config.ts';
+import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
 import { connectDatabase, disconnectDatabase } from './db/connect.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -30,6 +30,10 @@ const { app } = createApp({
   logger,
   version: config.APP_VERSION,
   httpLogging: config.NODE_ENV !== 'test',
+  appOrigin: config.APP_ORIGIN,
+  trustProxyHops: config.TRUST_PROXY_HOPS,
+  apiDocs: apiDocsEnabled(config),
+  rateLimits: { auth: 5, user: 300 },
 });
 
 const server = app.listen(config.PORT);
