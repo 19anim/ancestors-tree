@@ -9,6 +9,7 @@ A collaborative family-tree (gia phả) platform for Vietnamese families: build 
 ## Highlights (planned)
 
 - **Large, smooth trees** — 1,000–2,000 people at 60 fps (React Flow + custom layout in a Web Worker, level-of-detail rendering)
+- **Family-scrapbook design** — polaroids on grid paper; tape color shows the branch, threads join parents and children, stamps mark death anniversaries (light and dark themes, WCAG AA)
 - **Edit history** — every change is an operation: undo/redo, full timeline, revert any past change
 - **Lunar calendar** — Hồ Ngọc Đức algorithm for UTC+7, anniversary rules for leap months and 30th days
 - **Reminders** — email + web push, idempotent daily job with catch-up
@@ -30,7 +31,7 @@ pnpm dev
 
 - Web: http://localhost:5173
 - API reference: http://localhost:3000/api/docs
-- More: [CONTRIBUTING.md](CONTRIBUTING.md) · [API error codes](docs/error-codes.md) · [ADRs](docs/adr/) · [Deployment](docs/deployment.md)
+- More: [CONTRIBUTING.md](CONTRIBUTING.md) · [API error codes](docs/error-codes.md) · [ADRs](docs/adr/) · [Deployment](docs/deployment.md) · [Design system](docs/design-system.md)
 
 ## Design docs
 

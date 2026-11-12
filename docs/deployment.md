@@ -43,6 +43,7 @@ Notes:
 - Bump `APP_VERSION` in `render.yaml` on releases; it is what `GET /api/health` reports.
 - Blueprint changes to `render.yaml` are applied on the next sync. Env vars entered by hand in the dashboard are kept.
 - If the build fails at `corepack enable` (permissions), change the build command to `npx --yes pnpm@11.17.0 install --frozen-lockfile --prod --filter @ancestors-tree/api...` (keep the version equal to `packageManager`).
+- Open the API reference on the Render URL (`<render-url>/api/docs`). Through the Netlify domain the site-wide CSP blocks the Scalar CDN script until P3 gives `/api/docs` its own policy.
 
 ## 2. Netlify (web)
 
@@ -63,13 +64,13 @@ Notes:
 
 What `netlify.toml` sets:
 
-| Setting           | Value                                                                  | Why                                                            |
-| ----------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `/api/*` redirect | 200 proxy to the Render URL                                            | same-origin API, first-party cookies (spec §4)                 |
-| `/*` redirect     | `/index.html` (200)                                                    | client-side routing for the single-page app                    |
-| Security headers  | `nosniff`, `X-Frame-Options: DENY`, referrer and permissions policy    | baseline hardening; a CSP is added with the design system (P2) |
-| Asset caching     | `/assets/*` immutable for 1 year                                       | Vite fingerprints file names                                   |
-| Ignore command    | skip when `apps/web`, `packages/shared` and root tooling are unchanged | production deploys cost 15 credits each                        |
+| Setting           | Value                                                                                                                                             | Why                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `/api/*` redirect | 200 proxy to the Render URL                                                                                                                       | same-origin API, first-party cookies (spec §4)                                        |
+| `/*` redirect     | `/index.html` (200)                                                                                                                               | client-side routing for the single-page app                                           |
+| Security headers  | `nosniff`, `X-Frame-Options: DENY`, referrer and permissions policy, Content-Security-Policy (self-hosted scripts, styles, fonts and images only) | baseline hardening; `e2e/design-system.spec.ts` replays the CSP against the built app |
+| Asset caching     | `/assets/*` immutable for 1 year                                                                                                                  | Vite fingerprints file names                                                          |
+| Ignore command    | skip when `apps/web`, `packages/shared` and root tooling are unchanged                                                                            | production deploys cost 15 credits each                                               |
 
 ## 3. MongoDB Atlas (database)
 
