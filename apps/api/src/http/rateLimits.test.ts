@@ -28,6 +28,8 @@ describe('auth rate limit', () => {
     expect(blocked.status).toBe(429);
     expect(blocked.body.error.code).toBe('RATE_LIMITED');
     expect(blocked.headers['ratelimit-policy']).toBeDefined();
+    // Changing the case of the path does not open a new budget.
+    expect((await request(app).post('/LOGIN')).status).toBe(429);
     // Another endpoint has its own budget.
     expect((await request(app).post('/register')).status).toBe(204);
   });

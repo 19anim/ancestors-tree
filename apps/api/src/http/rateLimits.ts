@@ -21,7 +21,8 @@ export function createAuthRateLimit(limit: number): RequestHandler {
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     // ipKeyGenerator groups IPv6 addresses by /56, so one client cannot rotate addresses.
-    keyGenerator: (req) => `${req.baseUrl} ${ipKeyGenerator(req.ip ?? '')}`,
+    // Lower-cased: Express routing ignores case, so /LOGIN must share the /login budget.
+    keyGenerator: (req) => `${req.baseUrl.toLowerCase()} ${ipKeyGenerator(req.ip ?? '')}`,
     handler: (_req, _res, next) => {
       next(new AppError('RATE_LIMITED', 'Too many attempts. Wait a minute and try again.'));
     },
