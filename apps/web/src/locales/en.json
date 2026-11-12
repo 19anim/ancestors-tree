@@ -3,6 +3,12 @@
     "name": "AncestorsTree",
     "tagline": "Build your family tree together and never miss a death anniversary."
   },
+  "theme": {
+    "legend": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "Match device"
+  },
   "system": {
     "serverStatus": {
       "checking": "Connecting to the server…",

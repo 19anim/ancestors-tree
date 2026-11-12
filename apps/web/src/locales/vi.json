@@ -3,6 +3,12 @@
     "name": "AncestorsTree",
     "tagline": "Cùng con cháu dựng cây gia phả, không quên ngày giỗ."
   },
+  "theme": {
+    "legend": "Giao diện",
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Theo máy"
+  },
   "system": {
     "serverStatus": {
       "checking": "Đang kết nối máy chủ…",

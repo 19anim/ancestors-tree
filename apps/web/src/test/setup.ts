@@ -7,4 +7,6 @@ await i18nReady;
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
+  delete document.documentElement.dataset.theme;
 });
