@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mockApi, type MockRoutes } from '../../test/api';
+import { apiErrorReply, mockApi, type MockRoutes } from '../../test/api';
 import { renderRoute } from '../../test/render';
 import { CLAN, CLAN_ID, INVITE, ME, MEMBERS, TUAN_ID } from './fixtures';
 
@@ -45,7 +45,7 @@ describe('ClanMembersPage', () => {
       ownerRoutes({ [`DELETE /clans/${CLAN_ID}/members/${TUAN_ID}`]: () => ({ status: 204 }) }),
     );
     renderRoute(`/clans/${CLAN_ID}/members`);
-    await user.click(await screen.findByRole('button', { name: 'Xoá khỏi dòng họ' }));
+    await user.click(await screen.findByRole('button', { name: 'Xoá Tuấn khỏi dòng họ' }));
     const dialog = await screen.findByRole('dialog', { name: 'Xoá Tuấn khỏi dòng họ?' });
     await user.click(within(dialog).getByRole('button', { name: 'Xoá khỏi dòng họ' }));
     await vi.waitFor(() =>
@@ -57,20 +57,30 @@ describe('ClanMembersPage', () => {
 
   it('a viewer can only leave', async () => {
     const user = userEvent.setup();
+    let left = false;
     const api = mockApi({
       'GET /me': () => ({ body: { ...ME, id: TUAN_ID } }),
-      [`GET /clans/${CLAN_ID}`]: () => ({ body: { ...CLAN, role: 'viewer' } }),
+      [`GET /clans/${CLAN_ID}`]: () =>
+        left ? apiErrorReply('NOT_FOUND', 404) : { body: { ...CLAN, role: 'viewer' } },
       [`GET /clans/${CLAN_ID}/members`]: () => ({
         body: [
           { ...MEMBERS[0], email: undefined, isYou: false },
           { ...MEMBERS[1], email: undefined, isYou: true },
         ],
       }),
-      [`DELETE /clans/${CLAN_ID}/members/${TUAN_ID}`]: () => ({ status: 204 }),
+      [`DELETE /clans/${CLAN_ID}/members/${TUAN_ID}`]: () => {
+        left = true;
+        return { status: 204 };
+      },
       'GET /clans': () => ({ body: [] }),
     });
     renderRoute(`/clans/${CLAN_ID}/members`);
     await user.click(await screen.findByRole('button', { name: 'Rời dòng họ' }));
+    let alertSeen = false;
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('[role="alert"]')) alertSeen = true;
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
     expect(screen.queryByRole('combobox', { name: /Vai trò của/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Cài đặt' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Link mời' })).not.toBeInTheDocument();
@@ -79,7 +89,25 @@ describe('ClanMembersPage', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Dòng họ của tôi' }),
     ).toBeInTheDocument();
+    observer.disconnect();
     expect(api.calls.some((call) => call.method === 'DELETE')).toBe(true);
+    expect(alertSeen).toBe(false);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const deleteIndex = api.calls.findIndex((call) => call.method === 'DELETE');
+    expect(
+      api.calls
+        .slice(deleteIndex)
+        .some((call) => call.method === 'GET' && call.path === `/clans/${CLAN_ID}`),
+    ).toBe(false);
+  });
+
+  it('shows an error when the clipboard rejects', async () => {
+    const user = userEvent.setup();
+    mockApi(ownerRoutes({ [`GET /clans/${CLAN_ID}/invites`]: () => ({ body: [INVITE] }) }));
+    renderRoute(`/clans/${CLAN_ID}/members`);
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));
+    await user.click(await screen.findByRole('button', { name: /^Sao chép link mời/ }));
+    expect(await screen.findByText(/Không sao chép được/)).toBeInTheDocument();
   });
 
   it('the owner creates, copies and revokes invite links', async () => {
@@ -106,10 +134,10 @@ describe('ClanMembersPage', () => {
     ).toEqual({ role: 'editor' });
     const url = `${window.location.origin}/join/${INVITE.token}`;
     expect(await screen.findByDisplayValue(url)).toHaveAttribute('readonly');
-    await user.click(screen.getByRole('button', { name: 'Sao chép link' }));
+    await user.click(screen.getByRole('button', { name: /^Sao chép link mời Biên tập/ }));
     expect(await navigator.clipboard.readText()).toBe(url);
     expect(await screen.findByText('Đã sao chép link')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Thu hồi' }));
+    await user.click(screen.getByRole('button', { name: /^Thu hồi link mời Biên tập/ }));
     await vi.waitFor(() =>
       expect(
         api.calls.some((call) => call.method === 'DELETE' && call.path.endsWith(INVITE.id)),

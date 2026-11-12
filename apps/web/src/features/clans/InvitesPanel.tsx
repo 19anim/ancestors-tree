@@ -1,6 +1,6 @@
 import type { InviteRole } from '@ancestors-tree/shared';
 import { Copy, Link as LinkIcon } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
@@ -14,18 +14,24 @@ export function InvitesPanel({ clanId }: { clanId: string }) {
   const createInvite = useCreateInvite(clanId);
   const revokeInvite = useRevokeInvite(clanId);
   const [role, setRole] = useState<InviteRole>('viewer');
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const headingId = useId();
   const roleId = useId();
   const formatDate = new Intl.DateTimeFormat(i18n.resolvedLanguage, { dateStyle: 'medium' });
   const error = invites.error ?? createInvite.error ?? revokeInvite.error;
 
+  useEffect(() => {
+    if (copyState === 'idle') return;
+    const timer = setTimeout(() => setCopyState('idle'), 4000);
+    return () => clearTimeout(timer);
+  }, [copyState]);
+
   const copy = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
+      setCopyState('copied');
     } catch {
-      setCopied(false);
+      setCopyState('failed');
     }
   };
 
@@ -61,7 +67,8 @@ export function InvitesPanel({ clanId }: { clanId: string }) {
         </p>
       ) : null}
       <p role="status" className="text-sm font-medium text-ink">
-        {copied ? t('clans.invites.copied') : ''}
+        {copyState === 'copied' ? t('clans.invites.copied') : ''}
+        {copyState === 'failed' ? t('clans.invites.copyFailed') : ''}
       </p>
       {invites.data && invites.data.length === 0 ? (
         <p className="text-ink-muted">{t('clans.invites.empty')}</p>
@@ -71,13 +78,11 @@ export function InvitesPanel({ clanId }: { clanId: string }) {
           {invites.data.map((invite) => {
             const url = `${window.location.origin}/join/${invite.token}`;
             const roleName = t(`clans.roles.${invite.role}`);
+            const date = formatDate.format(new Date(invite.expiresAt));
             return (
               <li key={invite.id} className="flex flex-col gap-2 p-4">
                 <p className="text-sm text-ink-muted">
-                  <RoleLabel role={invite.role} /> ·{' '}
-                  {t('clans.invites.expires', {
-                    date: formatDate.format(new Date(invite.expiresAt)),
-                  })}
+                  <RoleLabel role={invite.role} /> · {t('clans.invites.expires', { date })}
                 </p>
                 <input
                   type="text"
@@ -88,12 +93,17 @@ export function InvitesPanel({ clanId }: { clanId: string }) {
                   className="h-10 rounded-control border border-line-strong bg-surface px-3 text-base text-ink"
                 />
                 <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => void copy(url)}>
+                  <Button
+                    variant="secondary"
+                    aria-label={t('clans.invites.copyNamed', { role: roleName, date })}
+                    onClick={() => void copy(url)}
+                  >
                     <Copy aria-hidden="true" size={16} strokeWidth={1.75} />
                     {t('clans.invites.copy')}
                   </Button>
                   <Button
                     variant="ghost"
+                    aria-label={t('clans.invites.revokeNamed', { role: roleName, date })}
                     onClick={() => revokeInvite.mutate(invite.id)}
                     disabled={revokeInvite.isPending}
                   >

@@ -24,7 +24,7 @@ export function ClanMembersPage() {
     if (!target) return;
     const leaving = target.isYou;
     try {
-      await removeMember.mutateAsync(target.userId);
+      await removeMember.mutateAsync({ userId: target.userId, isYou: target.isYou });
     } catch {
       // Shown below through removeMember.error; keep the dialog closed so the list is readable.
       setTarget(null);
@@ -85,7 +85,11 @@ export function ClanMembersPage() {
                       <option value="editor">{t('clans.roles.editor')}</option>
                       <option value="viewer">{t('clans.roles.viewer')}</option>
                     </select>
-                    <Button variant="secondary" onClick={() => setTarget(member)}>
+                    <Button
+                      variant="secondary"
+                      aria-label={t('clans.members.removeNamed', { name: member.name })}
+                      onClick={() => setTarget(member)}
+                    >
                       <UserMinus aria-hidden="true" size={16} strokeWidth={1.75} />
                       {t('clans.members.remove')}
                     </Button>

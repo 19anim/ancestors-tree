@@ -168,6 +168,7 @@
     }
   },
   "clans": {
+    "backToList": "Back to my clans",
     "title": "My clans",
     "empty": "You are not in any clan yet. Create your first clan, or open an invite link a relative sent you.",
     "memberCount": "{{n}} members",
@@ -193,6 +194,7 @@
       "you": "(you)",
       "role": "Role of {{name}}",
       "remove": "Remove from clan",
+      "removeNamed": "Remove {{name}} from the clan",
       "removeTitle": "Remove {{name}} from the clan?",
       "removeBody": "{{name}} will no longer be able to view or edit this family tree. You can invite them again later.",
       "leave": "Leave clan",
@@ -209,8 +211,11 @@
       "link": "Invite link ({{role}})",
       "expires": "Expires {{date}}",
       "copy": "Copy link",
+      "copyNamed": "Copy {{role}} invite link expiring {{date}}",
+      "copyFailed": "Could not copy, please copy the link manually",
       "copied": "Link copied",
-      "revoke": "Revoke"
+      "revoke": "Revoke",
+      "revokeNamed": "Revoke {{role}} invite link expiring {{date}}"
     },
     "settings": {
       "save": "Save changes",

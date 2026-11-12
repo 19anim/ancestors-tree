@@ -83,9 +83,17 @@ export function useChangeRole(id: string) {
 export function useRemoveMember(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (userId: string) =>
+    mutationFn: ({ userId }: { userId: string; isYou: boolean }) =>
       apiRequest(`/clans/${id}/members/${userId}`, z.undefined(), { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: clanKeys.all }),
+    onSuccess: (_data, { isYou }) => {
+      if (isYou) {
+        // The user just lost access: drop this clan's cached queries instead of refetching a 404.
+        queryClient.removeQueries({ queryKey: clanKeys.detail(id) });
+        void queryClient.invalidateQueries({ queryKey: clanKeys.all, exact: true });
+        return;
+      }
+      return queryClient.invalidateQueries({ queryKey: clanKeys.all });
+    },
   });
 }
 

@@ -57,6 +57,41 @@ describe('JoinPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeInTheDocument();
   });
 
+  it('goes to the clan when already a member', async () => {
+    const user = userEvent.setup();
+    mockApi(
+      previewRoutes({
+        'GET /me': () => ({ body: ME }),
+        [`POST /invites/${TOKEN}/accept`]: () => ({
+          body: { clanId: CLAN_ID, role: 'owner', alreadyMember: true },
+        }),
+        [`GET /clans/${CLAN_ID}`]: () => ({ body: CLAN }),
+        [`GET /clans/${CLAN_ID}/members`]: () => ({ body: MEMBERS }),
+        [`GET /clans/${CLAN_ID}/invites`]: () => ({ body: [] }),
+        'GET /clans': () => ({ body: [CLAN] }),
+      }),
+    );
+    renderRoute(`/join/${TOKEN}`);
+    await user.click(await screen.findByRole('button', { name: 'Tham gia' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Thành viên' })).toBeInTheDocument();
+  });
+
+  it('shows the error when accepting fails', async () => {
+    const user = userEvent.setup();
+    mockApi(
+      previewRoutes({
+        'GET /me': () => ({ body: ME }),
+        [`POST /invites/${TOKEN}/accept`]: () => apiErrorReply('INVALID_TOKEN', 400),
+      }),
+    );
+    renderRoute(`/join/${TOKEN}`);
+    await user.click(await screen.findByRole('button', { name: 'Tham gia' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Đường link này không dùng được nữa/,
+    );
+  });
+
   it('explains a link that no longer works', async () => {
     mockApi({ [`GET /invites/${TOKEN}`]: () => apiErrorReply('INVALID_TOKEN', 400) });
     renderRoute(`/join/${TOKEN}`);

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet, useParams } from 'react-router';
+import { Link, NavLink, Outlet, useParams } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { cn } from '../../shared/lib/cn';
 import { useClan } from './api';
@@ -15,12 +15,17 @@ export function ClanLayout() {
   const { id = '' } = useParams();
   const clan = useClan(id);
 
-  if (clan.isPending) return <p className="text-ink-muted">{t('common.loading')}</p>;
-  if (clan.isError) {
+  if (!clan.data) {
+    if (clan.isPending) return <p className="text-ink-muted">{t('common.loading')}</p>;
     return (
-      <p role="alert" className="font-medium text-stamp">
-        {t(errorMessageKey(clan.error))}
-      </p>
+      <div className="flex flex-col gap-4">
+        <p role="alert" className="font-medium text-stamp">
+          {t(errorMessageKey(clan.error))}
+        </p>
+        <Link to="/clans" className="self-start underline">
+          {t('clans.backToList')}
+        </Link>
+      </div>
     );
   }
   return (

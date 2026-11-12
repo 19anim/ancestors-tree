@@ -168,6 +168,7 @@
     }
   },
   "clans": {
+    "backToList": "Về danh sách dòng họ",
     "title": "Dòng họ của tôi",
     "empty": "Bạn chưa ở trong dòng họ nào. Hãy tạo dòng họ đầu tiên, hoặc mở link mời mà người nhà gửi cho bạn.",
     "memberCount": "{{n}} thành viên",
@@ -193,6 +194,7 @@
       "you": "(bạn)",
       "role": "Vai trò của {{name}}",
       "remove": "Xoá khỏi dòng họ",
+      "removeNamed": "Xoá {{name}} khỏi dòng họ",
       "removeTitle": "Xoá {{name}} khỏi dòng họ?",
       "removeBody": "{{name}} sẽ không xem hay sửa được cây gia phả này nữa. Bạn có thể mời lại sau.",
       "leave": "Rời dòng họ",
@@ -209,8 +211,11 @@
       "link": "Link mời ({{role}})",
       "expires": "Hết hạn {{date}}",
       "copy": "Sao chép link",
+      "copyNamed": "Sao chép link mời {{role}} hết hạn {{date}}",
+      "copyFailed": "Không sao chép được, hãy chép link thủ công",
       "copied": "Đã sao chép link",
-      "revoke": "Thu hồi"
+      "revoke": "Thu hồi",
+      "revokeNamed": "Thu hồi link mời {{role}} hết hạn {{date}}"
     },
     "settings": {
       "save": "Lưu thay đổi",

@@ -51,6 +51,11 @@ export function JoinPage() {
               {t(errorMessageKey(accept.error))}
             </p>
           ) : null}
+          {me.isError ? (
+            <p role="alert" className="text-sm font-medium text-stamp">
+              {t(errorMessageKey(me.error))}
+            </p>
+          ) : null}
           {me.data ? (
             <Button className="self-start" onClick={() => void join()} disabled={accept.isPending}>
               {t('clans.join.accept')}
