@@ -31,3 +31,10 @@ services:
         value: info
       - key: APP_VERSION
         value: 0.1.0
+      - key: CLOUDINARY_FOLDER
+        value: ancestors-tree/prod
+      # Secrets: entered in the Render dashboard (Environment), never committed.
+      - key: MONGODB_URI
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
