@@ -31,7 +31,8 @@
     "skipToContent": "Bỏ qua, tới nội dung chính",
     "primary": "Điều hướng chính",
     "home": "Trang chủ",
-    "designGallery": "Bộ thiết kế"
+    "designGallery": "Bộ thiết kế",
+    "clans": "Dòng họ"
   },
   "notFound": {
     "title": "Không tìm thấy trang này",
@@ -112,5 +113,58 @@
     "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
     "NETWORK_ERROR": "Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.",
     "INVALID_RESPONSE": "Máy chủ trả về dữ liệu không như mong đợi."
+  },
+  "forms": {
+    "errors": {
+      "required": "Hãy điền mục này",
+      "tooShort": "Cần ít nhất {{min}} ký tự",
+      "tooLong": "Tối đa {{max}} ký tự",
+      "email": "Email chưa đúng định dạng",
+      "passwordTooLong": "Mật khẩu quá dài (tối đa 72 byte)",
+      "invalid": "Giá trị chưa hợp lệ"
+    }
+  },
+  "auth": {
+    "fields": {
+      "name": "Tên hiển thị",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "newPassword": "Mật khẩu mới",
+      "passwordHint": "Ít nhất 8 ký tự"
+    },
+    "or": "hoặc",
+    "google": "Tiếp tục với Google",
+    "login": {
+      "title": "Đăng nhập",
+      "submit": "Đăng nhập",
+      "forgot": "Quên mật khẩu?",
+      "noAccount": "Chưa có tài khoản?",
+      "register": "Tạo tài khoản",
+      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu."
+    },
+    "register": {
+      "title": "Tạo tài khoản",
+      "submit": "Tạo tài khoản",
+      "haveAccount": "Đã có tài khoản?",
+      "login": "Đăng nhập"
+    },
+    "forgot": {
+      "title": "Quên mật khẩu",
+      "intro": "Nhập email của bạn. Chúng tôi sẽ gửi một link để chọn mật khẩu mới.",
+      "submit": "Gửi link",
+      "sent": "Nếu email này có tài khoản, link đặt lại mật khẩu đã được gửi. Link dùng được một lần, trong 1 giờ.",
+      "back": "Quay lại đăng nhập"
+    },
+    "reset": {
+      "title": "Chọn mật khẩu mới",
+      "submit": "Lưu mật khẩu mới",
+      "missing": "Link này thiếu mã đặt lại mật khẩu. Hãy mở lại link trong email, hoặc lấy link mới.",
+      "requestNew": "Lấy link mới"
+    },
+    "menu": {
+      "signIn": "Đăng nhập",
+      "signOut": "Đăng xuất",
+      "signedInAs": "Đang đăng nhập với tên {{name}}"
+    }
   }
 }

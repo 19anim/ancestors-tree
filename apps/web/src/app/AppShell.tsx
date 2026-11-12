@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet } from 'react-router';
+import { UserMenu, useCurrentUser } from '../features/auth';
 import { ServerStatus } from '../features/system';
 import { useDocumentLanguage } from '../shared/i18n/useDocumentLanguage';
 import { cn } from '../shared/lib/cn';
@@ -16,6 +17,7 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
 export function AppShell() {
   const { t } = useTranslation();
   useDocumentLanguage();
+  const me = useCurrentUser();
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -50,9 +52,19 @@ export function AppShell() {
                   {t('nav.designGallery')}
                 </NavLink>
               </li>
+              {me.data ? (
+                <li>
+                  <NavLink to="/clans" className={navLinkClass}>
+                    {t('nav.clans')}
+                  </NavLink>
+                </li>
+              ) : null}
             </ul>
           </nav>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <UserMenu />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

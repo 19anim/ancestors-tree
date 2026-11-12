@@ -3,3 +3,5 @@ packages:
   - packages/*
 allowBuilds:
   mongodb-memory-server: false
+minimumReleaseAgeExclude:
+  - '@hookform/resolvers@7.0.6'

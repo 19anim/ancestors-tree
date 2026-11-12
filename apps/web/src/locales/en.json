@@ -31,7 +31,8 @@
     "skipToContent": "Skip to main content",
     "primary": "Main navigation",
     "home": "Home",
-    "designGallery": "Design system"
+    "designGallery": "Design system",
+    "clans": "Clans"
   },
   "notFound": {
     "title": "We could not find this page",
@@ -112,5 +113,58 @@
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
     "NETWORK_ERROR": "Cannot reach the server. Check your connection and try again.",
     "INVALID_RESPONSE": "The server returned unexpected data."
+  },
+  "forms": {
+    "errors": {
+      "required": "Fill in this field",
+      "tooShort": "Use at least {{min}} characters",
+      "tooLong": "Use at most {{max}} characters",
+      "email": "Enter a valid email address",
+      "passwordTooLong": "This password is too long (72 bytes at most)",
+      "invalid": "This value is not valid"
+    }
+  },
+  "auth": {
+    "fields": {
+      "name": "Display name",
+      "email": "Email",
+      "password": "Password",
+      "newPassword": "New password",
+      "passwordHint": "At least 8 characters"
+    },
+    "or": "or",
+    "google": "Continue with Google",
+    "login": {
+      "title": "Sign in",
+      "submit": "Sign in",
+      "forgot": "Forgot your password?",
+      "noAccount": "No account yet?",
+      "register": "Create an account",
+      "googleFailed": "Google sign-in did not work. Try again, or use your email and password."
+    },
+    "register": {
+      "title": "Create an account",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "login": "Sign in"
+    },
+    "forgot": {
+      "title": "Forgot your password",
+      "intro": "Enter your email. We will send a link to choose a new password.",
+      "submit": "Send link",
+      "sent": "If this email has an account, a reset link is on its way. The link works once, for 1 hour.",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "submit": "Save new password",
+      "missing": "This link has no reset code. Open the link in the email again, or get a new one.",
+      "requestNew": "Get a new link"
+    },
+    "menu": {
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "signedInAs": "Signed in as {{name}}"
+    }
   }
 }
