@@ -25,7 +25,7 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 |---|---|---|
 | S1 | A 1,000-person tree pans/zooms at ≥ 55 fps on a mid-range laptop | Chrome DevTools Performance + React Profiler, seeded 1,000 and 2,000 people |
 | S2 | Opening a 1,000-person tree: first full render < 1.5 s | `performance.mark` from data received to render complete |
-| S3 | Lunar↔solar conversion matches 100% of Tết dates 1900–2100, passes property-based tests 1800–2400 and differential tests 1600–1900 and 2100–2400 (§9.1) | Vitest on CI |
+| S3 | Lunar↔solar conversion matches the published Hồ Ngọc Đức table for every lunar year 1968–2100 (except 3 near-midnight years that follow the ephemeris), passes property-based tests 1800–2400, and is identical to `astronomy-engine` for 1600–2400 (§9.1) | Vitest on CI |
 | S4 | Test coverage ≥ 90% for `packages/shared`, ≥ 70% overall | Vitest coverage on CI |
 | S5 | Lighthouse Performance, Accessibility, Best Practices ≥ 90 | Lighthouse CI |
 | S6 | At least 1 real clan using it with ≥ 100 people in the tree | Production data |
@@ -618,9 +618,9 @@ Any person — an in-law, a daughter who married out, an adopted child with a kn
 
 | Layer | What it does |
 |---|---|
-| Golden tests | 100% match with the published Tết table 1900–2100 |
-| Property-based tests (`fast-check`, years 1800–2400) | Invariants: each month has 29 or 30 days; each lunar year has 12 or 13 months; a leap month contains no major solar term; Tết falls between Jan 21 and Feb 20; `lunarToSolar(solarToLunar(d)) === d` |
-| Differential tests (1600–1900 and 2100–2400) | Compare month starts against an independent high-precision ephemeris library (`astronomy-engine`). Mismatches can only occur when a new moon lands within minutes of midnight. Every mismatch is listed in ADR 0006; if `astronomy-engine` is right, a small correction table in `HoNgocDucCalendar` fixes that month |
+| Golden tests | Tết, leap month and every month length match the published Hồ Ngọc Đức table for each lunar year 1968–2100 (decoded facts only, in `golden-years.ts`). The exceptions are 2054, 2077 and 2085: each has a new moon within a minute of midnight, the table and `astronomy-engine` disagree, and the library follows `astronomy-engine`. Before 1968 the table follows the historical UTC+8 calendar, so it is not a reference there |
+| Property-based tests (`fast-check`, years 1800–2400) | Invariants: each month has 29 or 30 days; each lunar year has 12 or 13 months; a leap month contains no major solar term; Tết falls between Jan 21 and Feb 21 (Feb 21 first happens in 2319); `lunarToSolar(solarToLunar(d)) === d` |
+| Differential tests (1600–2400) | Compare every new moon and every lunar year against an independent high-precision ephemeris library (`astronomy-engine`). The simplified formulas differ on 12 new moons (all within 5 minutes of midnight) and one solar term (the 1938 autumn equinox, 1.5 s after midnight); a 13-entry correction table (`corrections.ts`, listed in ADR 0006) makes the results identical |
 | Swappable implementation | If more precision is ever needed, an `EphemerisCalendar` (astronomy-engine based) or an official-almanac `TableCalendar` can replace `HoNgocDucCalendar` without touching callers |
 
 **Historical caveat:** before 1968 Vietnam's lunar calendar was computed for UTC+8 (Beijing time). The North switched to UTC+7 on 1 January 1968 (Decision 121/CP); the South kept UTC+8 until the end of 1975, so Tết Mậu Thân fell on 29 January 1968 in the North and 30 January in the South. The whole country has used UTC+7 since **1976**. Older almanacs also followed rules that changed over the centuries; the library applies today's rules to every year and does not reproduce historical almanacs. Converting a **solar** death date earlier than 1976 to lunar can therefore be off by a day or even a month. The app still converts with UTC+7, and when `source: 'solar'` and the year is before 1976 it shows a warning asking the family to confirm the lunar date. The warning appears where the date is entered or viewed in the profile, **never on the tree card**. Lunar death dates (how genealogies usually record them) are not affected: an anniversary only converts a lunar date of the current year.
