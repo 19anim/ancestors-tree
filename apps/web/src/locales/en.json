@@ -31,7 +31,8 @@
     "skipToContent": "Skip to main content",
     "primary": "Main navigation",
     "home": "Home",
-    "designGallery": "Design system"
+    "designGallery": "Design system",
+    "clans": "Clans"
   },
   "notFound": {
     "title": "We could not find this page",
@@ -94,19 +95,140 @@
     "serverStatus": {
       "checking": "Connecting to the server…",
       "ok": "Server is running (version {{version}})",
+      "databaseDown": "The server is running (version {{version}}) but cannot reach the database",
       "retry": "Try again"
     }
   },
   "errors": {
     "VALIDATION_ERROR": "Some data is invalid. Please check it.",
+    "INVALID_TOKEN": "This link no longer works: it is wrong, expired or already used.",
+    "INVALID_CREDENTIALS": "The email or password is wrong.",
+    "EMAIL_TAKEN": "This email already has an account. Sign in or reset your password.",
     "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
     "FORBIDDEN": "You do not have permission to do this.",
     "NOT_FOUND": "We could not find what you were looking for.",
     "VERSION_CONFLICT": "Someone else just updated the family tree.",
     "RULE_VIOLATION": "This change is not valid for the family tree.",
-    "RATE_LIMITED": "You are going too fast. Please try again in a moment.",
+    "RATE_LIMITED": "Too many attempts. Please try again later.",
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
     "NETWORK_ERROR": "Cannot reach the server. Check your connection and try again.",
     "INVALID_RESPONSE": "The server returned unexpected data."
+  },
+  "forms": {
+    "errors": {
+      "required": "Fill in this field",
+      "tooShort": "Use at least {{min}} characters",
+      "tooLong": "Use at most {{max}} characters",
+      "email": "Enter a valid email address",
+      "passwordTooLong": "This password is too long (72 bytes at most)",
+      "invalid": "This value is not valid"
+    }
+  },
+  "auth": {
+    "fields": {
+      "name": "Display name",
+      "email": "Email",
+      "password": "Password",
+      "newPassword": "New password",
+      "passwordHint": "At least 8 characters"
+    },
+    "or": "or",
+    "google": "Continue with Google",
+    "login": {
+      "title": "Sign in",
+      "submit": "Sign in",
+      "forgot": "Forgot your password?",
+      "noAccount": "No account yet?",
+      "register": "Create an account",
+      "googleFailed": "Google sign-in did not work. Try again, or use your email and password."
+    },
+    "register": {
+      "title": "Create an account",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "login": "Sign in"
+    },
+    "forgot": {
+      "title": "Forgot your password",
+      "intro": "Enter your email. We will send a link to choose a new password.",
+      "submit": "Send link",
+      "sent": "If this email has an account, a reset link is on its way. The link works once, for 1 hour.",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "submit": "Save new password",
+      "missing": "This link has no reset code. Open the link in the email again, or get a new one.",
+      "requestNew": "Get a new link"
+    },
+    "menu": {
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "signedInAs": "Signed in as {{name}}"
+    }
+  },
+  "clans": {
+    "backToList": "Back to my clans",
+    "title": "My clans",
+    "empty": "You are not in any clan yet. Create your first clan, or open an invite link a relative sent you.",
+    "memberCount": "{{n}} members",
+    "roles": {
+      "owner": "Owner",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
+    "create": {
+      "title": "Create a new clan",
+      "name": "Clan name",
+      "namePlaceholder": "Nguyen family – Nam Dinh",
+      "hometown": "Hometown",
+      "description": "About the clan",
+      "submit": "Create clan"
+    },
+    "tabs": {
+      "label": "Clan sections",
+      "members": "Members",
+      "settings": "Settings"
+    },
+    "members": {
+      "you": "(you)",
+      "role": "Role of {{name}}",
+      "remove": "Remove from clan",
+      "removeNamed": "Remove {{name}} from the clan",
+      "removeTitle": "Remove {{name}} from the clan?",
+      "removeBody": "{{name}} will no longer be able to view or edit this family tree. Invite links created before now will no longer let them join; to bring them back, create a new link.",
+      "leave": "Leave clan",
+      "leaveTitle": "Leave {{clan}}?",
+      "leaveBody": "You will no longer see this family tree until someone invites you again.",
+      "cancel": "Cancel"
+    },
+    "invites": {
+      "title": "Invite links",
+      "intro": "Anyone with the link can join within 7 days. Send it to relatives through Zalo or Messenger.",
+      "role": "Role when joining",
+      "create": "Create invite link",
+      "empty": "No invite links are active.",
+      "link": "Invite link ({{role}})",
+      "expires": "Expires {{date}}",
+      "copy": "Copy link",
+      "copyNamed": "Copy {{role}} invite link expiring {{date}}",
+      "copyFailed": "Could not copy, please copy the link manually",
+      "copied": "Link copied",
+      "revoke": "Revoke",
+      "revokeNamed": "Revoke {{role}} invite link expiring {{date}}"
+    },
+    "settings": {
+      "save": "Save changes",
+      "saved": "Changes saved"
+    },
+    "join": {
+      "title": "Clan invitation",
+      "offer": "{{inviter}} invites you to {{clan}} as {{role}}.",
+      "accept": "Join",
+      "signIn": "Sign in to join",
+      "register": "Create an account",
+      "home": "Back to home",
+      "forbidden": "You cannot join this clan with this link. Ask the owner for a new invitation."
+    }
   }
 }

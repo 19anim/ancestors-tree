@@ -1,0 +1,44 @@
+# ADR 0005: Cookie sessions, rotating refresh tokens and sign-in by redirect
+
+- Status: Accepted
+- Date: 2026-11-13
+
+## Context
+
+P3 adds accounts: email and password, Google sign-in, password reset by email, and invite links that grant clan membership. The web app and the API share one origin (the Netlify proxy, spec §4), so cookies are first-party. The decisions below are about where a signed-in browser keeps its proof of identity, how that proof is renewed and revoked, and how Google sign-in reaches the page.
+
+## Decision
+
+**httpOnly cookies, not `localStorage`.** Both tokens live in `httpOnly`, `SameSite=Lax` cookies (`Secure` in production). A script injected through XSS cannot read them, which it could if they sat in `localStorage`. `SameSite=Lax` plus an `Origin` check on every non-GET `/api` request covers CSRF.
+
+**A short JWT plus an opaque rotating refresh token.**
+
+- The access token is a JWT (HS256, 15 minutes, cookie `at`, path `/api`). The API verifies it on every request without touching the database.
+- The refresh token is a random opaque value (cookie `rt`, path `/api/auth`, 30 days). Only its SHA-256 hash is stored (`Session`), so a database leak does not yield usable tokens. Every refresh issues a new token and marks the old one used. Using an old token again revokes its whole family, which signs out whoever holds the stolen copy and the real user alike, and the real user signs in again.
+- Sessions can therefore be revoked (sign out, password reset, a Google takeover) without checking the database on every request. Signing in (password, register, reset or Google) also revokes the family of any refresh cookie the browser already had, so an old session does not stay alive beside the new one.
+
+**A 10-second window for concurrent refreshes.** Two tabs often refresh at the same moment with the same cookie. A token used again within 10 seconds of its first use is treated as such a concurrent refresh and answered with a 204 that sets no new cookies (the other tab already holds the new ones); only a reuse after 10 seconds counts as theft and revokes the family.
+
+**Known limit.** Revoking a session does not invalidate an access token already issued: it stays valid for up to 15 minutes. We accept this to keep request checks stateless; the window is short and every refresh after it fails.
+
+**Google sign-in by full-page redirect.** The API starts an authorization-code flow with PKCE, `state` and `nonce` (kept in a 10-minute `g_state` cookie, path `/api/auth/google`) and handles the callback itself. No Google script runs on our pages, so the CSP in `netlify.toml` stays unchanged, and it works on iOS without popups. Google's `redirect_uri` is `${APP_ORIGIN}/api/auth/google/callback`.
+
+**Linking Google to an existing account depends on email verification.** Only emails Google reports as verified are accepted. If an account with that email exists and its email was verified (`emailVerifiedAt`, set by Google sign-in or a password reset), Google signs into it. If it was never verified, someone could have registered it with an address they do not own, so the Google sign-in takes the account over: it clears the password and signs the account out everywhere. Otherwise an attacker who pre-registered a victim's email would keep access after the victim signed in with Google.
+
+**Password reset.** A link valid for 1 hour and usable once, with the token in the URL fragment so it is not sent to servers or logs; only its hash is stored. The request answers the same whether or not the email exists, and a reset signs out every device. Emails go through a `Mailer` interface (Resend, the log in development, memory in tests).
+
+**Invite tokens are stored in plain text.** Unlike refresh and reset tokens, the `Invite` token is stored as is, so the clan Owner can copy a link again later. An invite expires after 7 days, can be revoked (the document is deleted), and only grants membership with the role the Owner chose, never access to an account. Removing a member records the removal: that person cannot join with any invite created before it (accept answers `FORBIDDEN`, 403), while a link created afterwards works. A member who left on their own can rejoin with any active link.
+
+**Rate limits.** The per-IP limits (5/min per endpoint) are not enough alone, because the client IP behind two proxies is only as trustworthy as the proxy chain. Login also has a limit of 10 failed attempts per 15 minutes per email (successful sign-ins are not counted; the key is a hash of the validated, normalized email, so the store stays bounded), and forgot-password still answers 204 every time but sends at most one email per user per 60 seconds and 5 per 24 hours, which keeps the mail quota safe from a flood aimed at one address. The password-reset documents live 24 hours (TTL on `createdAt`), although the links work for only 1 hour, so the cap really covers a day.
+
+**Trade-off: targeted lockout.** The per-email limits do not depend on who asks. Someone who knows a user's email can block that user's password sign-in for up to 15 minutes at a time (10 bad attempts), and their reset emails for up to 24 hours (5 requests). Google sign-in and sessions that already exist are unaffected. For a family app we accept this; a later improvement is a per-device exemption (a signed, long-lived cookie set after a successful sign-in, which lets that device skip the per-email limit while the per-IP limit still applies).
+
+**Logs hold no secrets.** The API logger masks invite tokens, the Google `code`, `state` and `returnTo`, and reset URLs, and redacts the `Referer` and `Location` headers. In production `APP_ORIGIN` and `TRUST_PROXY_HOPS` are required at boot, so a missing value fails fast instead of falling back to a development default.
+
+## Consequences
+
+- A non-GET `/api` request that carries an `Origin` header must carry our origin. Requests without `Origin` (curl, server-to-server) are not browser requests and are let through; browsers always send `Origin` on cross-site writes.
+- Session checks cost no database read, but sign-out is not instant for the access token (up to 15 minutes).
+- Rotating `JWT_SECRET` signs everyone out.
+- An unverified password account can lose its password to a Google sign-in with the same email; this is intended and is the price of safe linking.
+- Without a verified domain, Resend delivers only to the account owner's address, so password reset emails reach other users only after a domain is verified (docs/deployment.md, section 6).

@@ -31,7 +31,8 @@
     "skipToContent": "Bỏ qua, tới nội dung chính",
     "primary": "Điều hướng chính",
     "home": "Trang chủ",
-    "designGallery": "Bộ thiết kế"
+    "designGallery": "Bộ thiết kế",
+    "clans": "Dòng họ"
   },
   "notFound": {
     "title": "Không tìm thấy trang này",
@@ -94,19 +95,140 @@
     "serverStatus": {
       "checking": "Đang kết nối máy chủ…",
       "ok": "Máy chủ đang hoạt động (phiên bản {{version}})",
+      "databaseDown": "Máy chủ đang chạy (phiên bản {{version}}) nhưng chưa kết nối được cơ sở dữ liệu",
       "retry": "Thử lại"
     }
   },
   "errors": {
     "VALIDATION_ERROR": "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.",
+    "INVALID_TOKEN": "Đường link này không dùng được nữa: link sai, đã hết hạn hoặc đã được dùng.",
+    "INVALID_CREDENTIALS": "Email hoặc mật khẩu chưa đúng.",
+    "EMAIL_TAKEN": "Email này đã có tài khoản. Hãy đăng nhập hoặc lấy lại mật khẩu.",
     "UNAUTHENTICATED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
     "NOT_FOUND": "Không tìm thấy nội dung bạn cần.",
     "VERSION_CONFLICT": "Cây gia phả vừa được người khác cập nhật.",
     "RULE_VIOLATION": "Thay đổi này không hợp lệ với cây gia phả.",
-    "RATE_LIMITED": "Bạn thao tác quá nhanh. Vui lòng thử lại sau giây lát.",
+    "RATE_LIMITED": "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.",
     "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
     "NETWORK_ERROR": "Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.",
     "INVALID_RESPONSE": "Máy chủ trả về dữ liệu không như mong đợi."
+  },
+  "forms": {
+    "errors": {
+      "required": "Hãy điền mục này",
+      "tooShort": "Cần ít nhất {{min}} ký tự",
+      "tooLong": "Tối đa {{max}} ký tự",
+      "email": "Email chưa đúng định dạng",
+      "passwordTooLong": "Mật khẩu quá dài (tối đa 72 byte)",
+      "invalid": "Giá trị chưa hợp lệ"
+    }
+  },
+  "auth": {
+    "fields": {
+      "name": "Tên hiển thị",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "newPassword": "Mật khẩu mới",
+      "passwordHint": "Ít nhất 8 ký tự"
+    },
+    "or": "hoặc",
+    "google": "Tiếp tục với Google",
+    "login": {
+      "title": "Đăng nhập",
+      "submit": "Đăng nhập",
+      "forgot": "Quên mật khẩu?",
+      "noAccount": "Chưa có tài khoản?",
+      "register": "Tạo tài khoản",
+      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu."
+    },
+    "register": {
+      "title": "Tạo tài khoản",
+      "submit": "Tạo tài khoản",
+      "haveAccount": "Đã có tài khoản?",
+      "login": "Đăng nhập"
+    },
+    "forgot": {
+      "title": "Quên mật khẩu",
+      "intro": "Nhập email của bạn. Chúng tôi sẽ gửi một link để chọn mật khẩu mới.",
+      "submit": "Gửi link",
+      "sent": "Nếu email này có tài khoản, link đặt lại mật khẩu đã được gửi. Link dùng được một lần, trong 1 giờ.",
+      "back": "Quay lại đăng nhập"
+    },
+    "reset": {
+      "title": "Chọn mật khẩu mới",
+      "submit": "Lưu mật khẩu mới",
+      "missing": "Link này thiếu mã đặt lại mật khẩu. Hãy mở lại link trong email, hoặc lấy link mới.",
+      "requestNew": "Lấy link mới"
+    },
+    "menu": {
+      "signIn": "Đăng nhập",
+      "signOut": "Đăng xuất",
+      "signedInAs": "Đang đăng nhập với tên {{name}}"
+    }
+  },
+  "clans": {
+    "backToList": "Về danh sách dòng họ",
+    "title": "Dòng họ của tôi",
+    "empty": "Bạn chưa ở trong dòng họ nào. Hãy tạo dòng họ đầu tiên, hoặc mở link mời mà người nhà gửi cho bạn.",
+    "memberCount": "{{n}} thành viên",
+    "roles": {
+      "owner": "Chủ họ",
+      "editor": "Biên tập",
+      "viewer": "Xem"
+    },
+    "create": {
+      "title": "Tạo dòng họ mới",
+      "name": "Tên dòng họ",
+      "namePlaceholder": "Họ Nguyễn – Nam Định",
+      "hometown": "Quê quán",
+      "description": "Giới thiệu",
+      "submit": "Tạo dòng họ"
+    },
+    "tabs": {
+      "label": "Mục của dòng họ",
+      "members": "Thành viên",
+      "settings": "Cài đặt"
+    },
+    "members": {
+      "you": "(bạn)",
+      "role": "Vai trò của {{name}}",
+      "remove": "Xoá khỏi dòng họ",
+      "removeNamed": "Xoá {{name}} khỏi dòng họ",
+      "removeTitle": "Xoá {{name}} khỏi dòng họ?",
+      "removeBody": "{{name}} sẽ không xem hay sửa được cây gia phả này nữa. Các đường link mời tạo trước lúc này sẽ không cho họ tham gia lại nữa; muốn mời lại, hãy tạo link mới.",
+      "leave": "Rời dòng họ",
+      "leaveTitle": "Rời {{clan}}?",
+      "leaveBody": "Bạn sẽ không xem được cây gia phả này nữa, cho tới khi có người mời lại.",
+      "cancel": "Huỷ"
+    },
+    "invites": {
+      "title": "Link mời",
+      "intro": "Ai có link đều tham gia được trong 7 ngày. Gửi link qua Zalo hoặc Messenger cho người nhà.",
+      "role": "Vai trò khi tham gia",
+      "create": "Tạo link mời",
+      "empty": "Chưa có link mời nào đang dùng được.",
+      "link": "Link mời ({{role}})",
+      "expires": "Hết hạn {{date}}",
+      "copy": "Sao chép link",
+      "copyNamed": "Sao chép link mời {{role}} hết hạn {{date}}",
+      "copyFailed": "Không sao chép được, hãy chép link thủ công",
+      "copied": "Đã sao chép link",
+      "revoke": "Thu hồi",
+      "revokeNamed": "Thu hồi link mời {{role}} hết hạn {{date}}"
+    },
+    "settings": {
+      "save": "Lưu thay đổi",
+      "saved": "Đã lưu thay đổi"
+    },
+    "join": {
+      "title": "Lời mời vào dòng họ",
+      "offer": "{{inviter}} mời bạn vào {{clan}} với vai trò {{role}}.",
+      "accept": "Tham gia",
+      "signIn": "Đăng nhập để tham gia",
+      "register": "Tạo tài khoản",
+      "home": "Về trang chủ",
+      "forbidden": "Bạn không thể tham gia họ này bằng đường link này. Hãy nhờ Chủ họ gửi lời mời mới."
+    }
   }
 }

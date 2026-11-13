@@ -1,18 +1,10 @@
 import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockApi } from '../test/api';
 import { renderRoute } from '../test/render';
 
 beforeEach(() => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify({ status: 'ok', version: '0.1.0', uptimeSeconds: 1 }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-    ),
-  );
+  mockApi();
 });
 
 afterEach(() => {

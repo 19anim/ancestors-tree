@@ -1,32 +1,71 @@
 import { ApiErrorBodySchema } from '@ancestors-tree/shared';
 import type { z } from 'zod';
-import { ApiError } from './apiError';
+import { ApiError, errorCodeForStatus } from './apiError';
+
+export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
+  /** Sent as JSON with Content-Type: application/json. */
+  json?: unknown;
+}
+
+let refreshing: Promise<boolean> | undefined;
+
+/** One refresh at a time, shared by every request that got a 401 meanwhile. */
+function refreshSession(): Promise<boolean> {
+  refreshing ??= fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  })
+    .then(
+      (response) => response.ok,
+      () => false,
+    )
+    .finally(() => {
+      refreshing = undefined;
+    });
+  return refreshing;
+}
+
+async function send(path: string, options: ApiRequestOptions): Promise<Response> {
+  const { json, headers: extraHeaders, ...init } = options;
+  const headers = new Headers(extraHeaders);
+  headers.set('Accept', 'application/json');
+  if (json !== undefined) headers.set('Content-Type', 'application/json');
+  try {
+    return await fetch(`/api${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+      ...(json !== undefined ? { body: JSON.stringify(json) } : {}),
+    });
+  } catch (error) {
+    if (init.signal?.aborted) throw error;
+    throw new ApiError('NETWORK_ERROR', 'Network request failed', 0);
+  }
+}
 
 export async function apiRequest<T>(
   path: string,
   schema: z.ZodType<T>,
-  init: RequestInit = {},
+  options: ApiRequestOptions = {},
 ): Promise<T> {
-  const headers = new Headers(init.headers);
-  headers.set('Accept', 'application/json');
-
-  let response: Response;
-  try {
-    response = await fetch(`/api${path}`, { ...init, headers, credentials: 'include' });
-  } catch {
-    throw new ApiError('NETWORK_ERROR', 'Network request failed', 0);
+  let response = await send(path, options);
+  // The access cookie lasts 15 minutes: renew it once with the refresh cookie and retry.
+  if (response.status === 401 && !path.startsWith('/auth/') && (await refreshSession())) {
+    response = await send(path, options);
   }
 
-  const payload: unknown = await response.json().catch(() => undefined);
+  const payload: unknown =
+    response.status === 204 ? undefined : await response.json().catch(() => undefined);
 
   if (!response.ok) {
     const apiError = ApiErrorBodySchema.safeParse(payload);
     if (apiError.success) {
-      const { code, message } = apiError.data.error;
-      throw new ApiError(code, message, response.status);
+      const { code, message, details } = apiError.data.error;
+      throw new ApiError(code, message, response.status, details);
     }
     throw new ApiError(
-      'INVALID_RESPONSE',
+      errorCodeForStatus(response.status),
       `Unexpected error response (HTTP ${response.status})`,
       response.status,
     );

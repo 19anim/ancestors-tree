@@ -94,6 +94,8 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 
 A User may belong to several clans with different roles (e.g. paternal and maternal families).
 
+**Removed members.** When the Owner removes a member, that person can no longer join with any invite link created before the removal (accepting it answers `FORBIDDEN`, 403); a link created after the removal works. A member who left on their own can rejoin with any active link.
+
 ---
 
 ## 4. Architecture
@@ -168,8 +170,22 @@ User {                           // a person who signs in
   name, avatarUrl,
   googleId?,                     // Google sign-in
   passwordHash?,                 // password sign-in (bcrypt)
+  emailVerifiedAt?,              // set by Google sign-in or a password reset; decides whether a Google
+                                 // sign-in may take over an existing password account (§12)
   locale: 'vi' | 'en',
   createdAt
+}
+
+Session {                        // one refresh token (§12); TTL index on expiresAt
+  userId, familyId,              // every token issued from one sign-in shares a familyId
+  tokenHash,                     // SHA-256 of the opaque token; the token itself is never stored
+  expiresAt,
+  usedAt?, revokedAt?
+}
+
+PasswordReset {                  // one password reset link (§12)
+  userId, tokenHash, expiresAt,
+  usedAt?
 }
 
 Clan {                           // one family lineage, e.g. "Nguyễn family – Nam Định"
@@ -217,6 +233,7 @@ Invite {                         // invite link: /join/:token
   role,                          // role granted on accept
   createdBy, expiresAt           // expires after 7 days
 }
+// Revoking an invite deletes the Invite document.
 
 ShareLink {                      // public read-only link: /share/:token
   clanId, token,
@@ -413,9 +430,9 @@ Each feature exposes its public API only through its `index.ts`. Features never 
 
 | Path | Content |
 |---|---|
-| `/login`, `/register`, `/forgot-password` | Accounts |
+| `/login`, `/register`, `/forgot-password`, `/reset-password` | Accounts |
 | `/clans` | My clans + create |
-| `/clans/:id/tree` | ⭐ Tree (main page); `?focus=:personId` flies to a person |
+| `/clans/:id/tree` | ⭐ Tree (main page); `?focus=:personId` flies to a person. Until the tree page lands in P5, `/clans/:id` opens the members page |
 | `/clans/:id/upcoming` | Upcoming anniversaries |
 | `/clans/:id/history` | Change history |
 | `/clans/:id/members` | Members & invites |
@@ -735,9 +752,16 @@ The prompt instructs the AI to: return only JSON in this format; never invent in
 ## 12. Security
 
 - Passwords hashed with bcrypt (cost 12).
-- Sessions: **JWT** in `httpOnly; Secure; SameSite=Lax` cookies. Access token 15 min; refresh token 30 days with rotation.
+- Sessions (cookies are `httpOnly`, `SameSite=Lax`, and `Secure` in production):
+  - **Access token:** JWT (HS256), 15 minutes, cookie `at`, path `/api`.
+  - **Refresh token:** opaque random value, cookie `rt`, path `/api/auth`, 30 days. Only its SHA-256 hash is stored (`Session`). It is rotated on every use. Using a token again more than 10 seconds after its first use revokes the whole family (theft detected); within 10 seconds it counts as a concurrent refresh from another tab.
+  - **CSRF:** `SameSite=Lax` plus an `Origin` check on every non-GET `/api` request (a request with a foreign `Origin` is rejected; browsers always send one on cross-site writes).
+  - **Google sign-in:** by redirect (authorization code + PKCE, `state` and `nonce` kept in a short-lived cookie); only verified Google emails are accepted. A Google sign-in takes over an account whose email was never verified by clearing its password and signing it out everywhere.
+  - **Password reset:** a link valid for 1 hour and usable once, with the token in the URL fragment (`/reset-password#token=…`) so it is not sent to servers or logs. The request answers the same whether or not the email exists. A reset signs out every device.
+  - **Signing in over an existing session:** a sign-in (password, register, reset or Google) revokes the session family of any refresh cookie the browser already had.
+  - **Behind proxies:** `trust proxy` is set to the number of hops (`TRUST_PROXY_HOPS`); in production `APP_ORIGIN` and `TRUST_PROXY_HOPS` are required at boot. The logger redacts cookies and `Authorization`, masks invite tokens, the Google `code`, `state` and `returnTo` and password reset URLs, and redacts the `Referer` and `Location` headers.
 - Every `/clans/:id/*` route checks Membership + role in middleware. A `clanId` in the request body is never trusted; `Person.clanId === :id` is always verified.
-- `helmet`, `express-rate-limit` (sign-in: 5/min/IP; general API: 300/min/user).
+- `helmet`, `express-rate-limit` (sign-in, sign-up, forgot-password and reset-password: 5/min per IP and endpoint; general API: 300/min/user). Sign-in has a second limit of 10 failed attempts per 15 minutes per email (`RATE_LIMITED`, 429; successful sign-ins do not count), so spreading guesses over many IPs does not help. Trade-off: anyone who knows a user's email can block that user's password sign-in for up to 15 minutes, and their reset emails for up to 24 hours (the 5-per-24-hours cap). Google sign-in and existing sessions are unaffected. A later improvement is a per-device exemption (a signed cookie set after a successful sign-in). Forgot-password still always answers 204, but sends at most one email per user per 60 seconds and at most 5 per 24 hours.
 - Image upload: the client requests a **signed upload** from the API, then uploads directly to Cloudinary; max 2 MB; jpg/png/webp only. Paths and checks: "Image storage" below.
 - `/internal/*` requires `X-Cron-Secret` to match an environment variable.
 - Invite/share tokens: 32 chars from `crypto.randomBytes`.
@@ -773,7 +797,7 @@ ancestors-tree/                      Cloudinary root
   ```json
   { "error": { "code": "VERSION_CONFLICT", "message": "The tree was updated by someone else" } }
   ```
-  Codes are defined once in `packages/shared/errors.ts` (`ERROR_CODES`) with HTTP status and description; the error-code doc is generated from it. Main codes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, with `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, from `applyOp`), `RATE_LIMITED` (429).
+  Codes are defined once in `packages/shared/errors.ts` (`ERROR_CODES`) with HTTP status and description; the error-code doc is generated from it. Main codes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, with `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, from `applyOp`), `RATE_LIMITED` (429). Accounts add `INVALID_TOKEN` (400, reset or invite token unknown, used or expired), `INVALID_CREDENTIALS` (401, wrong email or password) and `EMAIL_TAKEN` (409).
 - **Client:** the API client maps errors to `ApiError { code, message }`, and the UI shows the Vietnamese text for that code. Each feature is wrapped in an **Error Boundary**. Failed actions show a toast. Network failures while sending ops keep them in `pending` and retry with **exponential backoff** (1 s, 2 s, 4 s…); the toolbar shows "Unsaved".
 - **Render cold start (~30–60 s):** the first load shows a "Waking up the server…" screen instead of a blank page.
 - **Sentry** (free Developer plan: 5,000 errors/month, 1 user, 30-day retention; over quota, events are dropped, never billed). Production only.
@@ -904,7 +928,7 @@ Two rules make this predictable: **a card beats the whole tree**, and **mine bea
 | End users | **User guide**: getting started, building the tree, dates & lunar calendar, anniversaries & reminders, installing the app (Android/iOS), AI import, linked trees, sharing & privacy, FAQ — with screenshots | In-app `/help` (Vietnamese) + `docs/user-guide/` (English) |
 | Developers | **README**: pitch, demo GIF, architecture diagram, performance numbers, quick start | `README.md` |
 | Developers | **Architecture**: modules, data flow, Operation model, layout algorithm (Mermaid diagrams) | `docs/architecture.md` |
-| Developers | **API reference**: generated from the Zod schemas (`@asteasolutions/zod-to-openapi`) into OpenAPI 3.1, browsable at `/api/docs` (Scalar) | Generated; CI fails if any Express route is missing from the OpenAPI document |
+| Developers | **API reference**: generated from the Zod schemas (`@asteasolutions/zod-to-openapi`) into OpenAPI 3.1, browsable at `/api/docs` (Scalar; on outside production only, `API_DOCS=on` turns it on in production) | Generated; CI fails if any Express route is missing from the OpenAPI document |
 | Developers | **Error codes**: code, HTTP status, meaning, client handling | `docs/error-codes.md`, generated from `ERROR_CODES` |
 | Developers | **ADRs** (Architecture Decision Records): one short file per major decision (monorepo, Operation log, React Flow + custom layout, UTC+7 lunar algorithm, cron layering, Netlify proxy, linked trees) | `docs/adr/0001-*.md` |
 | Developers | **Contributing**: setup, scripts, conventions (English only, commit style, feature folders), testing | `CONTRIBUTING.md` |
@@ -936,7 +960,7 @@ Two rules make this predictable: **a card beats the whole tree**, and **mine bea
 | API | Render | Sleeps after 15 idle minutes → wake-up screen |
 | Database | MongoDB Atlas M0 | 512 MB, supports transactions |
 | Images | Cloudinary | Free plan: 25 credits/month (storage, bandwidth and transformations together); one cloud, dev and prod kept apart by folder (§12) |
-| Email | Resend | 3,000 emails/month |
+| Email | Resend | 3,000 emails/month. Without a verified domain Resend only delivers to the account owner's own address, so until a domain is verified the production API cannot email other users; once it is, set `MAIL_FROM` to an address on that domain |
 | Push | Web Push (VAPID) | Free |
 | Primary cron | Cloudflare Workers Cron Trigger | Free: 5 triggers/account, up to 15 min per run |
 | Backup cron | cron-job.org | 30 s timeout, email alerts, no retries |
@@ -1061,3 +1085,6 @@ Environment variables are documented in `apps/*/.env.example` (no real values).
 | Date marks | Death anniversary as a quiet line under the caption ("Giỗ 15/10 ÂL"); birthday as a sticker with a line-drawn cake (§13.3) | A tilted red stamp read like "approved"/"overdue", which is wrong for remembering the dead; "SN" was unclear |
 | Tree themes | Curated options per part; whole tree or one card; for the whole clan or only for me; card beats tree and mine beats the clan's (§13.4) | Families personalise the board without losing meaning, contrast or speed; nobody's decoration is undone by someone else |
 | Image storage | One Cloudinary cloud, `ancestors-tree/<env>/clans/<clanId>/people/<personId>/<random>`, every upload signed and verified by the API (§12) | Clans and people are deleted by prefix; no names in URLs; dev and prod stay apart without a second account |
+| Sessions | httpOnly cookies: a 15-minute JWT plus an opaque refresh token rotated on every use (§12; ADR 0005) | Scripts cannot read the tokens (XSS); checks stay stateless; sessions can still be revoked |
+| Google sign-in | Full-page redirect (authorization code + PKCE), no Google script on our pages | CSP unchanged; works without popups on iOS |
+| Mailer | Resend behind a `Mailer` interface (log in development, memory in tests) | The provider can change without touching callers; works with no key |

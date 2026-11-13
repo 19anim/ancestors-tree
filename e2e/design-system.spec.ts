@@ -15,7 +15,9 @@ const CSP = /Content-Security-Policy = "([^"]+)"/.exec(
 
 async function mockHealthyApi(page: Page): Promise<void> {
   await page.route('**/api/health', (route) =>
-    route.fulfill({ json: { status: 'ok', version: '0.1.0', uptimeSeconds: 1 } }),
+    route.fulfill({
+      json: { status: 'ok', version: '0.1.0', uptimeSeconds: 1, database: 'connected' },
+    }),
   );
 }
 

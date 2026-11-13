@@ -1,14 +1,8 @@
-import { pino } from 'pino';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createApp } from '../app.ts';
+import { createTestApp } from '../test/app.ts';
 
-const { app, api, openApiDocument } = createApp({
-  logger: pino({ level: 'silent' }),
-  version: '1.0.0-test',
-  validateResponses: true,
-  httpLogging: false,
-});
+const { app, api, openApiDocument } = createTestApp();
 
 function documentedOperations(): string[] {
   const operations: string[] = [];

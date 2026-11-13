@@ -19,12 +19,22 @@ export default defineConfig({
     },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
-  webServer: {
-    // The production build, served by `vite preview` (same files Netlify serves).
-    command:
-      'pnpm --filter @ancestors-tree/web build && pnpm --filter @ancestors-tree/web preview --port 4173 --strictPort',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !isCI,
-    timeout: 180_000,
-  },
+  webServer: [
+    {
+      command: 'pnpm --filter @ancestors-tree/api e2e:server',
+      url: 'http://localhost:3100/api/health',
+      reuseExistingServer: !isCI,
+      // The first run downloads the MongoDB binary.
+      timeout: 180_000,
+    },
+    {
+      // The production build, served by `vite preview` (same files Netlify serves).
+      command:
+        'pnpm --filter @ancestors-tree/web build && pnpm --filter @ancestors-tree/web preview --port 4173 --strictPort',
+      url: 'http://localhost:4173',
+      env: { API_PORT: '3100' },
+      reuseExistingServer: !isCI,
+      timeout: 180_000,
+    },
+  ],
 });

@@ -13,10 +13,20 @@ export const ERROR_CODES = {
     description: 'The request data failed validation; `details` lists each problem.',
     clientAction: 'Show the field errors next to the inputs.',
   },
+  INVALID_TOKEN: {
+    status: 400,
+    description: 'The link (password reset or invite) is wrong, has expired or was already used.',
+    clientAction: 'Explain that the link no longer works and offer to get a new one.',
+  },
   UNAUTHENTICATED: {
     status: 401,
     description: 'There is no valid session, or it has expired.',
     clientAction: 'Redirect to the sign-in page.',
+  },
+  INVALID_CREDENTIALS: {
+    status: 401,
+    description: 'The email or password is wrong (the response never says which).',
+    clientAction: 'Show the message on the sign-in form; do not redirect.',
   },
   FORBIDDEN: {
     status: 403,
@@ -27,6 +37,11 @@ export const ERROR_CODES = {
     status: 404,
     description: 'The requested resource or route does not exist.',
     clientAction: 'Show a not-found state.',
+  },
+  EMAIL_TAKEN: {
+    status: 409,
+    description: 'An account with this email already exists.',
+    clientAction: 'Show the message next to the email field and offer sign-in or password reset.',
   },
   VERSION_CONFLICT: {
     status: 409,

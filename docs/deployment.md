@@ -20,30 +20,45 @@ Both platforms read Node 24 from `.nvmrc` and pnpm from `"packageManager"` in `p
 
 1. Sign in at https://dashboard.render.com with GitHub.
 2. **New → Blueprint**, select the `ancestors-tree` repository, branch `main`. Render reads `render.yaml` and proposes the service `ancestors-tree-api`.
-3. Click **Apply**. Render asks for the values of `MONGODB_URI` and `CLOUDINARY_URL` (marked `sync: false`). Paste the production values from sections 3 and 4, or leave them empty for now: the API starts without them until P3 (database) and P6 (photo upload). If the Blueprint already exists, add them under the service's **Environment** tab instead. Secrets are entered in the dashboard only, never committed.
+3. Click **Apply**. Render asks for the values of the variables marked `sync: false` in `render.yaml` (the table below says what to enter). Fill in `MONGODB_URI` (section 3) now: from P3 on the API refuses to start without it. `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (section 5), `RESEND_API_KEY` (section 6) and `CLOUDINARY_URL` (section 4, used from P6) can stay empty for now. If the Blueprint already exists, add them under the service's **Environment** tab instead. Secrets are entered in the dashboard only, never committed.
 4. When the first deploy is live, copy the service URL from the service page (normally `https://ancestors-tree-api.onrender.com`).
    - If Render added a suffix because the name was taken (for example `https://ancestors-tree-api-x1y2.onrender.com`), replace the URL in the `/api/*` redirect of `netlify.toml` and commit.
-5. Check it: open `<render-url>/api/health` → `{"status":"ok","version":"0.1.0",...}` and `<render-url>/api/docs`.
+5. Check it: open `<render-url>/api/health` → `{"status":"ok","version":"0.1.0",...}` with the database reported as connected. `<render-url>/api/docs` is off in production unless you set `API_DOCS=on`.
 
 What the Blueprint sets (visible under the service's **Settings**):
 
-| Setting           | Value                                                                                                                   | Why                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Region            | Singapore                                                                                                               | lowest latency from Vietnam; cannot be changed later                   |
-| Instance type     | Free                                                                                                                    | spins down after 15 minutes without traffic, about 1 minute to wake up |
-| Build command     | `corepack enable && pnpm install --frozen-lockfile --prod --filter @ancestors-tree/api...`                              | installs only the API and `packages/shared` runtime dependencies       |
-| Start command     | `cd apps/api && node src/server.ts`                                                                                     | Node runs the TypeScript sources directly (ADR 0002)                   |
-| Health check path | `/api/health`                                                                                                           | Render only switches traffic to a new deploy once it answers           |
-| Auto-deploy       | After CI checks pass                                                                                                    | a red CI run on `main` never reaches production                        |
-| Build filters     | `apps/api/**`, `packages/shared/**`, root tooling files                                                                 | web-only commits do not redeploy the API                               |
-| Env vars          | `LOG_LEVEL=info`, `APP_VERSION=0.1.0`, `CLOUDINARY_FOLDER=ancestors-tree/prod`; secrets `MONGODB_URI`, `CLOUDINARY_URL` | `NODE_ENV=production` and `PORT` are set by Render automatically       |
+| Setting           | Value                                                                                      | Why                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Region            | Singapore                                                                                  | lowest latency from Vietnam; cannot be changed later                   |
+| Instance type     | Free                                                                                       | spins down after 15 minutes without traffic, about 1 minute to wake up |
+| Build command     | `corepack enable && pnpm install --frozen-lockfile --prod --filter @ancestors-tree/api...` | installs only the API and `packages/shared` runtime dependencies       |
+| Start command     | `cd apps/api && node src/server.ts`                                                        | Node runs the TypeScript sources directly (ADR 0002)                   |
+| Health check path | `/api/health`                                                                              | Render only switches traffic to a new deploy once it answers           |
+| Auto-deploy       | After CI checks pass                                                                       | a red CI run on `main` never reaches production                        |
+| Build filters     | `apps/api/**`, `packages/shared/**`, root tooling files                                    | web-only commits do not redeploy the API                               |
+| Env vars          | see the table below                                                                        | `NODE_ENV=production` and `PORT` are set by Render automatically       |
+
+Environment variables (Render dashboard → service → **Environment**). `render.yaml` already sets the ones with a value; enter the others yourself:
+
+| Variable               | What to enter                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_ORIGIN`           | `https://ancestorstree.netlify.app` (the Netlify address: no path, no trailing slash). Must equal the real Netlify URL exactly, or every write (sign-in, sign-up, creating a clan) is answered 403 by the origin check. Used for links in emails, the Google redirect URI and the origin check. Required in production. Set by `render.yaml`. |
+| `TRUST_PROXY_HOPS`     | `2` (Netlify proxy plus Render's load balancer). Set by `render.yaml`. Required in production. To be verified in P8 that `req.ip` is the visitor's address, because the sign-in rate limits depend on it.                                                                                                                                     |
+| `JWT_SECRET`           | Generated by Render from `render.yaml`; do not enter anything. Rotating it signs everyone out.                                                                                                                                                                                                                                                |
+| `MONGODB_URI`          | Required: the API refuses to start without it. The Atlas connection string with the database name `ancestors-tree` after the host (section 3).                                                                                                                                                                                                |
+| `GOOGLE_CLIENT_ID`     | The OAuth client ID ending in `.apps.googleusercontent.com` (section 5). Set together with the secret or not at all; without them the Google button is hidden.                                                                                                                                                                                |
+| `GOOGLE_CLIENT_SECRET` | The secret of the same OAuth client (section 5).                                                                                                                                                                                                                                                                                              |
+| `RESEND_API_KEY`       | Optional: a Resend API key starting with `re_` (section 6). Without it the API cannot send email in production.                                                                                                                                                                                                                               |
+| `MAIL_FROM`            | The sender. `render.yaml` sets `AncestorsTree <onboarding@resend.dev>`, which Resend only delivers to its account owner; change it once you verify a domain (section 6).                                                                                                                                                                      |
+| `API_DOCS`             | Leave unset: `/api/docs` is off in production. `on` turns it on, `off` turns it off everywhere. Through the Netlify domain the site-wide CSP blocks the docs page; open it on the Render URL.                                                                                                                                                 |
+| `CLOUDINARY_URL`       | From P6 (section 4).                                                                                                                                                                                                                                                                                                                          |
 
 Notes:
 
 - Bump `APP_VERSION` in `render.yaml` on releases; it is what `GET /api/health` reports.
 - Blueprint changes to `render.yaml` are applied on the next sync. Env vars entered by hand in the dashboard are kept.
 - If the build fails at `corepack enable` (permissions), change the build command to `npx --yes pnpm@11.17.0 install --frozen-lockfile --prod --filter @ancestors-tree/api...` (keep the version equal to `packageManager`).
-- Open the API reference on the Render URL (`<render-url>/api/docs`). Through the Netlify domain the site-wide CSP blocks the Scalar CDN script until P3 gives `/api/docs` its own policy.
+- To read the API reference of a deployed service, set `API_DOCS=on` and open `<render-url>/api/docs`; it is off in production by default. Through the Netlify domain the site-wide CSP blocks the Scalar CDN script.
 
 ## 2. Netlify (web)
 
@@ -54,13 +69,13 @@ Notes:
    - Build command: `pnpm --filter @ancestors-tree/web build`
    - Publish directory: `apps/web/dist`
    - Do not add `NODE_VERSION` or `PNPM_VERSION` variables (they would override `.nvmrc` / `packageManager`).
-4. Deploy. Then **Project configuration → General → Project details → Change project name** to get a readable URL (for example `ancestors-tree.netlify.app`).
+4. Deploy. Then **Project configuration → General → Project details → Change project name** to get a readable URL (this guide uses `ancestorstree` throughout: `https://ancestorstree.netlify.app`).
 5. **Project configuration → Build & deploy → Continuous deployment → Branches and deploy contexts**:
    - Production branch: `main`
    - Deploy Previews: **Any pull request against your production branch** (free: previews cost 0 credits)
    - Branch deploys: **Deploy only the production branch**
 6. Optional: **Deploy notifications → GitHub commit status / pull request comments** so each PR shows its preview link.
-7. Check it: open `https://<project>.netlify.app` → the page shows "Máy chủ đang hoạt động (phiên bản 0.1.0)". Also open `https://<project>.netlify.app/api/health` directly.
+7. Check it: open `https://ancestorstree.netlify.app` → the page shows "Máy chủ đang hoạt động (phiên bản 0.1.0)". Also open `https://ancestorstree.netlify.app/api/health` directly.
 
 What `netlify.toml` sets:
 
@@ -72,6 +87,19 @@ What `netlify.toml` sets:
 | Asset caching     | `/assets/*` immutable for 1 year                                                                                                                  | Vite fingerprints file names                                                          |
 | Ignore command    | skip when `apps/web`, `packages/shared` and root tooling are unchanged                                                                            | production deploys cost 15 credits each                                               |
 
+### Deploy previews and deploy order
+
+- **Deploy previews cannot sign in, by design.** A preview's `/api/*` proxies to the production API, whose origin check rejects writes from the preview's origin (403), so sign-in and sign-up fail there. Test accounts on the production site or locally.
+- **Order matters when merging to `main`.** Netlify publishes the new web app as soon as the merge lands, while Render only deploys after CI passes. Before merging, sync the Render Blueprint and set the environment variables: `JWT_SECRET` (generated), `APP_ORIGIN`, `TRUST_PROXY_HOPS`, and `MONGODB_URI` with the database name (section 3). If `MONGODB_URI` is missing, Render keeps the old API running (the health check gates the switch) and the new web app shows the error page on protected routes. For a few minutes the new web app may talk to the old API (`/api/me` answers 404); that is expected.
+
+### Known limitation / follow-up: client IP
+
+The per-IP rate limits trust `X-Forwarded-For`. The Render origin (`ancestors-tree-api.onrender.com`) is publicly reachable, so a caller that talks to it directly can send its own `X-Forwarded-For` and pick a new IP for every request, bypassing the per-IP limits. The per-email limits on sign-in and forgot-password do not depend on the IP and still apply. Follow-up before inviting real users: use Netlify's signed proxy (`x-nf-sign`, verified by the API, rejecting unsigned requests in production), and confirm on a real deploy that `req.ip` is the visitor's address.
+
+### Known limitation: targeted lockout
+
+The per-email limits apply to whoever sends the requests. Anyone who knows a user's email can block that user's password sign-in for up to 15 minutes (10 failed attempts per 15 minutes) and their password-reset emails for up to 24 hours (5 per 24 hours). Google sign-in and existing sessions are unaffected. A later improvement is a per-device exemption. If a dev database still has the old `expiresAt` TTL index on `passwordresets`, drop it once (`db.passwordresets.dropIndex('expiresAt_1')`). The API still starts, but until the old index is gone it deletes reset records after 1 hour, so the 24-hour cap silently stops holding.
+
 ## 3. MongoDB Atlas (database)
 
 One free M0 cluster serves both environments; each environment uses its own database on it.
@@ -82,7 +110,8 @@ One free M0 cluster serves both environments; each environment uses its own data
 4. **Connect → Drivers** and copy the `mongodb+srv://…` string. Replace `<db_password>` and insert the database name after the host:
    - local development (`apps/api/.env`): `mongodb+srv://ancestors-tree-app:<password>@<cluster-host>/ancestors-tree-dev?retryWrites=true&w=majority`
    - Render (`MONGODB_URI` in the dashboard): the same string with `/ancestors-tree` instead of `/ancestors-tree-dev`
-5. If the password contains `@ : / ? # [ ] %`, percent-encode it (or generate one with letters and digits only).
+5. Local development also needs `JWT_SECRET` in `apps/api/.env`, at least 32 characters. Generate one with `openssl rand -base64 48` and paste the output (never commit it). Also check that `MONGODB_URI` includes a database name; the API rejects a URI without one.
+6. If the password contains `@ : / ? # [ ] %`, percent-encode it (or generate one with letters and digits only).
 
 Tests never use Atlas: they start an in-memory MongoDB (`mongodb-memory-server`, spec §15).
 
@@ -95,6 +124,34 @@ Tests never use Atlas: they start an in-memory MongoDB (`mongodb-memory-server`,
 
 The API secret must never reach the browser or the repository. The web app only ever sees the cloud name and public photo IDs.
 
+## 5. Google sign-in
+
+The API signs users in with Google by redirect (authorization code + PKCE); no Google script runs on our pages. You need an OAuth client:
+
+1. Open https://console.cloud.google.com and create a project (for example `ancestors-tree`).
+2. **APIs & Services → OAuth consent screen**: user type **External**, app name `AncestorsTree`, your support email, scopes `openid`, `email` and `profile`.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID → Web application**.
+4. Under **Authorized redirect URIs** add both:
+   - `https://ancestorstree.netlify.app/api/auth/google/callback`
+   - `http://localhost:5173/api/auth/google/callback`
+
+   No JavaScript origins are needed.
+
+5. Copy the client ID and the client secret into `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: in `apps/api/.env` locally and in the Render dashboard for production.
+6. While the consent screen is in **Testing**, only the test users you list can sign in. Click **Publish app** on the consent screen so everyone can.
+
+The redirect URI is `APP_ORIGIN` plus `/api/auth/google/callback`, so it must match `APP_ORIGIN` exactly. Locally, run the web app on port 5173 so the Vite proxy forwards `/api` to the API.
+
+## 6. Email (Resend)
+
+Password reset emails go through Resend.
+
+1. Sign up at https://resend.com (free plan: 3,000 emails per month).
+2. **API Keys → Create API Key** with sending access. Copy it (it starts with `re_`) into `RESEND_API_KEY`: in `apps/api/.env` and in the Render dashboard.
+3. **Caveat:** without a verified domain, Resend only delivers to the email address of the Resend account owner. Until you verify a domain, the production API cannot email other users, so password reset only works for you.
+4. To email everyone: in Resend, **Domains → Add Domain**, create the DNS records it shows at your DNS provider, wait until the domain shows **Verified**, then set `MAIL_FROM` to `AncestorsTree <no-reply@your-domain>` (your own domain) in Render. No code change is needed.
+5. Without `RESEND_API_KEY`, development writes the reset link to the API log instead of sending it. In production the API cannot send email without a key.
+
 ## Free-plan limits to keep in mind
 
 - **Netlify credits:** 300 credits per month on the free plan; each production deploy costs 15 (about 20 production deploys per month). Deploy Previews and branch deploys cost 0. Merge to `main` in batches rather than many tiny PRs.
@@ -105,7 +162,13 @@ The API secret must never reach the browser or the repository. The web app only 
 
 - [ ] `https://<render-url>/api/health` returns `status: ok`
 - [ ] `netlify.toml` points `/api/*` at the actual Render URL
-- [ ] `https://<project>.netlify.app` shows the Vietnamese server status message with version `0.1.0`
-- [ ] `https://<project>.netlify.app/api/health` returns JSON (proxy works)
+- [ ] `https://ancestorstree.netlify.app` shows the Vietnamese server status message with version `0.1.0`
+- [ ] `https://ancestorstree.netlify.app/api/health` returns JSON (proxy works)
 - [ ] Netlify branch deploys are limited to `main`; Render auto-deploy is "After CI checks pass"
-- [ ] When P3/P6 start: `MONGODB_URI` and `CLOUDINARY_URL` are set in `apps/api/.env` and in the Render dashboard, and the API still starts (it rejects malformed values at startup without printing them)
+- [ ] `MONGODB_URI` (with the database name `ancestors-tree`) is set in Render and `https://<render-url>/api/health` reports the database as connected
+- [ ] `JWT_SECRET` exists in Render (generated from `render.yaml`) and in `apps/api/.env` (`openssl rand -base64 48`)
+- [ ] `APP_ORIGIN` is `https://ancestorstree.netlify.app` and `TRUST_PROXY_HOPS` is `2`
+- [ ] Google: both redirect URIs are authorized, `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` are set in Render and locally, and the consent screen is published
+- [ ] Optional: `RESEND_API_KEY` is set; `MAIL_FROM` uses your verified domain if you want to email other people
+- [ ] Sign up, sign out and sign in again on the Netlify domain; create a clan
+- [ ] When P6 starts: `CLOUDINARY_URL` is set in `apps/api/.env` and in the Render dashboard (the API rejects malformed values at startup without printing them)
