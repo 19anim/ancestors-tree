@@ -233,6 +233,7 @@
     }
   },
   "tree": {
+    "loading": "Đang tải cây gia phả…",
     "board": {
       "label": "Cây gia phả: {{name}}",
       "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới."
@@ -274,6 +275,7 @@
       "rejected": "Không lưu được thay đổi: {{reason}}",
       "dismiss": "Đã hiểu",
       "signedOut": "Phiên đăng nhập đã hết hạn. Đăng nhập lại để lưu các thay đổi.",
+      "signIn": "Đăng nhập lại",
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
     }
   }

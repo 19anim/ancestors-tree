@@ -7,8 +7,15 @@ import { SampleFamilyBoard } from './SampleFamilyBoard';
 export function HomePage() {
   const { t } = useTranslation();
   const me = useCurrentUser();
-  // Signed-in people go to their real family trees; the sample is for visitors (and shows
-  // while the session is still being checked).
+  // Signed-in people go to their real family trees; the sample is for visitors. While the
+  // session is still being checked show neither, so signed-in people never see a flash of it.
+  if (me.isPending) {
+    return (
+      <p aria-busy="true" className="min-h-[320px] text-ink-muted">
+        {t('common.loading')}
+      </p>
+    );
+  }
   if (me.data) return <Navigate to="/clans" replace />;
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_auto]">

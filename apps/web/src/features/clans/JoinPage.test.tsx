@@ -48,13 +48,18 @@ describe('JoinPage', () => {
           body: { clanId: CLAN_ID, role: 'editor', alreadyMember: false },
         }),
         [`GET /clans/${CLAN_ID}`]: () => ({ body: { ...CLAN, role: 'editor' } }),
-        [`GET /clans/${CLAN_ID}/members`]: () => ({ body: MEMBERS }),
+        [`GET /clans/${CLAN_ID}/tree`]: () => ({
+          body: { version: 0, progenitorId: null, persons: [], unions: [] },
+        }),
         'GET /clans': () => ({ body: [CLAN] }),
       }),
     );
     renderRoute(`/join/${TOKEN}`);
     await user.click(await screen.findByRole('button', { name: 'Tham gia' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeInTheDocument();
+    // The tree is the main page of a family tree, so that is where a new member lands.
+    expect(await screen.findByText('Chưa có ai trong cây gia phả này.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Cây' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('goes to the clan when already a member', async () => {

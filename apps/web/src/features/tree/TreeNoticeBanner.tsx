@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../../shared/ui';
+import { Link, useLocation } from 'react-router';
+import { Button, buttonVariants } from '../../shared/ui';
 import { rejectionMessage } from './format';
 import { useTreeStore, type TreeNotice } from './store';
 
@@ -27,6 +28,7 @@ export function TreeNoticeBanner() {
   const { t } = useTranslation();
   const notice = useTreeStore((state) => state.notice);
   const dismiss = useTreeStore((state) => state.dismissNotice);
+  const location = useLocation();
   if (!notice) return null;
   return (
     <div
@@ -34,9 +36,19 @@ export function TreeNoticeBanner() {
       className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
     >
       <p className="font-medium text-stamp">{noticeText(t, notice)}</p>
-      <Button variant="ghost" size="sm" onClick={dismiss}>
-        {t('tree.notice.dismiss')}
-      </Button>
+      <div className="flex items-center gap-2">
+        {notice.kind === 'signedOut' ? (
+          <Link
+            to={`/login?${new URLSearchParams({ returnTo: location.pathname + location.search })}`}
+            className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+          >
+            {t('tree.notice.signIn')}
+          </Link>
+        ) : null}
+        <Button variant="ghost" size="sm" onClick={dismiss}>
+          {t('tree.notice.dismiss')}
+        </Button>
+      </div>
     </div>
   );
 }

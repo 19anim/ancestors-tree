@@ -9,6 +9,7 @@ import { SaveStatus } from './SaveStatus';
 import { useTreeStore } from './store';
 import { TreeBoard } from './TreeBoard';
 import { TreeNoticeBanner } from './TreeNoticeBanner';
+import { TreeSkeleton } from './TreeSkeleton';
 import { UnlinkedTray } from './UnlinkedTray';
 
 export function TreePage() {
@@ -27,6 +28,7 @@ export function TreePage() {
   if (loadedClanId === clan.id && status === 'error') {
     return (
       <div className="flex flex-col items-start gap-3">
+        <TreeNoticeBanner />
         <p role="alert" className="font-medium text-stamp">
           {t(errorMessageKey(loadError))}
         </p>
@@ -37,7 +39,7 @@ export function TreePage() {
     );
   }
   if (loadedClanId !== clan.id || status !== 'ready') {
-    return <p className="text-ink-muted">{t('common.loading')}</p>;
+    return <TreeSkeleton />;
   }
   return (
     <div className="flex flex-col gap-4">

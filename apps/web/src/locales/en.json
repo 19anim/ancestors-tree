@@ -233,6 +233,7 @@
     }
   },
   "tree": {
+    "loading": "Loading the family tree…",
     "board": {
       "label": "Family tree: {{name}}",
       "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below."
@@ -274,6 +275,7 @@
       "rejected": "The change was not saved: {{reason}}",
       "dismiss": "Got it",
       "signedOut": "Your session has expired. Sign in again to save your changes.",
+      "signIn": "Sign in again",
       "discarded": "Unsaved changes were dropped: {{count}}."
     }
   }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useParams } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { cn } from '../../shared/lib/cn';
+import { TreeSkeleton } from '../tree';
 import { useClan } from './api';
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
@@ -46,7 +47,7 @@ export function ClanLayout() {
         ) : null}
       </nav>
       {/* The tree page is a lazy chunk: keep the heading and tabs while it loads. */}
-      <Suspense fallback={<p className="text-ink-muted">{t('common.loading')}</p>}>
+      <Suspense fallback={<TreeSkeleton />}>
         <Outlet context={clan.data} />
       </Suspense>
     </div>

@@ -44,6 +44,7 @@ test('sign up, create a clan, invite a relative and see them join', async ({ pag
     await register(relativePage, 'Tuấn', 'tuan');
     await relativePage.getByRole('button', { name: 'Tham gia' }).click();
     await expect(relativePage.getByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeVisible();
+    await expect(relativePage).toHaveURL(/\/clans\/[^/]+\/tree$/);
   } finally {
     await relative.close();
   }

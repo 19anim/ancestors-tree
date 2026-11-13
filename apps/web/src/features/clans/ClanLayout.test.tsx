@@ -4,9 +4,6 @@ import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
 import { CLAN, CLAN_ID, ME } from './fixtures';
 
-// The tree page is a lazy chunk (React Flow); loading it can take a while in jsdom.
-const LAZY_PAGE = { timeout: 5000 };
-
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -34,9 +31,7 @@ describe('ClanLayout', () => {
       }),
     });
     renderRoute(`/clans/${CLAN_ID}`);
-    expect(
-      await screen.findByText('Chưa có ai trong cây gia phả này.', {}, LAZY_PAGE),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Chưa có ai trong cây gia phả này.')).toBeInTheDocument();
     const tabs = within(screen.getByRole('navigation', { name: 'Mục của cây gia phả' }));
     expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Cây',

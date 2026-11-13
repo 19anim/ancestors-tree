@@ -1,7 +1,7 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mockApi } from '../../test/api';
+import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute, renderWithProviders } from '../../test/render';
 import { HomePage } from './HomePage';
 
@@ -27,11 +27,11 @@ function renderHome() {
 }
 
 describe('HomePage', () => {
-  it('shows the headline, the sample tree with its legend and a link to the gallery', () => {
+  it('shows the headline, the sample tree with its legend and a link to the gallery', async () => {
     mockApi();
     renderHome();
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Gia phả nhà mình, dán từng tấm ảnh.' }),
+      await screen.findByRole('heading', { level: 1, name: 'Gia phả nhà mình, dán từng tấm ảnh.' }),
     ).toBeInTheDocument();
     expect(
       screen.getByText('Cùng con cháu dựng cây gia phả, không quên ngày giỗ.'),
@@ -44,10 +44,32 @@ describe('HomePage', () => {
     );
   });
 
-  it('lets keyboard users focus the scrollable board', () => {
+  it('keeps the sample board for visitors once the session check says signed out', async () => {
+    const api = mockApi({ 'GET /me': () => apiErrorReply('UNAUTHENTICATED', 401) });
+    renderHome();
+    await waitFor(() => expect(api.calls.some((call) => call.path === '/me')).toBe(true));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Gia phả nhà mình, dán từng tấm ảnh.' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Cây gia phả mẫu' })).toBeInTheDocument();
+  });
+
+  it('shows no sample board while the session is still being checked', async () => {
+    mockApi({ 'GET /me': () => ({ body: ME }), 'GET /clans': () => ({ body: [] }) });
+    renderRoute('/');
+    expect(screen.getByText('Đang tải…')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Cây gia phả mẫu' })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Cây gia phả của tôi' }),
+    ).toBeInTheDocument();
+  });
+
+  it('lets keyboard users focus the scrollable board', async () => {
     mockApi();
     renderHome();
-    const scroller = screen.getByRole('region', { name: 'Khung cuộn ngang của cây gia phả mẫu' });
+    const scroller = await screen.findByRole('region', {
+      name: 'Khung cuộn ngang của cây gia phả mẫu',
+    });
     expect(scroller).toHaveAttribute('tabindex', '0');
     expect(scroller).toContainElement(screen.getByRole('group', { name: 'Cây gia phả mẫu' }));
   });

@@ -17,7 +17,7 @@ export function JoinPage() {
   const join = async () => {
     try {
       const result = await accept.mutateAsync();
-      void navigate(`/clans/${result.clanId}/members`);
+      void navigate(`/clans/${result.clanId}/tree`);
     } catch {
       // Shown below through accept.error.
     }

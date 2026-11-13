@@ -57,6 +57,28 @@ describe('TreePage', () => {
     expect(await screen.findByText('Chưa có ai trong cây gia phả này.')).toBeInTheDocument();
   });
 
+  it('keeps a discarded-changes notice when the load fails', async () => {
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE, VIEWER),
+      [`GET /clans/${CLAN_ID}/tree`]: () => apiErrorReply('INTERNAL_ERROR', 500),
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('button', { name: 'Thử lại' });
+    act(() => useTreeStore.setState({ notice: { kind: 'discarded', count: 2 } }));
+    expect(screen.getByText('2 thay đổi chưa lưu đã bị bỏ.')).toBeInTheDocument();
+  });
+
+  it('lets a signed-out editor sign in again and come back to this page', async () => {
+    mockApi(treeRoutes(EMPTY_TREE_RESPONSE, VIEWER));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Chưa có ai trong cây gia phả này.');
+    act(() => useTreeStore.setState({ notice: { kind: 'signedOut' } }));
+    const link = screen.getByRole('link', { name: 'Đăng nhập lại' });
+    expect(new URLSearchParams(link.getAttribute('href')?.split('?')[1]).get('returnTo')).toBe(
+      `/clans/${CLAN_ID}/tree`,
+    );
+  });
+
   it('explains every notice and lets the user dismiss it', async () => {
     const user = userEvent.setup();
     mockApi(treeRoutes(EMPTY_TREE_RESPONSE, VIEWER));
