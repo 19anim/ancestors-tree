@@ -157,8 +157,8 @@ export const GOLDEN_YEARS: readonly GoldenYear[] = [
 ];
 
 /**
- * Years where the table and astronomy-engine disagree because a new moon falls within a
- * minute of local midnight. The library follows astronomy-engine (ADR 0006); these rows
+ * Years where the table and astronomy-engine disagree because a new moon falls within about
+ * a minute of local midnight. The library follows astronomy-engine (ADR 0006); these rows
  * give its result.
  */
 export const EPHEMERIS_OVERRIDES: readonly GoldenYear[] = [

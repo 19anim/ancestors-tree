@@ -474,6 +474,7 @@ describe('HoNgocDucCalendar', () => {
   });
 
   it('accepts years 1000 to 3000 and rejects invalid input', () => {
+    // Final review changed this: solarToLunar({1,1,1000}) now throws RangeError (before Tết of lunar 1000).
     expect(lunarCalendar.solarToLunar({ day: 1, month: 1, year: 1000 }).year).toBe(999);
     expect(lunarCalendar.lunarToSolar({ day: 1, month: 1, year: 3000, isLeap: false })).not.toBeNull();
     expect(() => lunarCalendar.solarToLunar({ day: 1, month: 1, year: 999 })).toThrow(RangeError);

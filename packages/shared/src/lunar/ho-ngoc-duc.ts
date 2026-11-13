@@ -4,6 +4,8 @@ import {
   assertSupportedYear,
   fromDayNumber,
   isValidSolarDate,
+  MAX_YEAR,
+  MIN_YEAR,
   toDayNumber,
   type LunarDate,
   type SolarDate,
@@ -36,6 +38,11 @@ export class HoNgocDucCalendar implements LunarCalendar {
     const day = toDayNumber(date);
     // A day before Tết belongs to the previous lunar year.
     const year = day >= this.#monthsOf(date.year)[0]!.start ? date.year : date.year - 1;
+    if (year < MIN_YEAR) {
+      throw new RangeError(
+        `Before Tết of lunar year ${MIN_YEAR}: ${date.day}/${date.month}/${date.year}`,
+      );
+    }
     const month = this.#monthsOf(year).findLast((m) => m.start <= day)!;
     return { day: day - month.start + 1, month: month.month, year, isLeap: month.isLeap };
   }
@@ -46,7 +53,13 @@ export class HoNgocDucCalendar implements LunarCalendar {
     if (!month || !Number.isInteger(date.day) || date.day < 1 || date.day > month.length) {
       return null;
     }
-    return fromDayNumber(month.start + date.day - 1);
+    const solar = fromDayNumber(month.start + date.day - 1);
+    if (solar.year > MAX_YEAR) {
+      throw new RangeError(
+        `After 31/12/${MAX_YEAR}: lunar ${date.day}/${date.month}/${date.year} is ${solar.day}/${solar.month}/${solar.year}`,
+      );
+    }
+    return solar;
   }
 
   daysInLunarMonth(month: number, year: number, isLeap: boolean): 29 | 30 | null {

@@ -1,11 +1,13 @@
 export {
   assertSupportedYear,
   daysInSolarMonth,
+  fromDayNumber,
   isValidSolarDate,
   LunarDateSchema,
   MAX_YEAR,
   MIN_YEAR,
   SolarDateSchema,
+  toDayNumber,
   type LunarDate,
   type SolarDate,
 } from './dates.ts';

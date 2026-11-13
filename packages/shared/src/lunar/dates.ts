@@ -80,6 +80,7 @@ export function toDayNumber({ day, month, year }: SolarDate): number {
   );
 }
 
+/** The date in the proleptic Gregorian calendar for a Julian Day Number; the inverse of `toDayNumber`. */
 export function fromDayNumber(dayNumber: number): SolarDate {
   const a = dayNumber + 32044;
   const b = Math.floor((4 * a + 3) / 146097);

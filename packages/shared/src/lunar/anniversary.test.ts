@@ -63,8 +63,16 @@ describe('anniversaryFor', () => {
   it('accepts a recorded death date even if this calendar has no such day', () => {
     // 30/12/2025 does not exist here (month 12 has 29 days), but an old almanac may say so.
     expect(anniversaryFor({ day: 30, month: 12, year: 2025, isLeap: false }, 2026)).toMatchObject({
+      lunarDate: { day: 29, month: 12, year: 2026, isLeap: false },
       kind: 'first',
+      notes: [{ code: 'day30Shortened', month: 12 }],
     });
+  });
+
+  it('throws RangeError when the anniversary falls after 31/12/3000', () => {
+    expect(() => anniversaryFor({ day: 5, month: 12, year: 2999, isLeap: false }, 3000)).toThrow(
+      RangeError,
+    );
   });
 
   it('rejects impossible dates and years outside 1000–3000', () => {

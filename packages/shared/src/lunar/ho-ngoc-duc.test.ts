@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fromDayNumber } from './dates.ts';
+import { fromDayNumber, LunarDateSchema, MAX_YEAR, toDayNumber } from './dates.ts';
 import { EPHEMERIS_OVERRIDES, GOLDEN_YEARS, type GoldenYear } from './golden-years.ts';
 import { HoNgocDucCalendar, lunarCalendar } from './ho-ngoc-duc.ts';
 
@@ -98,7 +98,6 @@ describe('HoNgocDucCalendar', () => {
   });
 
   it('accepts years 1000 to 3000 and rejects invalid input', () => {
-    expect(lunarCalendar.solarToLunar({ day: 1, month: 1, year: 1000 }).year).toBe(999);
     expect(
       lunarCalendar.lunarToSolar({ day: 1, month: 1, year: 3000, isLeap: false }),
     ).not.toBeNull();
@@ -109,6 +108,59 @@ describe('HoNgocDucCalendar', () => {
     ).toThrow(RangeError);
     expect(() => lunarCalendar.monthsOf(999)).toThrow(RangeError);
     expect(() => lunarCalendar.leapMonthOf(3001)).toThrow(RangeError);
+  });
+
+  describe('range edges', () => {
+    const TET_1000 = { day: 13, month: 2, year: 1000 };
+    const LAST_DAY = { day: 31, month: 12, year: MAX_YEAR };
+
+    it('rejects solar dates before Tết of lunar year 1000', () => {
+      expect(() => lunarCalendar.solarToLunar({ day: 1, month: 1, year: 1000 })).toThrow(
+        RangeError,
+      );
+      expect(lunarCalendar.solarToLunar(TET_1000)).toEqual({
+        day: 1,
+        month: 1,
+        year: 1000,
+        isLeap: false,
+      });
+      expect(() => lunarCalendar.solarToLunar(fromDayNumber(toDayNumber(TET_1000) - 1))).toThrow(
+        RangeError,
+      );
+    });
+
+    it('rejects lunar dates after 31/12/3000', () => {
+      expect(() =>
+        lunarCalendar.lunarToSolar({ day: 1, month: 12, year: 3000, isLeap: false }),
+      ).toThrow(RangeError);
+      // 31/12/3000 is the 14th of month 11; the 15th is 1/1/3001.
+      expect(lunarCalendar.solarToLunar(LAST_DAY)).toEqual({
+        day: 14,
+        month: 11,
+        year: 3000,
+        isLeap: false,
+      });
+      expect(lunarCalendar.lunarToSolar({ day: 14, month: 11, year: 3000, isLeap: false })).toEqual(
+        LAST_DAY,
+      );
+      expect(() =>
+        lunarCalendar.lunarToSolar({ day: 15, month: 11, year: 3000, isLeap: false }),
+      ).toThrow(RangeError);
+    });
+
+    it('converts every solar day in the supported span to a valid lunar date and back', () => {
+      const last = toDayNumber(LAST_DAY);
+      for (let day = toDayNumber(TET_1000); day <= last; day += 1) {
+        const solar = fromDayNumber(day);
+        const lunar = lunarCalendar.solarToLunar(solar);
+        if (!LunarDateSchema.safeParse(lunar).success) {
+          throw new Error(`Invalid lunar date for ${iso(solar)}: ${JSON.stringify(lunar)}`);
+        }
+        if (toDayNumber(lunarCalendar.lunarToSolar(lunar)!) !== day) {
+          throw new Error(`Round trip failed for ${iso(solar)}`);
+        }
+      }
+    });
   });
 
   it('computes each lunar year once', () => {

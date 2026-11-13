@@ -14,7 +14,7 @@ Death anniversaries (giỗ) follow the Vietnamese lunar calendar, so the app con
 **Plain dates and a fixed range.**
 
 - Solar dates are `{ day, month, year }` in the proleptic Gregorian calendar, never a JS `Date`, so a browser's time zone cannot shift a day.
-- Years 1000–3000 are accepted, and anything else throws `RangeError`.
+- Solar dates from Tết of lunar year 1000 (13/2/1000) to 31/12/3000 are accepted, and so are lunar dates whose solar date falls in that span (lunar years 1000–3000). Anything else throws `RangeError`: a solar date before that Tết, a lunar date after 31/12/3000, or a year outside 1000–3000.
 - Each lunar year is computed once per calendar instance; all 2,001 years take about 30 ms.
 
 **A correction table, checked against an ephemeris.** Over 1600–2400 the low-precision formulas disagree with `astronomy-engine`, a high-precision ephemeris, on 13 days:
@@ -39,13 +39,13 @@ All 13 are within five minutes of midnight. The correction table (`corrections.t
 
 **`astronomy-engine` is test-only.** Shipping it would add about 42 KB gzip, about 20% of the app's JavaScript. It would not make old dates more correct (see the limits below), and the correction table already gives the same results for 1600–2400.
 
-**Golden data.** Hồ Ngọc Đức's site is no longer online. The archived `amlich-ntt.js` (2014) holds precomputed tables for 1200–2199. Only decoded facts are kept (`golden-years.ts`: Tết, leap month and month lengths for 1968–2100); no code and no encoded table were copied. The library matches every year except 2054, 2077 and 2085: each has a new moon within a minute of midnight where the table and `astronomy-engine` disagree, and the library follows `astronomy-engine`. Before 1968 the table follows the calendar Vietnam actually used, which was computed for UTC+8, so it is not a reference for this UTC+7 library there.
+**Golden data.** Hồ Ngọc Đức's site is no longer online. The archived `amlich-ntt.js` (2014) holds precomputed tables for 1200–2199. Only decoded facts are kept (`golden-years.ts`: Tết, leap month and month lengths for 1968–2100); no code and no encoded table were copied. The library matches every year except 2054, 2077 and 2085: each has a new moon within about a minute of midnight where the table and `astronomy-engine` disagree, and the library follows `astronomy-engine`. Before 1968 the table follows the calendar Vietnam actually used, which was computed for UTC+8, so it is not a reference for this UTC+7 library there.
 
 **Swappable.** Callers depend on the `LunarCalendar` interface. `HoNgocDucCalendar` takes a `SkySource`, so a calendar backed entirely by an ephemeris, or by an official almanac table, can replace it without touching callers.
 
 ## Consequences
 
-- Lunar death dates, the usual way genealogies record them, are converted only for the current years, where the calendar has been checked against the table and the ephemeris.
+- Lunar death dates are the usual way genealogies record them. An anniversary only converts a lunar date of the current year, a range verified against both the table (to 2100) and the ephemeris (to 2400).
 - **Historical limits.**
   - North Vietnam computed its calendar for UTC+8 until 1967, and the South until the end of 1975.
   - Older almanacs followed rules that changed over the centuries.

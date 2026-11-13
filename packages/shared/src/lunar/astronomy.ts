@@ -47,7 +47,10 @@ export function newMoonJulianDate(lunation: number): number {
   return mean + correction - deltaT;
 }
 
-/** Apparent solar longitude in degrees (0–360) at the given Julian date (Meeus, low precision). */
+/**
+ * True (geometric) solar longitude in degrees (0–360), without nutation or aberration, at the
+ * given Julian date (Meeus, low precision).
+ */
 export function sunLongitude(julianDate: number): number {
   const t = (julianDate - 2451545.0) / 36525; // Julian centuries since J2000.0
   const t2 = t * t;
