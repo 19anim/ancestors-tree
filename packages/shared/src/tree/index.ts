@@ -36,3 +36,10 @@ export {
   type SingleOp,
 } from './ops.ts';
 export { applyOp, isOwnAncestor, type ApplyOpResult } from './apply-op.ts';
+export {
+  buildTreeIndex,
+  classifyLineage,
+  computeGenerations,
+  type Lineage,
+  type TreeIndex,
+} from './lineage.ts';
