@@ -232,6 +232,15 @@
     }
   },
   "tree": {
+    "board": {
+      "label": "Cây gia phả: {{name}}",
+      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới."
+    },
+    "card": {
+      "label": "{{name}}, {{years}}, đời thứ {{generation}}",
+      "labelNoYears": "{{name}}, đời thứ {{generation}}",
+      "actions": "Thao tác với {{name}}"
+    },
     "rules": {
       "INVALID_ID": "Mã định danh không hợp lệ. Hãy tải lại trang rồi thử lại.",
       "DUPLICATE_ID": "Mã định danh này đã được dùng. Hãy tải lại trang rồi thử lại.",

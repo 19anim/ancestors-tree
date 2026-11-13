@@ -232,6 +232,15 @@
     }
   },
   "tree": {
+    "board": {
+      "label": "Family tree: {{name}}",
+      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below."
+    },
+    "card": {
+      "label": "{{name}}, {{years}}, generation {{generation}}",
+      "labelNoYears": "{{name}}, generation {{generation}}",
+      "actions": "Actions for {{name}}"
+    },
     "rules": {
       "INVALID_ID": "An id is not valid. Reload the page and try again.",
       "DUPLICATE_ID": "This id is already used. Reload the page and try again.",
