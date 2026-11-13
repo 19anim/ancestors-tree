@@ -244,6 +244,10 @@
       "INVALID_PARTNERS": "A marriage needs one or two different people.",
       "RESTORE_CONFLICT": "Cannot restore: this person's marriage has changed.",
       "TREE_FULL": "The family tree already has 5,000 people; no more can be added."
+    },
+    "notice": {
+      "signedOut": "Your session has expired. Sign in again to save your changes.",
+      "discarded": "Unsaved changes were dropped: {{count}}."
     }
   }
 }

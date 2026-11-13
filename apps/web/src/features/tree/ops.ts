@@ -15,6 +15,7 @@ export interface NewPersonInput {
   isDeceased: boolean;
 }
 
+/** The highest `siblingOrder` and union `order` the schemas accept (both are 1–99). */
 const MAX_ORDER = 99;
 
 export function buildPerson(input: NewPersonInput, extra: Partial<Person> = {}): Person {
@@ -59,10 +60,28 @@ export function addChildOp(
       },
     };
   }
-  const last = Math.max(0, ...index.childrenOf(target).map((child) => child.siblingOrder ?? 0));
+  // The new child is the youngest. Children without a siblingOrder sort after every numbered
+  // one (then by id), so when a sibling has none, or the highest order is taken, the new child
+  // gets none either: its id is newer than theirs, so it still sorts last.
+  const siblings = index.childrenOf(target);
   const extra: Partial<Person> = { parentUnionId: target };
-  if (last < MAX_ORDER) extra.siblingOrder = last + 1;
+  if (siblings.every((child) => child.siblingOrder !== undefined)) {
+    const last = Math.max(0, ...siblings.map((child) => child.siblingOrder ?? 0));
+    if (last < MAX_ORDER) extra.siblingOrder = last + 1;
+  }
   return { type: 'addPerson', payload: buildPerson(input, extra) };
+}
+
+/** The order after the person's last union; past the schema's 99, the lowest free one. */
+function nextUnionOrder(unions: readonly Union[]): number {
+  const taken = new Set(unions.map((union) => union.order));
+  const last = Math.max(0, ...taken);
+  if (last < MAX_ORDER) return last + 1;
+  for (let order = 1; order < MAX_ORDER; order += 1) {
+    if (!taken.has(order)) return order;
+  }
+  // 99 marriages: no free order is left, so the new one shares the last (then sorts by id).
+  return MAX_ORDER;
 }
 
 /**
@@ -84,7 +103,7 @@ export function addSpouseOp(index: TreeIndex, personId: string, input: NewPerson
           payload: {
             id: newObjectId(),
             partnerIds: [personId, spouse.id],
-            order: Math.min(MAX_ORDER, Math.max(0, ...unions.map((union) => union.order)) + 1),
+            order: nextUnionOrder(unions),
             status: 'married',
           },
         };

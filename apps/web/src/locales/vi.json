@@ -244,6 +244,10 @@
       "INVALID_PARTNERS": "Một cuộc hôn nhân cần một hoặc hai người khác nhau.",
       "RESTORE_CONFLICT": "Không khôi phục được: cuộc hôn nhân của người này đã thay đổi.",
       "TREE_FULL": "Cây gia phả đã đủ 5.000 người, không thêm được nữa."
+    },
+    "notice": {
+      "signedOut": "Phiên đăng nhập đã hết hạn. Đăng nhập lại để lưu các thay đổi.",
+      "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
     }
   }
 }
