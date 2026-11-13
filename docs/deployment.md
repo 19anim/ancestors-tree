@@ -98,7 +98,7 @@ The per-IP rate limits trust `X-Forwarded-For`. The Render origin (`ancestors-tr
 
 ### Known limitation: targeted lockout
 
-The per-email limits apply to whoever sends the requests. Anyone who knows a user's email can block that user's password sign-in for up to 15 minutes (10 failed attempts per 15 minutes) and their password-reset emails for up to 24 hours (5 per 24 hours). Google sign-in and existing sessions are unaffected. A later improvement is a per-device exemption. If a dev database still has the old `expiresAt` TTL index on `passwordresets`, drop it once (`db.passwordresets.dropIndex('expiresAt_1')`); the API will not start otherwise.
+The per-email limits apply to whoever sends the requests. Anyone who knows a user's email can block that user's password sign-in for up to 15 minutes (10 failed attempts per 15 minutes) and their password-reset emails for up to 24 hours (5 per 24 hours). Google sign-in and existing sessions are unaffected. A later improvement is a per-device exemption. If a dev database still has the old `expiresAt` TTL index on `passwordresets`, drop it once (`db.passwordresets.dropIndex('expiresAt_1')`). The API still starts, but until the old index is gone it deletes reset records after 1 hour, so the 24-hour cap silently stops holding.
 
 ## 3. MongoDB Atlas (database)
 
