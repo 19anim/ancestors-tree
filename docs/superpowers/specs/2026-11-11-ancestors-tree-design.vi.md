@@ -27,7 +27,7 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 |---|---|---|
 | S1 | Cây 1.000 người kéo/zoom ≥ 55 fps trên laptop tầm trung | Chrome DevTools Performance + React Profiler, seed 1.000 và 2.000 người |
 | S2 | Mở cây 1.000 người: hiển thị đầy đủ lần đầu < 1,5 giây | `performance.mark` từ lúc nhận dữ liệu tới lúc vẽ xong |
-| S3 | Đổi âm–dương lịch đúng 100% ngày Tết 1900–2100, và qua các test property-based + differential cho 1800–2400 (§9.1) | Vitest trên CI |
+| S3 | Đổi âm–dương lịch khớp bảng đã công bố của Hồ Ngọc Đức cho mọi năm âm 1968–2100 (trừ 3 năm có trăng mới sát nửa đêm, theo lịch thiên văn), qua test property-based (cấu trúc năm và Tết: mọi năm 1000–3000; các luật còn lại: 1800–2400), và trùng khớp `astronomy-engine` cho 1600–2400 (§9.1) | Vitest trên CI |
 | S4 | Độ phủ test `packages/shared` ≥ 90%, toàn dự án ≥ 70% | Vitest coverage trên CI |
 | S5 | Lighthouse Performance, Accessibility, Best Practices ≥ 90 | Lighthouse CI |
 | S6 | Có ít nhất 1 dòng họ thật dùng, ≥ 100 người trong cây | Dữ liệu production |
@@ -157,7 +157,7 @@ Dòng thứ hai để React Router xử lý được khi người dùng F5 ở t
 ```ts
 // ===== Kiểu dùng chung =====
 DateInfo {                       // dùng cho cả ngày sinh và ngày mất
-  solar?: Date,                  // ngày dương lịch (nếu biết)
+  solar?: { day, month, year },  // ngày dương lịch (nếu biết); ngày thuần, không dùng Date của JS nên không lệch múi giờ
   lunar?: {                      // ngày âm lịch Việt Nam (nếu biết)
     day, month, year,
     isLeap                       // true nếu là tháng nhuận
@@ -599,39 +599,48 @@ Bất kỳ ai — dâu/rể, con gái đã đi lấy chồng, con nuôi có gia 
 
 ### 9.1 Đổi âm–dương lịch
 
-- `packages/shared/lunar/` cài đặt **thuật toán Hồ Ngọc Đức** cho **UTC+7**. Không dùng thư viện lịch Trung Quốc (UTC+8) vì có những năm lệch với lịch Việt Nam (VD Tết 1985).
+- `packages/shared/src/lunar/` (import bằng `@ancestors-tree/shared/lunar`) cài đặt **thuật toán Hồ Ngọc Đức** cho **UTC+7**. Không dùng thư viện lịch Trung Quốc (UTC+8) vì có những năm lệch với lịch Việt Nam (VD Tết 1985).
 - Interface (nơi gọi phụ thuộc vào interface, không phụ thuộc thuật toán):
   ```ts
+  SolarDate { day, month, year }                         // ngày dương lịch thuần; không dùng Date của JS nên không múi giờ nào làm lệch được
+  LunarDate { day, month, year, isLeap }
   interface LunarCalendar {
-    solarToLunar(date: Date): LunarDate                  // { day, month, year, isLeap }
-    lunarToSolar(l: LunarDate): Date | null              // null nếu ngày âm đó không tồn tại
-    daysInLunarMonth(month: number, year: number, isLeap: boolean): 29 | 30
+    solarToLunar(date: SolarDate): LunarDate
+    lunarToSolar(l: LunarDate): SolarDate | null         // null nếu ngày âm đó không tồn tại
+    daysInLunarMonth(month: number, year: number, isLeap: boolean): 29 | 30 | null  // null nếu tháng đó không tồn tại
     leapMonthOf(lunarYear: number): number | null
   }
   canChiYear(lunarYear: number): string                  // 1924 → "Giáp Tý"
   ```
-  Bản cài đặt mặc định là `HoNgocDucCalendar`; dữ liệu mỗi năm âm lịch được memoize (tính một lần rồi nhớ).
+  Bản cài đặt mặc định là `HoNgocDucCalendar`; dữ liệu mỗi năm âm lịch được memoize (tính một lần rồi nhớ). Schema Zod `SolarDateSchema` và `LunarDateSchema` kiểm tra ngày ở biên API (P5, P6).
+- **Phạm vi hỗ trợ.** Ngày dương từ Tết của năm âm 1000 (13/2/1000) đến 31/12/3000, và các ngày âm có ngày dương nằm trong khoảng đó (năm âm 1000–3000). Ngoài khoảng này các hàm ném `RangeError`, kể cả ngày dương trước Tết đó và ngày âm rơi sau 31/12/3000; ngày dương không hợp lệ (VD 31/2) cũng ném lỗi. Đủ cho tổ tiên nhiều đời mà vẫn chặn dữ liệu vô lý.
+- **Dung lượng khi chạy:** thuật toán chỉ vài KB. `astronomy-engine` (~42 KB gzip, khoảng +20% JavaScript của app) **chỉ dùng trong test**: nó không làm ngày xưa đúng hơn (xem lưu ý lịch sử), nên không bao giờ gửi tới người dùng.
 
-**Có giới hạn năm (VD 2100) không?** Không. Thuật toán là **phép tính thiên văn**, không phải bảng tra cứu: nó tính thời điểm trăng mới và kinh độ mặt trời (tiết khí) bằng công thức trong sách *Astronomical Algorithms* của Jean Meeus, rồi áp luật lịch (tháng bắt đầu vào ngày có trăng mới; trong năm có 13 tháng, tháng không chứa trung khí là tháng nhuận). Nó chạy được với mọi năm; độ chính xác chỉ giảm dần rất chậm qua nhiều thế kỷ. 1900–2100 chỉ là phạm vi của **bảng đối chiếu đã công bố** mà mình dùng để test. Ngoài phạm vi đó, tính đúng được bảo vệ bởi:
+**Có giới hạn năm (VD 2100) không?** Không. Thuật toán là **phép tính thiên văn**, không phải bảng tra cứu: nó tính thời điểm trăng mới và kinh độ mặt trời (tiết khí) bằng công thức trong sách *Astronomical Algorithms* của Jean Meeus, rồi áp luật lịch (tháng bắt đầu vào ngày có trăng mới; trong năm có 13 tháng, tháng không chứa trung khí là tháng nhuận). Nó chạy được với mọi năm trong phạm vi hỗ trợ 1000–3000; độ chính xác chỉ giảm dần rất chậm qua nhiều thế kỷ. 1968–2100 chỉ là phạm vi của **bảng đối chiếu đã công bố** mà mình dùng để test. Ngoài phạm vi đó, tính đúng được bảo vệ bởi:
 
 | Lớp | Làm gì |
 |---|---|
-| Golden test | Khớp 100% bảng ngày Tết 1900–2100 đã công bố |
-| Property-based test (`fast-check`, năm 1800–2400) | Các luật luôn đúng: tháng có 29 hoặc 30 ngày; năm âm có 12 hoặc 13 tháng; tháng nhuận không chứa trung khí; Tết rơi trong 21/1–20/2; `lunarToSolar(solarToLunar(d)) === d` |
-| Differential test (2100–2400) | So ngày đầu tháng với một thư viện thiên văn độc lập có độ chính xác cao (`astronomy-engine`). Chỉ có thể lệch khi trăng mới rơi sát nửa đêm vài phút; mọi ngày như vậy được ghi vào một ADR |
+| Golden test | Ngày Tết, tháng nhuận và độ dài từng tháng khớp bảng đã công bố của Hồ Ngọc Đức cho mọi năm âm 1968–2100 (chỉ giữ dữ kiện đã giải mã, trong `golden-years.ts`). Ngoại lệ là 2054, 2077 và 2085: mỗi năm có một lần trăng mới cách nửa đêm khoảng một phút, bảng và `astronomy-engine` không khớp nhau, và thư viện theo `astronomy-engine`. Trước 1968 bảng theo lịch UTC+8 của lịch sử nên không dùng làm chuẩn |
+| Property-based test (cấu trúc năm và khoảng Tết duyệt hết mọi năm 1000–3000; các luật còn lại dùng `fast-check` cho năm 1800–2400) | Các luật luôn đúng: tháng có 29 hoặc 30 ngày; năm âm có 12 hoặc 13 tháng; tháng nhuận không chứa trung khí; Tết rơi trong 21/1–21/2 (trong khoảng 1800–2400, 21/2 lần đầu xảy ra năm 2319); `lunarToSolar(solarToLunar(d)) === d` |
+| Differential test (1600–2400) | So mọi lần trăng mới và mọi năm âm với một thư viện thiên văn độc lập có độ chính xác cao (`astronomy-engine`). Công thức rút gọn lệch 12 lần trăng mới (đều trong vòng 5 phút quanh nửa đêm) và một tiết khí (thu phân 1938, 1,5 giây sau nửa đêm); bảng sửa 13 dòng (`corrections.ts`, liệt kê trong ADR 0006) làm kết quả trùng khớp |
 | Có thể thay thuật toán | Nếu cần chính xác hơn, `EphemerisCalendar` (dựa trên astronomy-engine) hoặc `TableCalendar` (bảng lịch chính thức) có thể thay `HoNgocDucCalendar` mà không phải sửa nơi gọi |
 
-**Lưu ý lịch sử:** trước năm 1968, lịch âm Việt Nam được tính theo UTC+8 (ở miền Nam còn lâu hơn). Vì vậy đổi một ngày mất **dương lịch** trước 1968 sang âm lịch có thể lệch một ngày, thậm chí một tháng. Khi `source: 'solar'` và năm trước 1968, giao diện hiện ghi chú nhờ gia đình xác nhận lại ngày âm. *(Mốc năm này cần đối chiếu nguồn trước khi viết vào code.)*
+**Lưu ý lịch sử:** trước năm 1968, lịch âm Việt Nam được tính theo UTC+8 (giờ Bắc Kinh). Miền Bắc chuyển sang UTC+7 từ 1/1/1968 (Quyết định 121/CP); miền Nam giữ UTC+8 tới hết năm 1975, nên Tết Mậu Thân là 29/1/1968 ở miền Bắc và 30/1 ở miền Nam. Cả nước dùng UTC+7 từ năm **1976**. Lịch xưa hơn nữa còn theo những quy tắc đã thay đổi qua các thế kỷ; thư viện áp quy tắc hiện nay cho mọi năm và không tái tạo các cuốn lịch cổ. Vì vậy đổi một ngày mất **dương lịch** trước 1976 sang âm lịch có thể lệch một ngày, thậm chí một tháng. App vẫn đổi theo UTC+7, và khi `source: 'solar'` với năm trước 1976 thì hiện cảnh báo nhờ gia đình xác nhận lại ngày âm. Cảnh báo hiện ở chỗ nhập ngày hoặc xem hồ sơ, **không bao giờ hiện trên thẻ ở cây**. Ngày mất âm lịch (cách gia phả thường ghi) không bị ảnh hưởng: tính giỗ chỉ đổi một ngày âm của năm hiện tại.
 
 ### 9.2 Ngày giỗ năm nay
 
 ```ts
-anniversaryFor(deathLunar: LunarDate, targetLunarYear: number): {
-  solarDate: Date,
-  notes: AnniversaryNote[],         // hiển thị thành ghi chú trên giao diện
+anniversaryFor(deathLunar: LunarDate, targetLunarYear: number, calendar?: LunarCalendar): {
+  lunarDate: LunarDate,             // ngày thực sự cúng năm nay (không bao giờ là tháng nhuận)
+  solarDate: SolarDate,
+  notes: AnniversaryNote[],         // mã ghi chú, giao diện dịch qua i18n
   kind: 'first' | 'second' | 'regular'
-}
+} | null                            // null khi targetLunarYear <= deathLunar.year (chưa có giỗ)
+
+conversionNotes(solar: SolarDate): ConversionNote[]   // ghi chú cho ngày âm được tính từ ngày dương
 ```
+
+Ghi chú là mã kèm tham số, không phải câu chữ: `leapMonthAbsent`, `leapMonthUsesRegular`, `day30Shortened` (ngày giỗ) và `derivedFromSolar`, `beforeUnifiedCalendar` (đổi ngày). Giao diện (P6) chuyển chúng thành các câu bên dưới.
 
 | Trường hợp | Luật | Ghi chú trên giao diện |
 |---|---|---|
@@ -640,7 +649,7 @@ anniversaryFor(deathLunar: LunarDate, targetLunarYear: number): {
 | Mất ngày 30; tháng năm nay chỉ có 29 ngày | Dùng ngày 29 | ℹ️ Mất ngày 30/7 âm. Tháng 7 năm nay chỉ có 29 ngày nên giỗ vào 29/7. |
 | Năm âm lịch thứ 1 sau khi mất | `kind: 'first'` | 🏷️ **Giỗ đầu** |
 | Năm âm lịch thứ 2 sau khi mất | `kind: 'second'` | 🏷️ **Giỗ hết** — thường làm lớn |
-| Ngày mất nhập theo dương lịch | Đổi sang âm khi lưu (`source: 'solar'`) | ℹ️ Ngày âm được tính từ ngày dương 12/05/1990 — hãy kiểm tra lại với gia đình. (+ lưu ý trước 1968 nếu có) |
+| Ngày mất nhập theo dương lịch | Đổi sang âm khi lưu (`source: 'solar'`) | ℹ️ Ngày âm được tính từ ngày dương 12/05/1990 — hãy kiểm tra lại với gia đình. (+ cảnh báo trước 1976 nếu có, §9.1) |
 | Chỉ biết năm / thiếu ngày tháng | Không tính giỗ | ⚠️ Chưa đủ thông tin để tính ngày giỗ. [Bổ sung] |
 
 Component `InfoHint` hiển thị các ghi chú (di chuột trên máy tính, chạm trên điện thoại).

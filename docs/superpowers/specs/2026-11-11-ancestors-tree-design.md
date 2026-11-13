@@ -25,7 +25,7 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 |---|---|---|
 | S1 | A 1,000-person tree pans/zooms at ≥ 55 fps on a mid-range laptop | Chrome DevTools Performance + React Profiler, seeded 1,000 and 2,000 people |
 | S2 | Opening a 1,000-person tree: first full render < 1.5 s | `performance.mark` from data received to render complete |
-| S3 | Lunar↔solar conversion matches 100% of Tết dates 1900–2100, and passes property-based + differential tests 1800–2400 (§9.1) | Vitest on CI |
+| S3 | Lunar↔solar conversion matches the published Hồ Ngọc Đức table for every lunar year 1968–2100 (except 3 near-midnight years that follow the ephemeris), passes property-based tests (year structure and Tết: every year 1000–3000; the other invariants: 1800–2400), and is identical to `astronomy-engine` for 1600–2400 (§9.1) | Vitest on CI |
 | S4 | Test coverage ≥ 90% for `packages/shared`, ≥ 70% overall | Vitest coverage on CI |
 | S5 | Lighthouse Performance, Accessibility, Best Practices ≥ 90 | Lighthouse CI |
 | S6 | At least 1 real clan using it with ≥ 100 people in the tree | Production data |
@@ -155,7 +155,7 @@ The second line lets React Router handle deep links on page refresh.
 ```ts
 // ===== Shared value types =====
 DateInfo {                       // used for both birth and death
-  solar?: Date,                  // Gregorian date, if known
+  solar?: { day, month, year },  // Gregorian date, if known (a plain date, never a JS Date: no time zone shift)
   lunar?: {                      // Vietnamese lunar date, if known
     day, month, year,
     isLeap                       // true if the month is a leap month
@@ -597,39 +597,48 @@ Any person — an in-law, a daughter who married out, an adopted child with a kn
 
 ### 9.1 Lunar↔solar conversion
 
-- `packages/shared/lunar/` implements the **Hồ Ngọc Đức algorithm** for **UTC+7**. A Chinese-calendar library (UTC+8) is not used because some years differ from the Vietnamese calendar (e.g. Tết 1985).
+- `packages/shared/src/lunar/` (imported as `@ancestors-tree/shared/lunar`) implements the **Hồ Ngọc Đức algorithm** for **UTC+7**. A Chinese-calendar library (UTC+8) is not used because some years differ from the Vietnamese calendar (e.g. Tết 1985).
 - Interface (callers depend on the interface, not the algorithm):
   ```ts
+  SolarDate { day, month, year }                         // a plain Gregorian date; never a JS Date, so no time zone can shift it
+  LunarDate { day, month, year, isLeap }
   interface LunarCalendar {
-    solarToLunar(date: Date): LunarDate                  // { day, month, year, isLeap }
-    lunarToSolar(l: LunarDate): Date | null              // null if that lunar date does not exist
-    daysInLunarMonth(month: number, year: number, isLeap: boolean): 29 | 30
+    solarToLunar(date: SolarDate): LunarDate
+    lunarToSolar(l: LunarDate): SolarDate | null         // null if that lunar date does not exist
+    daysInLunarMonth(month: number, year: number, isLeap: boolean): 29 | 30 | null  // null if that month does not exist
     leapMonthOf(lunarYear: number): number | null
   }
   canChiYear(lunarYear: number): string                  // 1924 → "Giáp Tý"
   ```
-  The default implementation is `HoNgocDucCalendar`; year data is memoized per lunar year.
+  The default implementation is `HoNgocDucCalendar`; year data is memoized per lunar year. Zod schemas `SolarDateSchema` and `LunarDateSchema` validate dates at the API boundary (P5, P6).
+- **Supported range.** Solar dates from Tết of lunar year 1000 (13/2/1000) to 31/12/3000, and the lunar dates whose solar date falls in that span (lunar years 1000–3000). Anything outside it throws a `RangeError`, including a solar date before that Tết and a lunar date that falls after 31/12/3000; an invalid solar date (e.g. 31/2) also throws. This covers ancestors many generations back and rejects nonsense input.
+- **Runtime size:** the algorithm is a few KB. `astronomy-engine` (~42 KB gzip, about +20% of the app's JavaScript) is a **test-only** dependency: it would not make old dates more correct (see the historical caveat), so it never ships to users.
 
-**Is there a year limit (e.g. 2100)?** No. The algorithm is an **astronomical computation**, not a lookup table: it computes new-moon times and the sun's longitude (solar terms) with formulas from Jean Meeus' *Astronomical Algorithms*, then applies the calendar rules (month starts on the day of the new moon; the month without a major solar term in a 13-month year is the leap month). It works for any year; accuracy only degrades slowly over many centuries. 1900–2100 is just the range of the **published reference table** we test against. Beyond that range, correctness is protected by:
+**Is there a year limit (e.g. 2100)?** No. The algorithm is an **astronomical computation**, not a lookup table: it computes new-moon times and the sun's longitude (solar terms) with formulas from Jean Meeus' *Astronomical Algorithms*, then applies the calendar rules (month starts on the day of the new moon; the month without a major solar term in a 13-month year is the leap month). It works for any year in the supported range 1000–3000; accuracy only degrades slowly over many centuries. 1968–2100 is just the range of the **published reference table** we test against. Beyond that range, correctness is protected by:
 
 | Layer | What it does |
 |---|---|
-| Golden tests | 100% match with the published Tết table 1900–2100 |
-| Property-based tests (`fast-check`, years 1800–2400) | Invariants: each month has 29 or 30 days; each lunar year has 12 or 13 months; a leap month contains no major solar term; Tết falls between Jan 21 and Feb 20; `lunarToSolar(solarToLunar(d)) === d` |
-| Differential tests (2100–2400) | Compare month starts against an independent high-precision ephemeris library (`astronomy-engine`). Mismatches can only occur when a new moon lands within minutes of midnight; any such date is listed in an ADR |
+| Golden tests | Tết, leap month and every month length match the published Hồ Ngọc Đức table for each lunar year 1968–2100 (decoded facts only, in `golden-years.ts`). The exceptions are 2054, 2077 and 2085: each has a new moon within about a minute of midnight, the table and `astronomy-engine` disagree, and the library follows `astronomy-engine`. Before 1968 the table follows the historical UTC+8 calendar, so it is not a reference there |
+| Property-based tests (year structure and the Tết window checked for every year 1000–3000; the other invariants with `fast-check` over 1800–2400) | Invariants: each month has 29 or 30 days; each lunar year has 12 or 13 months; a leap month contains no major solar term; Tết falls between Jan 21 and Feb 21 (Feb 21 first happens in 2319, within 1800–2400); `lunarToSolar(solarToLunar(d)) === d` |
+| Differential tests (1600–2400) | Compare every new moon and every lunar year against an independent high-precision ephemeris library (`astronomy-engine`). The simplified formulas differ on 12 new moons (all within 5 minutes of midnight) and one solar term (the 1938 autumn equinox, 1.5 s after midnight); a 13-entry correction table (`corrections.ts`, listed in ADR 0006) makes the results identical |
 | Swappable implementation | If more precision is ever needed, an `EphemerisCalendar` (astronomy-engine based) or an official-almanac `TableCalendar` can replace `HoNgocDucCalendar` without touching callers |
 
-**Historical caveat:** Vietnam's lunar calendar was computed for UTC+8 before 1968 (and longer in the South). Converting a **solar** death date earlier than 1968 to lunar can therefore be off by a day or even a month. When `source: 'solar'` and the year is before 1968, the UI shows a note asking the family to confirm the lunar date. *(Verify this cutoff year against a source before implementing.)*
+**Historical caveat:** before 1968 Vietnam's lunar calendar was computed for UTC+8 (Beijing time). The North switched to UTC+7 on 1 January 1968 (Decision 121/CP); the South kept UTC+8 until the end of 1975, so Tết Mậu Thân fell on 29 January 1968 in the North and 30 January in the South. The whole country has used UTC+7 since **1976**. Older almanacs also followed rules that changed over the centuries; the library applies today's rules to every year and does not reproduce historical almanacs. Converting a **solar** death date earlier than 1976 to lunar can therefore be off by a day or even a month. The app still converts with UTC+7, and when `source: 'solar'` and the year is before 1976 it shows a warning asking the family to confirm the lunar date. The warning appears where the date is entered or viewed in the profile, **never on the tree card**. Lunar death dates (how genealogies usually record them) are not affected: an anniversary only converts a lunar date of the current year.
 
 ### 9.2 This year's anniversary
 
 ```ts
-anniversaryFor(deathLunar: LunarDate, targetLunarYear: number): {
-  solarDate: Date,
-  notes: AnniversaryNote[],         // rendered as hints in the UI
+anniversaryFor(deathLunar: LunarDate, targetLunarYear: number, calendar?: LunarCalendar): {
+  lunarDate: LunarDate,             // the day actually observed this year (never a leap month)
+  solarDate: SolarDate,
+  notes: AnniversaryNote[],         // codes, rendered as hints in the UI through i18n
   kind: 'first' | 'second' | 'regular'
-}
+} | null                            // null when targetLunarYear <= deathLunar.year (no anniversary yet)
+
+conversionNotes(solar: SolarDate): ConversionNote[]   // notes for a lunar date derived from a solar one
 ```
+
+Notes are codes with parameters, not sentences: `leapMonthAbsent`, `leapMonthUsesRegular`, `day30Shortened` (anniversary) and `derivedFromSolar`, `beforeUnifiedCalendar` (conversion). The UI (P6) turns them into the texts below.
 
 | Case | Rule | UI note (shown in Vietnamese via i18n) |
 |---|---|---|
@@ -638,7 +647,7 @@ anniversaryFor(deathLunar: LunarDate, targetLunarYear: number): {
 | Died on day 30; this year's month has only 29 days | Use day 29 | ℹ️ Died on 30/7 (lunar). This year's 7th month has 29 days, so the anniversary is on 29/7. |
 | 1st lunar year after death | `kind: 'first'` | 🏷️ **First anniversary (giỗ đầu)** |
 | 2nd lunar year after death | `kind: 'second'` | 🏷️ **Second anniversary (giỗ hết)** — usually a larger ceremony |
-| Death date entered as solar | Converted to lunar on save (`source: 'solar'`) | ℹ️ Lunar date derived from solar date 12/05/1990 — please confirm with your family. (+ pre-1968 caveat when applicable) |
+| Death date entered as solar | Converted to lunar on save (`source: 'solar'`) | ℹ️ Lunar date derived from solar date 12/05/1990 — please confirm with your family. (+ pre-1976 warning when applicable, §9.1) |
 | Only the year / incomplete date | No anniversary computed | ⚠️ Not enough information to compute the anniversary. [Add details] |
 
 The `InfoHint` component displays notes (hover on desktop, tap on mobile).
