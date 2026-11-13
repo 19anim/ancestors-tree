@@ -44,7 +44,7 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 | Nhóm | Tính năng |
 |---|---|
 | Tài khoản | Đăng ký/đăng nhập email + mật khẩu, đăng nhập Google, quên mật khẩu qua email |
-| Dòng họ | Tạo dòng họ, chọn **thuỷ tổ** (người đứng đầu cây), mời thành viên qua link với vai trò Chủ họ / Biên tập / Xem |
+| Dòng họ | Tạo dòng họ, chọn **thuỷ tổ** (người đứng đầu cây), mời thành viên qua link với vai trò Quản lý / Biên tập / Xem |
 | Cây gia phả | Thêm/sửa/xoá người, thêm vợ/chồng (nhiều đời), thêm con (ruột/nuôi), thứ tự anh chị em, chi/phái, số đời |
 | Dâu/rể | Thẻ dâu/rể đặt cạnh vợ/chồng kèm thông tin gia đình gốc, chế độ "ẩn dâu/rể", cài đặt số đời con cháu của con gái (§8) |
 | Liên kết cây gia phả | Nối bất kỳ người nào với chính người đó trong một cây gia phả khác đã được chia sẻ; di chuột vào thấy dấu hiệu + bản xem trước, bấm vào mở cây đó và bay tới đúng người, có breadcrumb để quay lại (§8.1) |
@@ -77,7 +77,7 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 
 ## 3. Người dùng & phân quyền
 
-| Hành động | Chủ họ | Biên tập | Xem | Khách có link chia sẻ |
+| Hành động | Quản lý | Biên tập | Xem | Khách có link chia sẻ |
 |---|:-:|:-:|:-:|:-:|
 | Xem cây, hồ sơ | ✅ | ✅ | ✅ | ✅ (ẩn chi tiết người còn sống) |
 | Xem giỗ sắp tới, đăng ký nhắc | ✅ | ✅ | ✅ | ❌ |
@@ -96,7 +96,9 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 
 Một User có thể thuộc nhiều dòng họ với vai trò khác nhau (ví dụ họ nội và họ ngoại).
 
-**Thành viên bị xoá.** Khi Chủ họ xoá một thành viên, người đó không thể tham gia lại bằng bất kỳ link mời nào tạo trước lúc xoá (chấp nhận link sẽ trả `FORBIDDEN`, 403); link tạo sau lúc xoá thì dùng được. Người tự rời họ thì có thể tham gia lại bằng bất kỳ link nào còn hiệu lực.
+**Tên hiển thị.** Giao diện gọi một Clan là **cây gia phả** (chữ "dòng họ" nghe nặng nề), và gọi vai trò `owner` là **Quản lý** (tiếng Anh: Manager); Biên tập và Xem giữ nguyên. Tài liệu này, code, đường dẫn API (`/api/clans`) và cơ sở dữ liệu vẫn dùng tên Clan và `owner`; "dòng họ" trong tài liệu này hiểu là cây gia phả. Một User tạo hoặc tham gia bao nhiêu cây gia phả cũng được.
+
+**Thành viên bị xoá.** Khi Quản lý xoá một thành viên, người đó không thể tham gia lại bằng bất kỳ link mời nào tạo trước lúc xoá (chấp nhận link sẽ trả `FORBIDDEN`, 403); link tạo sau lúc xoá thì dùng được. Người tự rời họ thì có thể tham gia lại bằng bất kỳ link nào còn hiệu lực.
 
 ---
 
@@ -192,7 +194,7 @@ PasswordReset {                  // một link đặt lại mật khẩu (§12)
 
 Clan {                           // một dòng họ, VD "Họ Nguyễn – Nam Định"
   name, hometown, description,
-  ownerId,                       // User tạo = Chủ họ
+  ownerId,                       // User tạo = Quản lý
   progenitorId?,                 // Person là thuỷ tổ, đời 1
   version,                       // phiên bản cây hiện tại (= seq của Operation mới nhất)
   settings: {
@@ -240,7 +242,7 @@ Invite {                         // link mời: /join/:token
 ShareLink {                      // link công khai chỉ xem: /share/:token
   clanId, token,
   createdBy, expiresAt?,         // không đặt = không hết hạn
-  revokedAt?                     // có giá trị khi Chủ họ thu hồi
+  revokedAt?                     // có giá trị khi Quản lý thu hồi
 }
 
 // ===== Cây gia phả =====
@@ -560,7 +562,7 @@ Gia phả Việt Nam truyền thống theo dòng cha, nhưng các gia đình v�
 
 Bất kỳ ai — dâu/rể, con gái đã đi lấy chồng, con nuôi có gia đình gốc — đều có thể được nối với **chính người đó trong một cây gia phả khác** trên nền tảng, khi cây đó đã được chia sẻ.
 
-**Tạo liên kết** (Chủ họ/Biên tập của dòng họ nguồn):
+**Tạo liên kết** (Quản lý/Biên tập của dòng họ nguồn):
 1. Panel hồ sơ → "Nối với cây gia phả khác".
 2. Chọn đích: một dòng họ mà người dùng là thành viên, **hoặc** dán link chia sẻ người khác gửi cho (`/share/:token`).
 3. Tìm và chọn đúng người tương ứng trong cây đích (có cây nhỏ xem trước để chắc chắn chọn đúng).
@@ -570,7 +572,7 @@ Bất kỳ ai — dâu/rể, con gái đã đi lấy chồng, con nuôi có gia 
 - Thẻ có liên kết mang một huy hiệu nhỏ hình "cây liên kết" ở góc, ở mọi mức zoom ≥ 0.4; thấp hơn thì là một viền màu nhấn mảnh.
 - Di chuột (máy tính), nhấn giữ (cảm ứng) hoặc focus bằng bàn phím sẽ mở **popover xem trước**: tên dòng họ đích, quê, số người, tên người đó trong cây kia, trạng thái truy cập, và nút "Mở cây gia phả của họ".
 - Dữ liệu popover được tải khi cần từ `GET /api/persons/:personId/tree-link/preview` và được TanStack Query cache. Di chuột vào cũng **prefetch** sẵn cây đích nên khi bấm sẽ mở gần như tức thì.
-- Các trạng thái: ✅ **Mở được** · 🔒 **Chưa có quyền** (người xem không phải thành viên và không có link chia sẻ hợp lệ — "Hãy xin Chủ họ {tên dòng họ} cấp quyền") · ⚠️ **Không khả dụng** (link chia sẻ đã bị thu hồi/hết hạn, người đích đã bị xoá, hoặc Chủ họ bên kia đã chặn dòng họ này).
+- Các trạng thái: ✅ **Mở được** · 🔒 **Chưa có quyền** (người xem không phải thành viên và không có link chia sẻ hợp lệ — "Hãy xin Quản lý {tên dòng họ} cấp quyền") · ⚠️ **Không khả dụng** (link chia sẻ đã bị thu hồi/hết hạn, người đích đã bị xoá, hoặc Quản lý bên kia đã chặn dòng họ này).
 
 **Bấm vào → mở cây được liên kết:**
 - Chuyển tới `/clans/:targetId/tree?focus=:personId` (nếu là thành viên) hoặc `/share/:token?focus=:personId` (nếu qua link chia sẻ); cây bay tới và làm nổi bật người đó.
@@ -582,14 +584,14 @@ Bất kỳ ai — dâu/rể, con gái đã đi lấy chồng, con nuôi có gia 
 - Xem trước và mở cây chỉ thành công khi người xem là thành viên dòng họ đích, hoặc link chia sẻ của liên kết vẫn còn hiệu lực.
 - Qua link chia sẻ, cây đích chỉ đọc và được lọc như mọi link công khai (ẩn chi tiết người còn sống). Trong popover, nếu người được liên kết còn sống và truy cập qua link chia sẻ thì chỉ hiện "Một thành viên còn sống".
 - Tạo liên kết từ link chia sẻ không bao giờ cấp quyền thành viên.
-- Chủ họ của dòng họ đích thấy mục **Liên kết trỏ tới** trong cài đặt (dòng họ nào đang nối vào, bao nhiêu người) và có thể **chặn** một dòng họ nguồn; thu hồi link chia sẻ sẽ làm các liên kết tạo từ link đó ngừng hoạt động.
+- Quản lý của dòng họ đích thấy mục **Liên kết trỏ tới** trong cài đặt (dòng họ nào đang nối vào, bao nhiêu người) và có thể **chặn** một dòng họ nguồn; thu hồi link chia sẻ sẽ làm các liên kết tạo từ link đó ngừng hoạt động.
 - Liên kết là một chiều; dòng họ đích có thể tự tạo liên kết ngược lại.
 
 **Endpoint:**
 - `GET /api/clans/:id/persons/search?q=` — chọn người trong cây đích (cần có quyền)
 - `GET /api/persons/:personId/tree-link/preview` — dữ liệu popover + trạng thái truy cập
-- `GET /api/clans/:id/incoming-links` — chỉ Chủ họ
-- `POST /api/clans/:id/incoming-links/:sourceClanId/block` — chỉ Chủ họ
+- `GET /api/clans/:id/incoming-links` — chỉ Quản lý
+- `POST /api/clans/:id/incoming-links/:sourceClanId/block` — chỉ Quản lý
 
 ---
 
@@ -747,7 +749,7 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
 - **PNG/SVG:** `html-to-image` chụp vùng React Flow, tạm tắt LOD để có đủ chi tiết.
 - **PDF:** `jsPDF`, khổ ngang A4/A3/A1. Cây lớn hơn trang giấy thì chia thành nhiều trang có dấu ghép. Có tiêu đề và ngày xuất. Tuỳ chọn: ẩn dâu/rể, số đời con cháu của con gái.
 - **Chủ đề:** file xuất và link chia sẻ luôn dùng cách trang trí chung của cả họ, không bao giờ dùng lựa chọn "chỉ mình tôi" của ai (§13.4).
-- **Link chia sẻ:** `GET /api/share/:token/tree`. **Server** lọc dữ liệu trước khi trả về: người còn sống chỉ giữ tên, giới tính và quan hệ; bỏ ngày sinh, ảnh và tiểu sử. Lọc ở server vì dữ liệu đã gửi về trình duyệt thì ai cũng xem được qua DevTools. Chủ họ có thể thu hồi link bất cứ lúc nào. Link chia sẻ cũng là một cách để dòng họ khác nối cây vào (§8.1).
+- **Link chia sẻ:** `GET /api/share/:token/tree`. **Server** lọc dữ liệu trước khi trả về: người còn sống chỉ giữ tên, giới tính và quan hệ; bỏ ngày sinh, ảnh và tiểu sử. Lọc ở server vì dữ liệu đã gửi về trình duyệt thì ai cũng xem được qua DevTools. Quản lý có thể thu hồi link bất cứ lúc nào. Link chia sẻ cũng là một cách để dòng họ khác nối cây vào (§8.1).
 
 ---
 
@@ -888,7 +890,7 @@ Gia đình có thể tự trang trí bảng của mình, giống như chọn cu�
 
 | | Cả cây | Một thẻ |
 |---|---|---|
-| **Cho cả họ** (Chủ họ/Biên tập) | `Clan.theme`, đổi bằng op `setTreeTheme` | `Person.cardStyle`, đổi bằng op `updatePerson` |
+| **Cho cả họ** (Quản lý/Biên tập) | `Clan.theme`, đổi bằng op `setTreeTheme` | `Person.cardStyle`, đổi bằng op `updatePerson` |
 | **Chỉ mình tôi** (mọi thành viên) | `ViewPreference.theme` | `ViewPreference.cards[personId]` |
 
 - Thay đổi cho cả họ là op bình thường: có trong lịch sử, hoàn tác và khôi phục được, và đi qua luồng 409 (§6).
@@ -908,7 +910,7 @@ Hai quy tắc giúp dễ đoán: **thẻ thắng cả cây**, và **của tôi t
 **Giao diện.**
 - Nút **Trang trí** trên thanh công cụ của cây (§7.5) mở bảng bên phải (bottom sheet trên điện thoại), có công tắc **Áp dụng cho: Chỉ mình tôi / Cả họ** và mỗi thành phần một hàng ô xem trước nhỏ. Bấm vào một mẫu là bảng đổi ngay. "Cả họ" bị mờ với vai trò Xem, kèm một câu giải thích ngắn.
 - **Trang trí thẻ này…** trong menu thẻ (§7.6) và trong panel hồ sơ mở một bảng nhỏ gồm hàng khung ảnh và đồ giữ ảnh, cùng công tắc đó, và nút **Dùng lại theo chủ đề cây** để bỏ lựa chọn riêng của thẻ.
-- Khi đang có lựa chọn "chỉ mình tôi", một dải báo hiện "Bạn đang xem chủ đề riêng" kèm nút **Về chủ đề chung** (đặt `enabled: false` và giữ lại các lựa chọn). Chọn bất kỳ mẫu nào ở chế độ "Chỉ mình tôi" sẽ đặt lại `enabled: true`. Chủ họ và Biên tập thấy thêm nút **Dùng cho cả họ**, gửi op `setTreeTheme` với các lựa chọn cấp cây của họ; lựa chọn cấp thẻ vẫn là của riêng họ.
+- Khi đang có lựa chọn "chỉ mình tôi", một dải báo hiện "Bạn đang xem chủ đề riêng" kèm nút **Về chủ đề chung** (đặt `enabled: false` và giữ lại các lựa chọn). Chọn bất kỳ mẫu nào ở chế độ "Chỉ mình tôi" sẽ đặt lại `enabled: true`. Quản lý và Biên tập thấy thêm nút **Dùng cho cả họ**, gửi op `setTreeTheme` với các lựa chọn cấp cây của họ; lựa chọn cấp thẻ vẫn là của riêng họ.
 - Bảng hiện "Khác chủ đề cây" ở thẻ hoặc thành phần nào có lựa chọn riêng.
 
 **API.**
@@ -999,7 +1001,7 @@ Biến môi trường được mô tả trong `apps/*/.env.example` (không ch�
 | Render cold start làm người dùng khó chịu | Màn hình chờ; các lần gọi cron giữ server thức vào buổi sáng |
 | Gia đình không đồng ý với cách tính giỗ đặc biệt | Ghi chú giải thích mọi luật; `source` giữ dữ liệu gốc người dùng nhập |
 | iOS chỉ nhận push khi PWA đã được cài | Hiện hướng dẫn cài đúng lúc bật push trên iOS |
-| Liên kết cây làm lộ dữ liệu ngoài ý muốn | Server kiểm tra quyền mỗi lần xem trước/mở; qua link chia sẻ thì lọc như cây công khai; Chủ họ đích thấy và chặn được liên kết trỏ tới |
+| Liên kết cây làm lộ dữ liệu ngoài ý muốn | Server kiểm tra quyền mỗi lần xem trước/mở; qua link chia sẻ thì lọc như cây công khai; Quản lý đích thấy và chặn được liên kết trỏ tới |
 
 ---
 

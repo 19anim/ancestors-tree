@@ -103,7 +103,7 @@ describe('JoinPage', () => {
     renderRoute(`/join/${TOKEN}`);
     await user.click(await screen.findByRole('button', { name: 'Tham gia' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /Bạn không thể tham gia họ này bằng đường link này/,
+      /Bạn không thể tham gia cây gia phả này bằng đường link này/,
     );
   });
 

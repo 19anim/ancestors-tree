@@ -94,6 +94,8 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 
 A User may belong to several clans with different roles (e.g. paternal and maternal families).
 
+**Names on screen.** The interface calls a Clan a **family tree** ("cây gia phả" in Vietnamese; "dòng họ" felt too formal), and shows the `owner` role as **Manager** ("Quản lý"); Editor and Viewer stay "Biên tập" and "Xem". This document, the code, the API paths (`/api/clans`) and the database keep the names Clan and `owner`. There is no limit on how many family trees a User creates or joins.
+
 **Removed members.** When the Owner removes a member, that person can no longer join with any invite link created before the removal (accepting it answers `FORBIDDEN`, 403); a link created after the removal works. A member who left on their own can rejoin with any active link.
 
 ---

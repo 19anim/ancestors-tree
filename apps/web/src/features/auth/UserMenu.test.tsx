@@ -38,11 +38,11 @@ describe('UserMenu', () => {
     queryClient.setQueryData(['clans'], [{ id: 'previous-user-data' }]);
     renderRoute('/', queryClient);
     expect(await screen.findByText('Nguyễn Thị Lan')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Dòng họ' })).toHaveAttribute('href', '/clans');
+    expect(screen.getByRole('link', { name: 'Cây gia phả' })).toHaveAttribute('href', '/clans');
     await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
     expect(await screen.findByRole('link', { name: 'Đăng nhập' })).toBeInTheDocument();
     expect(api.calls.some((call) => call.path === '/auth/logout')).toBe(true);
-    expect(screen.queryByRole('link', { name: 'Dòng họ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Cây gia phả' })).not.toBeInTheDocument();
     expect(queryClient.getQueryData(['me'])).toBeNull();
     expect(queryClient.getQueryData(['clans'])).toBeUndefined();
   });

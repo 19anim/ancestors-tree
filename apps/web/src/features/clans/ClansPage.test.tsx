@@ -21,9 +21,9 @@ describe('ClansPage', () => {
       [`GET /clans/${CLAN_ID}/invites`]: () => ({ body: [] }),
     });
     renderRoute('/clans');
-    expect(await screen.findByText(/Bạn chưa ở trong dòng họ nào/)).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Tên dòng họ'), 'Họ Nguyễn');
-    await user.click(screen.getByRole('button', { name: 'Tạo dòng họ' }));
+    expect(await screen.findByText(/Bạn chưa ở trong cây gia phả nào/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Tên cây gia phả'), 'Họ Nguyễn');
+    await user.click(screen.getByRole('button', { name: 'Tạo cây gia phả' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeInTheDocument();
     expect(
       api.calls.find((call) => call.method === 'POST' && call.path === '/clans')?.body,
@@ -47,7 +47,7 @@ describe('ClansPage', () => {
       'href',
       `/clans/${otherId}/members`,
     );
-    expect(screen.getByText('Chủ họ')).toBeInTheDocument();
+    expect(screen.getByText('Quản lý')).toBeInTheDocument();
     expect(screen.getByText('Xem')).toBeInTheDocument();
     expect(screen.getAllByText('2 thành viên')).toHaveLength(2);
   });
@@ -59,7 +59,7 @@ describe('ClansPage', () => {
       'GET /clans': () => ({ body: [] }),
     });
     renderRoute('/clans');
-    await user.click(await screen.findByRole('button', { name: 'Tạo dòng họ' }));
+    await user.click(await screen.findByRole('button', { name: 'Tạo cây gia phả' }));
     expect(await screen.findByText('Hãy điền mục này')).toBeInTheDocument();
     expect(api.calls.some((call) => call.method === 'POST')).toBe(false);
   });
