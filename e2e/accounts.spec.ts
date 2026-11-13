@@ -24,6 +24,8 @@ test('sign up, create a clan, invite a relative and see them join', async ({ pag
   await page.getByLabel('Tên cây gia phả').fill('Họ Nguyễn');
   await page.getByRole('button', { name: 'Tạo cây gia phả' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeVisible();
+  await expect(page.getByText('Chưa có ai trong cây gia phả này.')).toBeVisible();
+  await page.getByRole('link', { name: 'Thành viên' }).click();
 
   await page.getByLabel('Vai trò khi tham gia').selectOption({ label: 'Biên tập' });
   await page.getByRole('button', { name: 'Tạo link mời' }).click();

@@ -36,7 +36,7 @@ describe('UserMenu', () => {
     });
     const queryClient = createQueryClient();
     queryClient.setQueryData(['clans'], [{ id: 'previous-user-data' }]);
-    renderRoute('/', queryClient);
+    renderRoute('/design', queryClient);
     expect(await screen.findByText('Nguyễn Thị Lan')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Cây gia phả' })).toHaveAttribute('href', '/clans');
     await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));

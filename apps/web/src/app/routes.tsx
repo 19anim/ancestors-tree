@@ -25,6 +25,11 @@ const DesignGalleryPage = lazy(() =>
   import('../features/design-gallery').then((module) => ({ default: module.DesignGalleryPage })),
 );
 
+// React Flow is only downloaded by people who open a family tree.
+const TreePage = lazy(() =>
+  import('../features/tree').then((module) => ({ default: module.TreePage })),
+);
+
 /** Shared by the browser router (App) and memory routers in tests (renderRoute). */
 export const routes: RouteObject[] = [
   {
@@ -46,7 +51,8 @@ export const routes: RouteObject[] = [
             path: 'clans/:id',
             element: <ClanLayout />,
             children: [
-              { index: true, element: <Navigate to="members" replace /> },
+              { index: true, element: <Navigate to="tree" replace /> },
+              { path: 'tree', element: <TreePage /> },
               { path: 'members', element: <ClanMembersPage /> },
               { path: 'settings', element: <ClanSettingsPage /> },
             ],

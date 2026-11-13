@@ -3,7 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, ME, MEMBERS } from './fixtures';
+import { CLAN, CLAN_ID, ME } from './fixtures';
+
+// The tree page is a lazy chunk (React Flow); loading it can take a while in jsdom.
+const LAZY_PAGE = { timeout: 5000 };
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -17,14 +20,18 @@ describe('ClansPage', () => {
       'GET /clans': () => ({ body: [] }),
       'POST /clans': () => ({ status: 201, body: CLAN }),
       [`GET /clans/${CLAN_ID}`]: () => ({ body: CLAN }),
-      [`GET /clans/${CLAN_ID}/members`]: () => ({ body: MEMBERS }),
-      [`GET /clans/${CLAN_ID}/invites`]: () => ({ body: [] }),
+      [`GET /clans/${CLAN_ID}/tree`]: () => ({
+        body: { version: 0, progenitorId: null, persons: [], unions: [] },
+      }),
     });
     renderRoute('/clans');
     expect(await screen.findByText(/Bạn chưa ở trong cây gia phả nào/)).toBeInTheDocument();
     await user.type(screen.getByLabelText('Tên cây gia phả'), 'Họ Nguyễn');
     await user.click(screen.getByRole('button', { name: 'Tạo cây gia phả' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeInTheDocument();
+    expect(
+      await screen.findByText('Chưa có ai trong cây gia phả này.', {}, LAZY_PAGE),
+    ).toBeInTheDocument();
     expect(
       api.calls.find((call) => call.method === 'POST' && call.path === '/clans')?.body,
     ).toEqual({ name: 'Họ Nguyễn', hometown: '', description: '' });
@@ -41,11 +48,11 @@ describe('ClansPage', () => {
     renderRoute('/clans');
     expect(await screen.findByRole('link', { name: 'Họ Nguyễn' })).toHaveAttribute(
       'href',
-      `/clans/${CLAN_ID}/members`,
+      `/clans/${CLAN_ID}`,
     );
     expect(screen.getByRole('link', { name: 'Họ Trần' })).toHaveAttribute(
       'href',
-      `/clans/${otherId}/members`,
+      `/clans/${otherId}`,
     );
     expect(screen.getByText('Quản lý')).toBeInTheDocument();
     expect(screen.getByText('Xem')).toBeInTheDocument();

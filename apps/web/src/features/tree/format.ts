@@ -1,5 +1,6 @@
-import type { DateInfo, Person } from '@ancestors-tree/shared/tree';
+import type { DateInfo, OpErrorCode, Person } from '@ancestors-tree/shared/tree';
 import type { TFunction } from 'i18next';
+import { ApiError, errorMessageKey } from '../../shared/lib/apiError';
 
 /** The year on the side the user entered (approximate years are shown as plain years in P5). */
 export function yearOf(date: DateInfo | undefined): string | undefined {
@@ -33,4 +34,14 @@ export function cardLabel(
   return years === undefined
     ? t('tree.card.labelNoYears', { name, generation })
     : t('tree.card.label', { name, years, generation });
+}
+
+export function ruleKey(reason: OpErrorCode): `tree.rules.${OpErrorCode}` {
+  return `tree.rules.${reason}`;
+}
+
+/** Why the server refused a change: the broken rule when it says which, else the error code. */
+export function rejectionMessage(t: TFunction, error: unknown): string {
+  if (error instanceof ApiError && error.reason !== undefined) return t(ruleKey(error.reason));
+  return t(errorMessageKey(error));
 }

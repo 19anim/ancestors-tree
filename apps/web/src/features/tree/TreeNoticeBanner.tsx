@@ -1,0 +1,42 @@
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../../shared/ui';
+import { rejectionMessage } from './format';
+import { useTreeStore, type TreeNotice } from './store';
+
+function noticeText(t: TFunction, notice: TreeNotice): string {
+  switch (notice.kind) {
+    case 'reloaded':
+      return t('tree.notice.reloaded');
+    case 'rejected':
+      return t('tree.notice.rejected', { reason: rejectionMessage(t, notice.error) });
+    case 'signedOut':
+      return t('tree.notice.signedOut');
+    case 'discarded':
+      return t('tree.notice.discarded', { count: notice.count });
+    default: {
+      // A new notice kind must be handled above: this stops compiling until it is.
+      const unhandled: never = notice;
+      return unhandled;
+    }
+  }
+}
+
+/** After a reload, a refused change, a lost session or dropped changes, says what happened. */
+export function TreeNoticeBanner() {
+  const { t } = useTranslation();
+  const notice = useTreeStore((state) => state.notice);
+  const dismiss = useTreeStore((state) => state.dismissNotice);
+  if (!notice) return null;
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
+    >
+      <p className="font-medium text-stamp">{noticeText(t, notice)}</p>
+      <Button variant="ghost" size="sm" onClick={dismiss}>
+        {t('tree.notice.dismiss')}
+      </Button>
+    </div>
+  );
+}

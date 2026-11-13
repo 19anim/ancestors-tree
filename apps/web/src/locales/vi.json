@@ -187,6 +187,7 @@
     },
     "tabs": {
       "label": "Mục của cây gia phả",
+      "tree": "Cây",
       "members": "Thành viên",
       "settings": "Cài đặt"
     },
@@ -254,7 +255,24 @@
       "RESTORE_CONFLICT": "Không khôi phục được: cuộc hôn nhân của người này đã thay đổi.",
       "TREE_FULL": "Cây gia phả đã đủ 5.000 người, không thêm được nữa."
     },
+    "empty": "Chưa có ai trong cây gia phả này.",
+    "retry": "Thử lại",
+    "actions": {
+      "addFirst": "Thêm người đầu tiên"
+    },
+    "unlinked": {
+      "title": "Chưa nối vào cây",
+      "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
+    },
+    "save": {
+      "saved": "Đã lưu",
+      "saving": "Đang lưu…",
+      "retrying": "Chưa lưu được, đang thử lại…"
+    },
     "notice": {
+      "reloaded": "Đã tải lại bản mới nhất của cây gia phả từ máy chủ; thay đổi chưa lưu của bạn đã bị bỏ.",
+      "rejected": "Không lưu được thay đổi: {{reason}}",
+      "dismiss": "Đã hiểu",
       "signedOut": "Phiên đăng nhập đã hết hạn. Đăng nhập lại để lưu các thay đổi.",
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
     }

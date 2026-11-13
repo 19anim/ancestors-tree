@@ -24,7 +24,7 @@ export function ClansPage() {
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       const clan = await createClan.mutateAsync(values);
-      void navigate(`/clans/${clan.id}/members`);
+      void navigate(`/clans/${clan.id}/tree`);
     } catch (error) {
       setServerError(form, error, t);
     }
@@ -47,10 +47,7 @@ export function ClansPage() {
         <ul className="grid gap-4 sm:grid-cols-2">
           {clans.data.map((clan) => (
             <li key={clan.id} className="rounded-photo border border-line bg-surface p-4">
-              <Link
-                to={`/clans/${clan.id}/members`}
-                className="text-lg font-bold text-ink underline"
-              >
+              <Link to={`/clans/${clan.id}`} className="text-lg font-bold text-ink underline">
                 {clan.name}
               </Link>
               {clan.hometown ? <p className="text-ink-muted">{clan.hometown}</p> : null}

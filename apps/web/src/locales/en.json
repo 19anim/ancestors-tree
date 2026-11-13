@@ -187,6 +187,7 @@
     },
     "tabs": {
       "label": "Family tree sections",
+      "tree": "Tree",
       "members": "Members",
       "settings": "Settings"
     },
@@ -254,7 +255,24 @@
       "RESTORE_CONFLICT": "Cannot restore: this person's marriage has changed.",
       "TREE_FULL": "The family tree already has 5,000 people; no more can be added."
     },
+    "empty": "No one is in this family tree yet.",
+    "retry": "Try again",
+    "actions": {
+      "addFirst": "Add the first person"
+    },
+    "unlinked": {
+      "title": "Not yet linked",
+      "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
+    },
+    "save": {
+      "saved": "Saved",
+      "saving": "Saving…",
+      "retrying": "Not saved yet, trying again…"
+    },
     "notice": {
+      "reloaded": "The latest version of the family tree was reloaded from the server; your unsaved changes were dropped.",
+      "rejected": "The change was not saved: {{reason}}",
+      "dismiss": "Got it",
       "signedOut": "Your session has expired. Sign in again to save your changes.",
       "discarded": "Unsaved changes were dropped: {{count}}."
     }
