@@ -165,6 +165,28 @@ describe('login throttle per email', () => {
     expect((await attempt('other@example.test', '10.0.0.6')).status).toBe(401);
   });
 
+  it('skips an over-long or invalid email without storing a key, and still answers 400', async () => {
+    const limited = createTestApp({ rateLimits: { auth: 1000, user: 1000, loginEmail: 1 } }).app;
+    const long = `${'a'.repeat(10_000)}@example.test`;
+    for (const email of [long, long, 'not-an-email', 'not-an-email']) {
+      const response = await request(limited)
+        .post('/api/auth/login')
+        .send({ email, password: 'whatever-password' });
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it('does not count successful sign-ins', async () => {
+    const limited = createTestApp({ rateLimits: { auth: 1000, user: 1000, loginEmail: 2 } }).app;
+    await signUp(limited, { email: 'busy@example.test' });
+    for (let i = 0; i < 4; i += 1) {
+      const response = await request(limited)
+        .post('/api/auth/login')
+        .send({ email: 'busy@example.test', password: TEST_PASSWORD });
+      expect(response.status).toBe(200);
+    }
+  });
+
   it('ignores requests without a string email', async () => {
     const limited = createTestApp({ rateLimits: { auth: 1000, user: 1000, loginEmail: 1 } }).app;
     for (let i = 0; i < 3; i += 1) {

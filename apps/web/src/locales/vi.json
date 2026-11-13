@@ -109,7 +109,7 @@
     "NOT_FOUND": "Không tìm thấy nội dung bạn cần.",
     "VERSION_CONFLICT": "Cây gia phả vừa được người khác cập nhật.",
     "RULE_VIOLATION": "Thay đổi này không hợp lệ với cây gia phả.",
-    "RATE_LIMITED": "Bạn thao tác quá nhanh. Vui lòng thử lại sau giây lát.",
+    "RATE_LIMITED": "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.",
     "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
     "NETWORK_ERROR": "Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.",
     "INVALID_RESPONSE": "Máy chủ trả về dữ liệu không như mong đợi."

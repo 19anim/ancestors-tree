@@ -118,18 +118,16 @@ export function registerMemberRoutes(api: RouteRegistry): void {
       if (!leaving && !hasRoleAtLeast(caller.role, 'owner')) {
         throw new AppError('FORBIDDEN', 'Only the owner can remove members');
       }
-      const result = await Membership.deleteOne({ clanId: params.id, userId: params.userId });
-      if (result.deletedCount === 0) {
+      const filter = { clanId: params.id, userId: params.userId };
+      if (!(await Membership.exists(filter))) {
         throw new AppError('NOT_FOUND', 'This person is not a member of the clan');
       }
       if (!leaving) {
+        // Recorded before the membership goes, so an invite accepted in between is refused.
         // Old invite links must not let them straight back in (see invite accept).
-        await ClanRemoval.updateOne(
-          { clanId: params.id, userId: params.userId },
-          { $set: { removedAt: new Date() } },
-          { upsert: true },
-        );
+        await ClanRemoval.updateOne(filter, { $set: { removedAt: new Date() } }, { upsert: true });
       }
+      await Membership.deleteOne(filter);
       return { status: 204 };
     },
   });

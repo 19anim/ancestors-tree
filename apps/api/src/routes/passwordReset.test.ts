@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { PASSWORD_RESET_TTL_MS } from '../auth/passwordResets.ts';
 import { hashToken } from '../auth/tokens.ts';
 import { createMemoryMailer } from '../mail/mailer.ts';
 import { PasswordReset } from '../models/PasswordReset.ts';
@@ -67,16 +68,20 @@ describe('POST /api/auth/forgot-password', () => {
     expect(await PasswordReset.countDocuments()).toBe(2);
   });
 
-  it('sends nothing for the sixth request within 24 hours', async () => {
+  it('sends nothing for the sixth request within 24 hours, although the five links expired', async () => {
     const { user } = await signUp(app, { email: 'many@example.test' });
-    await PasswordReset.insertMany(
-      Array.from({ length: 5 }, (_, index) => ({
+    const hour = 60 * 60 * 1000;
+    // Five links requested 23, 18, 12, 6 and 2 hours ago: all expired as tokens (1 h), yet
+    // the documents still exist, because they live 24 h.
+    for (const [index, hoursAgo] of [23, 18, 12, 6, 2].entries()) {
+      const createdAt = new Date(Date.now() - hoursAgo * hour);
+      await PasswordReset.create({
         userId: user.id,
         tokenHash: `hash-${index}`,
-        expiresAt: new Date(Date.now() + 60_000),
-      })),
-    );
-    await ageResets(2 * 60 * 60 * 1000);
+        createdAt,
+        expiresAt: new Date(createdAt.getTime() + PASSWORD_RESET_TTL_MS),
+      });
+    }
     const before = mailer.sent.length;
     const response = await request(app)
       .post('/api/auth/forgot-password')
@@ -86,8 +91,11 @@ describe('POST /api/auth/forgot-password', () => {
     expect(mailer.sent.length).toBe(before);
     expect(await PasswordReset.countDocuments()).toBe(5);
 
-    // Resets older than a day no longer count.
-    await ageResets(25 * 60 * 60 * 1000);
+    // Once the oldest is more than a day old it no longer counts.
+    await PasswordReset.collection.updateOne(
+      { tokenHash: 'hash-0' },
+      { $set: { createdAt: new Date(Date.now() - 25 * hour) } },
+    );
     await requestReset('many@example.test');
   });
 });

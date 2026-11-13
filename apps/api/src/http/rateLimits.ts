@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { EmailSchema } from '@ancestors-tree/shared';
 import type { RequestHandler } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { AppError } from './AppError.ts';
@@ -45,10 +47,13 @@ export function createUserRateLimit(limit: number): RequestHandler {
 
 const FIFTEEN_MINUTES_MS = 15 * ONE_MINUTE_MS;
 
-/** The normalized email of a login request, or undefined when the body has none. */
-function loginEmail(req: { body?: unknown }): string | undefined {
-  const email = (req.body as { email?: unknown } | undefined)?.email;
-  return typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+/**
+ * The key for a login request: a hash of the normalized email, or undefined when the body has
+ * no valid email (the route answers 400). Bounded, so the store cannot grow with attacker input.
+ */
+function loginEmailKey(req: { body?: unknown }): string | undefined {
+  const email = EmailSchema.safeParse((req.body as { email?: unknown } | undefined)?.email);
+  return email.success ? createHash('sha256').update(email.data).digest('hex') : undefined;
 }
 
 /**
@@ -61,10 +66,12 @@ export function createLoginEmailRateLimit(limit: number): RequestHandler {
     limit,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
-    skip: (req) => loginEmail(req) === undefined,
-    keyGenerator: (req) => loginEmail(req) ?? '',
+    // Successful sign-ins do not use up the budget; only failures count.
+    skipSuccessfulRequests: true,
+    skip: (req) => loginEmailKey(req) === undefined,
+    keyGenerator: (req) => loginEmailKey(req) ?? '',
     handler: (_req, _res, next) => {
-      next(new AppError('RATE_LIMITED', 'Too many attempts. Wait a minute and try again.'));
+      next(new AppError('RATE_LIMITED', 'Too many attempts. Please try again later.'));
     },
   });
 }

@@ -96,6 +96,10 @@ What `netlify.toml` sets:
 
 The per-IP rate limits trust `X-Forwarded-For`. The Render origin (`ancestors-tree-api.onrender.com`) is publicly reachable, so a caller that talks to it directly can send its own `X-Forwarded-For` and pick a new IP for every request, bypassing the per-IP limits. The per-email limits on sign-in and forgot-password do not depend on the IP and still apply. Follow-up before inviting real users: use Netlify's signed proxy (`x-nf-sign`, verified by the API, rejecting unsigned requests in production), and confirm on a real deploy that `req.ip` is the visitor's address.
 
+### Known limitation: targeted lockout
+
+The per-email limits apply to whoever sends the requests. Anyone who knows a user's email can block that user's password sign-in for up to 15 minutes (10 failed attempts per 15 minutes) and their password-reset emails for up to 24 hours (5 per 24 hours). Google sign-in and existing sessions are unaffected. A later improvement is a per-device exemption. If a dev database still has the old `expiresAt` TTL index on `passwordresets`, drop it once (`db.passwordresets.dropIndex('expiresAt_1')`); the API will not start otherwise.
+
 ## 3. MongoDB Atlas (database)
 
 One free M0 cluster serves both environments; each environment uses its own database on it.
