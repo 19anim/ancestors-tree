@@ -58,3 +58,16 @@ export {
   type Member,
   type UpdateClanRequest,
 } from './api/clans.ts';
+export {
+  OPS_PAGE_SIZE,
+  OperationEntrySchema,
+  OperationListSchema,
+  OpsQuerySchema,
+  SubmitOpRequestSchema,
+  SubmitOpResponseSchema,
+  TreeResponseSchema,
+  type OperationEntry,
+  type SubmitOpRequest,
+  type SubmitOpResponse,
+  type TreeResponse,
+} from './api/tree.ts';
