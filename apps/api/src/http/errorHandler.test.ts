@@ -41,6 +41,14 @@ function buildTestApp(logger: Logger = pino({ level: 'silent' })) {
       { path: 'body.name', message: 'Too small' },
     ]);
   });
+  app.get('/rule', () => {
+    throw new AppError(
+      'RULE_VIOLATION',
+      'Detach the children first',
+      undefined,
+      'PERSON_HAS_CHILDREN',
+    );
+  });
   app.get('/boom', () => {
     throw new Error('database password is hunter2');
   });
@@ -75,6 +83,18 @@ describe('error handling', () => {
     const response = await request(app).get('/invalid');
     expect(response.status).toBe(400);
     expect(response.body.error.details).toEqual([{ path: 'body.name', message: 'Too small' }]);
+  });
+
+  it('includes the reason of a rule violation', async () => {
+    const response = await request(app).get('/rule');
+    expect(response.status).toBe(422);
+    expect(response.body).toEqual({
+      error: {
+        code: 'RULE_VIOLATION',
+        message: 'Detach the children first',
+        reason: 'PERSON_HAS_CHILDREN',
+      },
+    });
   });
 
   it('hides unexpected error messages behind INTERNAL_ERROR', async () => {

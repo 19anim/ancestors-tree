@@ -230,5 +230,20 @@
       "home": "Về trang chủ",
       "forbidden": "Bạn không thể tham gia cây gia phả này bằng đường link này. Hãy nhờ người quản lý gửi lời mời mới."
     }
+  },
+  "tree": {
+    "rules": {
+      "INVALID_ID": "Mã định danh không hợp lệ. Hãy tải lại trang rồi thử lại.",
+      "DUPLICATE_ID": "Mã định danh này đã được dùng. Hãy tải lại trang rồi thử lại.",
+      "PERSON_NOT_FOUND": "Người này không còn trong cây gia phả.",
+      "UNION_NOT_FOUND": "Cuộc hôn nhân này không còn trong cây gia phả.",
+      "PERSON_HAS_CHILDREN": "Không xoá được người còn con. Hãy gỡ hoặc chuyển các con trước.",
+      "UNION_HAS_CHILDREN": "Không xoá được cuộc hôn nhân còn con. Hãy gỡ hoặc chuyển các con trước.",
+      "PROGENITOR_PROTECTED": "Không xoá được thuỷ tổ. Hãy chọn thuỷ tổ khác trước.",
+      "CYCLE": "Thay đổi này sẽ khiến một người thành tổ tiên của chính mình.",
+      "INVALID_PARTNERS": "Một cuộc hôn nhân cần một hoặc hai người khác nhau.",
+      "RESTORE_CONFLICT": "Không khôi phục được: cuộc hôn nhân của người này đã thay đổi.",
+      "TREE_FULL": "Cây gia phả đã đủ 5.000 người, không thêm được nữa."
+    }
   }
 }

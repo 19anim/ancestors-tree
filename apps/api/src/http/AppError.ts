@@ -1,16 +1,20 @@
 import { ERROR_CODES, type ErrorCode, type ErrorDetail } from '@ancestors-tree/shared';
+import type { OpErrorCode } from '@ancestors-tree/shared/tree';
 
 export class AppError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
   readonly details: ErrorDetail[] | undefined;
+  /** Only with RULE_VIOLATION: the rule applyOp refused. */
+  readonly reason: OpErrorCode | undefined;
 
-  constructor(code: ErrorCode, message: string, details?: ErrorDetail[]) {
+  constructor(code: ErrorCode, message: string, details?: ErrorDetail[], reason?: OpErrorCode) {
     super(message);
     this.name = 'AppError';
     this.code = code;
     this.status = ERROR_CODES[code].status;
     this.details = details;
+    this.reason = reason;
   }
 }
 

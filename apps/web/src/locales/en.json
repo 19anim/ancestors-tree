@@ -230,5 +230,20 @@
       "home": "Back to home",
       "forbidden": "You cannot join this family tree with this link. Ask the manager for a new invitation."
     }
+  },
+  "tree": {
+    "rules": {
+      "INVALID_ID": "An id is not valid. Reload the page and try again.",
+      "DUPLICATE_ID": "This id is already used. Reload the page and try again.",
+      "PERSON_NOT_FOUND": "This person is no longer in the family tree.",
+      "UNION_NOT_FOUND": "This marriage is no longer in the family tree.",
+      "PERSON_HAS_CHILDREN": "A person who still has children cannot be deleted. Detach or move the children first.",
+      "UNION_HAS_CHILDREN": "A marriage that still has children cannot be deleted. Detach or move the children first.",
+      "PROGENITOR_PROTECTED": "The progenitor cannot be deleted. Choose another progenitor first.",
+      "CYCLE": "This change would make someone their own ancestor.",
+      "INVALID_PARTNERS": "A marriage needs one or two different people.",
+      "RESTORE_CONFLICT": "Cannot restore: this person's marriage has changed.",
+      "TREE_FULL": "The family tree already has 5,000 people; no more can be added."
+    }
   }
 }

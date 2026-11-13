@@ -61,8 +61,8 @@ export async function apiRequest<T>(
   if (!response.ok) {
     const apiError = ApiErrorBodySchema.safeParse(payload);
     if (apiError.success) {
-      const { code, message, details } = apiError.data.error;
-      throw new ApiError(code, message, response.status, details);
+      const { code, message, details, reason } = apiError.data.error;
+      throw new ApiError(code, message, response.status, details, reason);
     }
     throw new ApiError(
       errorCodeForStatus(response.status),
