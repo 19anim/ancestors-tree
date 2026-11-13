@@ -30,6 +30,8 @@ class DOMMatrixReadOnlyShim {
   }
 }
 
+// The prototype patches stay for the rest of the test file (Vitest isolates files); this module
+// is only imported by tests.
 let prototypesPatched = false;
 
 /** Call in beforeEach: vi.unstubAllGlobals() in afterEach removes the global shims. */

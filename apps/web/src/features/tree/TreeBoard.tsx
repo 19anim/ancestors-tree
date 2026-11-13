@@ -60,6 +60,9 @@ export function TreeBoard({ label }: { label: string }) {
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
+        // Nodes and edges are decoration around the cards' own controls: no tab stops on them.
+        nodesFocusable={false}
+        edgesFocusable={false}
         fitView
         fitViewOptions={FIT_VIEW_OPTIONS}
         minZoom={0.2}

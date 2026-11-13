@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
-import { CLAN_ID, FAMILY, SON } from './fixtures';
+import { CLAN_ID, FAMILY, GRANDMA, SON } from './fixtures';
+import { PersonCard } from './PersonCard';
 import { resetTreeStore, useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
@@ -20,6 +21,12 @@ function showTree(tree: TreeState): void {
     confirmedVersion: 3,
   });
 }
+
+// Spy on the real card to count renders (spec §7.4: an edit re-renders only that person's card).
+vi.mock('./PersonCard', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, PersonCard: vi.fn(original.PersonCard as typeof PersonCard) };
+});
 
 const family = treeStateFromLists(FAMILY.progenitorId, FAMILY.persons, FAMILY.unions);
 
@@ -92,5 +99,59 @@ describe('TreeBoard', () => {
     );
     await user.click(await screen.findByRole('button', { name: 'Thao tác với Nguyễn Văn Nam' }));
     expect(openActions).toHaveBeenCalledWith(SON);
+  });
+
+  it('re-renders only the edited person’s card', async () => {
+    mockApi({ [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 4 } }) });
+    showTree(family);
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const renderedFor = (id: string) =>
+      vi.mocked(PersonCard).mock.calls.filter(([props]) => props.person.id === id).length;
+    const before = { son: renderedFor(SON), grandma: renderedFor(GRANDMA) };
+    expect(before.grandma).toBeGreaterThan(0);
+    act(() => {
+      useTreeStore.getState().apply({
+        type: 'updatePerson',
+        payload: { id: SON, changes: { fullName: 'Nguyễn Văn Năm' } },
+      });
+    });
+    await screen.findByRole('figure', { name: 'Nguyễn Văn Năm, đời thứ 2' });
+    expect(renderedFor(SON)).toBeGreaterThan(before.son);
+    expect(renderedFor(GRANDMA)).toBe(before.grandma);
+  });
+
+  it('tabs only through the actions buttons, never through unnamed node wrappers', async () => {
+    const user = userEvent.setup();
+    showTree(family);
+    renderWithProviders(
+      <TreeActionsContext value={vi.fn()}>
+        <button type="button">Before</button>
+        <TreeBoard label="Cây gia phả" />
+      </TreeActionsContext>,
+    );
+    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const stops: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      await user.tab();
+      const focused = document.activeElement as HTMLElement;
+      expect(focused.tagName).toBe('BUTTON');
+      stops.push(focused.getAttribute('aria-label') ?? focused.textContent ?? '');
+    }
+    expect(stops).toEqual([
+      'Before',
+      'Thao tác với Nguyễn Văn Tư',
+      'Thao tác với Lê Thị Hoa',
+      'Thao tác với Nguyễn Văn Nam',
+    ]);
+  });
+
+  it('gives a viewer’s board no keyboard stops', async () => {
+    showTree(family);
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    expect(board.querySelectorAll('[tabindex]')).toHaveLength(0);
+    expect(board.querySelectorAll('button')).toHaveLength(0);
   });
 });

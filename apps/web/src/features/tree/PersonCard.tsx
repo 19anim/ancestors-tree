@@ -6,7 +6,10 @@ import { Button, Polaroid, tiltFor, type TapeKind } from '../../shared/ui';
 import { cardLabel, lifeYears } from './format';
 import { TreeActionsContext } from './treeActions';
 
-/** React Flow turns pointer events off on nodes that cannot be dragged or selected. */
+/**
+ * React Flow turns pointer events off on nodes that are not draggable, not selectable and have
+ * no node mouse handlers (all three hold here), so the card turns them back on.
+ */
 const POINTER_EVENTS: CSSProperties = { pointerEvents: 'auto' };
 
 interface PersonCardProps {
