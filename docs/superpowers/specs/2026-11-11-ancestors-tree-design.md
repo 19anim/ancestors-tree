@@ -25,7 +25,7 @@ A web platform (installable as a **PWA**) where **many families (clans)** build 
 |---|---|---|
 | S1 | A 1,000-person tree pans/zooms at ≥ 55 fps on a mid-range laptop | Chrome DevTools Performance + React Profiler, seeded 1,000 and 2,000 people |
 | S2 | Opening a 1,000-person tree: first full render < 1.5 s | `performance.mark` from data received to render complete |
-| S3 | Lunar↔solar conversion matches the published Hồ Ngọc Đức table for every lunar year 1968–2100 (except 3 near-midnight years that follow the ephemeris), passes property-based tests 1800–2400, and is identical to `astronomy-engine` for 1600–2400 (§9.1) | Vitest on CI |
+| S3 | Lunar↔solar conversion matches the published Hồ Ngọc Đức table for every lunar year 1968–2100 (except 3 near-midnight years that follow the ephemeris), passes property-based tests (year structure and Tết: every year 1000–3000; the other invariants: 1800–2400), and is identical to `astronomy-engine` for 1600–2400 (§9.1) | Vitest on CI |
 | S4 | Test coverage ≥ 90% for `packages/shared`, ≥ 70% overall | Vitest coverage on CI |
 | S5 | Lighthouse Performance, Accessibility, Best Practices ≥ 90 | Lighthouse CI |
 | S6 | At least 1 real clan using it with ≥ 100 people in the tree | Production data |
@@ -619,7 +619,7 @@ Any person — an in-law, a daughter who married out, an adopted child with a kn
 | Layer | What it does |
 |---|---|
 | Golden tests | Tết, leap month and every month length match the published Hồ Ngọc Đức table for each lunar year 1968–2100 (decoded facts only, in `golden-years.ts`). The exceptions are 2054, 2077 and 2085: each has a new moon within about a minute of midnight, the table and `astronomy-engine` disagree, and the library follows `astronomy-engine`. Before 1968 the table follows the historical UTC+8 calendar, so it is not a reference there |
-| Property-based tests (`fast-check`, years 1800–2400) | Invariants: each month has 29 or 30 days; each lunar year has 12 or 13 months; a leap month contains no major solar term; Tết falls between Jan 21 and Feb 21 (Feb 21 first happens in 2319, within 1800–2400); `lunarToSolar(solarToLunar(d)) === d` |
+| Property-based tests (year structure and the Tết window checked for every year 1000–3000; the other invariants with `fast-check` over 1800–2400) | Invariants: each month has 29 or 30 days; each lunar year has 12 or 13 months; a leap month contains no major solar term; Tết falls between Jan 21 and Feb 21 (Feb 21 first happens in 2319, within 1800–2400); `lunarToSolar(solarToLunar(d)) === d` |
 | Differential tests (1600–2400) | Compare every new moon and every lunar year against an independent high-precision ephemeris library (`astronomy-engine`). The simplified formulas differ on 12 new moons (all within 5 minutes of midnight) and one solar term (the 1938 autumn equinox, 1.5 s after midnight); a 13-entry correction table (`corrections.ts`, listed in ADR 0006) makes the results identical |
 | Swappable implementation | If more precision is ever needed, an `EphemerisCalendar` (astronomy-engine based) or an official-almanac `TableCalendar` can replace `HoNgocDucCalendar` without touching callers |
 

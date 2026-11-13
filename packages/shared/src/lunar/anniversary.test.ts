@@ -70,9 +70,9 @@ describe('anniversaryFor', () => {
   });
 
   it('throws RangeError when the anniversary falls after 31/12/3000', () => {
-    expect(() => anniversaryFor({ day: 5, month: 12, year: 2999, isLeap: false }, 3000)).toThrow(
-      RangeError,
-    );
+    const call = () => anniversaryFor({ day: 5, month: 12, year: 2999, isLeap: false }, 3000);
+    expect(call).toThrow(RangeError);
+    expect(call).toThrow('After 31/12/3000');
   });
 
   it('rejects impossible dates and years outside 1000–3000', () => {

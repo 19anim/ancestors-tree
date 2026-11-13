@@ -14,7 +14,7 @@ Death anniversaries (giỗ) follow the Vietnamese lunar calendar, so the app con
 **Plain dates and a fixed range.**
 
 - Solar dates are `{ day, month, year }` in the proleptic Gregorian calendar, never a JS `Date`, so a browser's time zone cannot shift a day.
-- Solar dates from Tết of lunar year 1000 (13/2/1000) to 31/12/3000 are accepted, and so are lunar dates whose solar date falls in that span (lunar years 1000–3000). Anything else throws `RangeError`: a solar date before that Tết, a lunar date after 31/12/3000, or a year outside 1000–3000.
+- Solar dates from Tết of lunar year 1000 (13/2/1000) to 31/12/3000 are accepted, and so are lunar dates whose solar date falls in that span (lunar years 1000–3000). A lunar date that does not exist (such as day 30 of a short month) gives `null`. Anything else throws `RangeError`: a solar date before that Tết, a lunar date after 31/12/3000, or a year outside 1000–3000.
 - Each lunar year is computed once per calendar instance; all 2,001 years take about 30 ms.
 
 **A correction table, checked against an ephemeris.** Over 1600–2400 the low-precision formulas disagree with `astronomy-engine`, a high-precision ephemeris, on 13 days:

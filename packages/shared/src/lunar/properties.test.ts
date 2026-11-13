@@ -14,15 +14,20 @@ const days = fc.integer({
 
 describe('lunar calendar year structure, every year 1000–3000', () => {
   it('has 12 or 13 months a year, each of 29 or 30 days, back to back', () => {
-    for (let year = MIN_YEAR; year < MAX_YEAR; year += 1) {
+    for (let year = MIN_YEAR; year <= MAX_YEAR; year += 1) {
       const months = lunarCalendar.monthsOf(year);
       if (![12, 13].includes(months.length)) throw new Error(`${year} has ${months.length} months`);
       if (months.filter((m) => m.isLeap).length !== months.length - 12) {
         throw new Error(`${year} has the wrong number of leap months`);
       }
       for (const [i, month] of months.entries()) {
-        const next = months[i + 1] ?? lunarCalendar.monthsOf(year + 1)[0]!;
-        if (![29, 30].includes(month.length) || next.start !== month.start + month.length) {
+        // The last month of 3000 has no supported year after it to line up with.
+        const next =
+          months[i + 1] ?? (year < MAX_YEAR ? lunarCalendar.monthsOf(year + 1)[0] : undefined);
+        if (
+          ![29, 30].includes(month.length) ||
+          (next && next.start !== month.start + month.length)
+        ) {
           throw new Error(`Month ${month.month} of ${year} is not 29 or 30 days, back to back`);
         }
       }

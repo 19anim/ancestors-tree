@@ -27,7 +27,7 @@ Nền tảng web (cài được như app nhờ **PWA**) cho phép **nhiều dòn
 |---|---|---|
 | S1 | Cây 1.000 người kéo/zoom ≥ 55 fps trên laptop tầm trung | Chrome DevTools Performance + React Profiler, seed 1.000 và 2.000 người |
 | S2 | Mở cây 1.000 người: hiển thị đầy đủ lần đầu < 1,5 giây | `performance.mark` từ lúc nhận dữ liệu tới lúc vẽ xong |
-| S3 | Đổi âm–dương lịch khớp bảng đã công bố của Hồ Ngọc Đức cho mọi năm âm 1968–2100 (trừ 3 năm có trăng mới sát nửa đêm, theo lịch thiên văn), qua test property-based cho 1800–2400, và trùng khớp `astronomy-engine` cho 1600–2400 (§9.1) | Vitest trên CI |
+| S3 | Đổi âm–dương lịch khớp bảng đã công bố của Hồ Ngọc Đức cho mọi năm âm 1968–2100 (trừ 3 năm có trăng mới sát nửa đêm, theo lịch thiên văn), qua test property-based (cấu trúc năm và Tết: mọi năm 1000–3000; các luật còn lại: 1800–2400), và trùng khớp `astronomy-engine` cho 1600–2400 (§9.1) | Vitest trên CI |
 | S4 | Độ phủ test `packages/shared` ≥ 90%, toàn dự án ≥ 70% | Vitest coverage trên CI |
 | S5 | Lighthouse Performance, Accessibility, Best Practices ≥ 90 | Lighthouse CI |
 | S6 | Có ít nhất 1 dòng họ thật dùng, ≥ 100 người trong cây | Dữ liệu production |
@@ -621,7 +621,7 @@ Bất kỳ ai — dâu/rể, con gái đã đi lấy chồng, con nuôi có gia 
 | Lớp | Làm gì |
 |---|---|
 | Golden test | Ngày Tết, tháng nhuận và độ dài từng tháng khớp bảng đã công bố của Hồ Ngọc Đức cho mọi năm âm 1968–2100 (chỉ giữ dữ kiện đã giải mã, trong `golden-years.ts`). Ngoại lệ là 2054, 2077 và 2085: mỗi năm có một lần trăng mới cách nửa đêm khoảng một phút, bảng và `astronomy-engine` không khớp nhau, và thư viện theo `astronomy-engine`. Trước 1968 bảng theo lịch UTC+8 của lịch sử nên không dùng làm chuẩn |
-| Property-based test (`fast-check`, năm 1800–2400) | Các luật luôn đúng: tháng có 29 hoặc 30 ngày; năm âm có 12 hoặc 13 tháng; tháng nhuận không chứa trung khí; Tết rơi trong 21/1–21/2 (21/2 lần đầu xảy ra năm 2319, trong khoảng 1800–2400); `lunarToSolar(solarToLunar(d)) === d` |
+| Property-based test (cấu trúc năm và khoảng Tết duyệt hết mọi năm 1000–3000; các luật còn lại dùng `fast-check` cho năm 1800–2400) | Các luật luôn đúng: tháng có 29 hoặc 30 ngày; năm âm có 12 hoặc 13 tháng; tháng nhuận không chứa trung khí; Tết rơi trong 21/1–21/2 (trong khoảng 1800–2400, 21/2 lần đầu xảy ra năm 2319); `lunarToSolar(solarToLunar(d)) === d` |
 | Differential test (1600–2400) | So mọi lần trăng mới và mọi năm âm với một thư viện thiên văn độc lập có độ chính xác cao (`astronomy-engine`). Công thức rút gọn lệch 12 lần trăng mới (đều trong vòng 5 phút quanh nửa đêm) và một tiết khí (thu phân 1938, 1,5 giây sau nửa đêm); bảng sửa 13 dòng (`corrections.ts`, liệt kê trong ADR 0006) làm kết quả trùng khớp |
 | Có thể thay thuật toán | Nếu cần chính xác hơn, `EphemerisCalendar` (dựa trên astronomy-engine) hoặc `TableCalendar` (bảng lịch chính thức) có thể thay `HoNgocDucCalendar` mà không phải sửa nơi gọi |
 
