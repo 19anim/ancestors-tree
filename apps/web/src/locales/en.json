@@ -32,7 +32,7 @@
     "primary": "Main navigation",
     "home": "Home",
     "designGallery": "Design system",
-    "clans": "Clans"
+    "clans": "Family trees"
   },
   "notFound": {
     "title": "We could not find this page",
@@ -168,36 +168,36 @@
     }
   },
   "clans": {
-    "backToList": "Back to my clans",
-    "title": "My clans",
-    "empty": "You are not in any clan yet. Create your first clan, or open an invite link a relative sent you.",
+    "backToList": "Back to my family trees",
+    "title": "My family trees",
+    "empty": "You are not in any family tree yet. Create your first one, or open an invite link a relative sent you.",
     "memberCount": "{{n}} members",
     "roles": {
-      "owner": "Owner",
+      "owner": "Manager",
       "editor": "Editor",
       "viewer": "Viewer"
     },
     "create": {
-      "title": "Create a new clan",
-      "name": "Clan name",
-      "namePlaceholder": "Nguyen family – Nam Dinh",
+      "title": "Create a new family tree",
+      "name": "Family tree name",
+      "namePlaceholder": "Nguyen family tree – Nam Dinh",
       "hometown": "Hometown",
-      "description": "About the clan",
-      "submit": "Create clan"
+      "description": "About this family tree",
+      "submit": "Create family tree"
     },
     "tabs": {
-      "label": "Clan sections",
+      "label": "Family tree sections",
       "members": "Members",
       "settings": "Settings"
     },
     "members": {
       "you": "(you)",
       "role": "Role of {{name}}",
-      "remove": "Remove from clan",
-      "removeNamed": "Remove {{name}} from the clan",
-      "removeTitle": "Remove {{name}} from the clan?",
+      "remove": "Remove from family tree",
+      "removeNamed": "Remove {{name}} from the family tree",
+      "removeTitle": "Remove {{name}} from the family tree?",
       "removeBody": "{{name}} will no longer be able to view or edit this family tree. Invite links created before now will no longer let them join; to bring them back, create a new link.",
-      "leave": "Leave clan",
+      "leave": "Leave family tree",
       "leaveTitle": "Leave {{clan}}?",
       "leaveBody": "You will no longer see this family tree until someone invites you again.",
       "cancel": "Cancel"
@@ -222,13 +222,13 @@
       "saved": "Changes saved"
     },
     "join": {
-      "title": "Clan invitation",
+      "title": "Family tree invitation",
       "offer": "{{inviter}} invites you to {{clan}} as {{role}}.",
       "accept": "Join",
       "signIn": "Sign in to join",
       "register": "Create an account",
       "home": "Back to home",
-      "forbidden": "You cannot join this clan with this link. Ask the owner for a new invitation."
+      "forbidden": "You cannot join this family tree with this link. Ask the manager for a new invitation."
     }
   }
 }

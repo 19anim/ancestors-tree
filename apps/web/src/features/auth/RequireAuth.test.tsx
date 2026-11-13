@@ -34,7 +34,7 @@ describe('RequireAuth', () => {
     });
     renderRoute('/clans', queryClient);
     // Signed in: the protected route renders, so no redirect yet.
-    await screen.findByRole('link', { name: 'Dòng họ' });
+    await screen.findByRole('link', { name: 'Cây gia phả' });
     expect(screen.queryByRole('heading', { level: 1, name: 'Đăng nhập' })).not.toBeInTheDocument();
 
     // The silent refresh fails too (default mock), so the cache rule ends the session.

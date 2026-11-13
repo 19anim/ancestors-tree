@@ -45,9 +45,9 @@ describe('ClanMembersPage', () => {
       ownerRoutes({ [`DELETE /clans/${CLAN_ID}/members/${TUAN_ID}`]: () => ({ status: 204 }) }),
     );
     renderRoute(`/clans/${CLAN_ID}/members`);
-    await user.click(await screen.findByRole('button', { name: 'Xoá Tuấn khỏi dòng họ' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Xoá Tuấn khỏi dòng họ?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Xoá khỏi dòng họ' }));
+    await user.click(await screen.findByRole('button', { name: 'Xoá Tuấn khỏi cây gia phả' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Xoá Tuấn khỏi cây gia phả?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Xoá khỏi cây gia phả' }));
     await vi.waitFor(() =>
       expect(
         api.calls.some((call) => call.method === 'DELETE' && call.path.endsWith(TUAN_ID)),
@@ -75,7 +75,7 @@ describe('ClanMembersPage', () => {
       'GET /clans': () => ({ body: [] }),
     });
     renderRoute(`/clans/${CLAN_ID}/members`);
-    await user.click(await screen.findByRole('button', { name: 'Rời dòng họ' }));
+    await user.click(await screen.findByRole('button', { name: 'Rời cây gia phả' }));
     let alertSeen = false;
     const observer = new MutationObserver(() => {
       if (document.querySelector('[role="alert"]')) alertSeen = true;
@@ -85,9 +85,9 @@ describe('ClanMembersPage', () => {
     expect(screen.queryByRole('link', { name: 'Cài đặt' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Link mời' })).not.toBeInTheDocument();
     const dialog = await screen.findByRole('dialog', { name: 'Rời Họ Nguyễn?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Rời dòng họ' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Rời cây gia phả' }));
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Dòng họ của tôi' }),
+      await screen.findByRole('heading', { level: 1, name: 'Cây gia phả của tôi' }),
     ).toBeInTheDocument();
     observer.disconnect();
     expect(api.calls.some((call) => call.method === 'DELETE')).toBe(true);

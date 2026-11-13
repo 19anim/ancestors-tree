@@ -34,7 +34,7 @@ describe('ClanSettingsPage', () => {
       'GET /clans': () => ({ body: [CLAN] }),
     });
     renderRoute(`/clans/${CLAN_ID}/settings`);
-    expect(await screen.findByLabelText('Tên dòng họ')).toHaveValue('Họ Nguyễn');
+    expect(await screen.findByLabelText('Tên cây gia phả')).toHaveValue('Họ Nguyễn');
     expect(screen.getByLabelText('Quê quán')).toHaveValue('Nam Định');
     const description = screen.getByLabelText('Giới thiệu');
     await user.clear(description);

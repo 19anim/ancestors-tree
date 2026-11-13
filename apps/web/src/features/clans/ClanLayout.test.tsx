@@ -16,7 +16,7 @@ describe('ClanLayout', () => {
     });
     renderRoute(`/clans/${CLAN_ID}/members`);
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tìm thấy nội dung bạn cần.');
-    expect(screen.getByRole('link', { name: 'Về danh sách dòng họ' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Về danh sách cây gia phả' })).toHaveAttribute(
       'href',
       '/clans',
     );
