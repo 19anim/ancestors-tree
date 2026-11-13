@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./lunar": "./src/lunar/index.ts"
+    "./lunar": "./src/lunar/index.ts",
+    "./tree": "./src/tree/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
