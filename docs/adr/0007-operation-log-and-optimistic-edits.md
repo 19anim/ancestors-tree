@@ -22,7 +22,7 @@ A family tree is edited by several relatives, often on weak mobile connections. 
 - **Other 4xx:** the refused op is dropped, the user is told why (`rejected` notice) and the remaining ops are replayed on the confirmed tree. Ops that no longer apply without it (for example an "add spouse" for a person whose `addPerson` was refused) are dropped too, and the notice says how many.
 - **401:** the queue stops and keeps every pending op; a `signedOut` notice is shown. Sending resumes on the next `apply()` or `load()` of the same tree, after the user signs in again.
 
-**Unsent edits are never lost silently.** The store keeps sending in the background while the user visits other pages, so most navigation loses nothing. Pending ops can be lost in seven ways. Three ask first, through `UnsentChangesGuard` (mounted once by the app shell) and the user menu; the others tell the user, in a notice shown on every page until dismissed (`TreeNoticeBanner`, mounted by the app shell):
+**Unsent edits are never lost silently.** The store keeps sending in the background while the user visits other pages, so most navigation loses nothing. Pending ops can be lost in seven ways. Three ask first, through `UnsentChangesGuard` (mounted once by the app shell) and the user menu. Three tell the user afterwards, in a notice shown on every page until dismissed (`TreeNoticeBanner`, mounted by the app shell). One, Google sign-in, is a warning on the login and register pages before the loss, not a notice after it:
 
 - opening another tree's page asks in a dialog (`load` of a different tree would drop the queue; if it ever does, it shows a `discarded(count)` notice);
 - closing or reloading the tab triggers the browser's `beforeunload` prompt;
@@ -30,9 +30,9 @@ A family tree is edited by several relatives, often on weak mobile connections. 
 - a 409 reloads the tree and tells the user afterwards (`reloaded`);
 - a refused op and the ops that depended on it are dropped, and the notice says how many (`rejected`);
 - an account change resets the store and tells the user how many changes were dropped (`discarded(count)`);
-- signing in with Google after a session expiry is a full-page redirect that drops the in-memory queue, so the login page warns the user and suggests email and password (persisting the queue is planned for P6).
+- signing in with Google after a session expiry is a full-page redirect that drops the in-memory queue, so the login and register pages warn the user beforehand and suggest email and password (persisting the queue is planned for P6).
 
-A notice stays until the user dismisses it, even when another tree opens; it carries the `clanId` of the tree it belongs to, so its text never says "this tree".
+A notice stays until the user dismisses it, and it survives `load()` of another tree; a later account change replaces it with a `discarded` one. `resetTreeStore()` clears it: after sign-out, after the guard's "discard and open", and when the tree it belongs to is deleted. It carries the `clanId` of the tree it belongs to; when another page or tree is on screen, the banner says it is about "the family tree you were editing". When the same account signs in again after a `signedOut` notice, the store clears it and sends the kept ops (`resumeAfterSignIn`).
 
 The guard never asks for Members, Settings, the `/clans` list or `/login`. When the signed-in account changes, the app shell resets the store (`resetTreeStore`), so one person's unsent edits are never sent as another's in this tab. Deleting a tree calls `discardTreeStateFor(id)`, which resets the store only when it holds that tree.
 

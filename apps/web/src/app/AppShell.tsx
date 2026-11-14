@@ -8,6 +8,7 @@ import {
   resetTreeStore,
   TreeNoticeBanner,
   UnsentChangesGuard,
+  useTreeStore,
   useUnsentChangeCount,
 } from '../features/tree';
 import { useDocumentLanguage } from '../shared/i18n/useDocumentLanguage';
@@ -35,6 +36,9 @@ function useResetTreeOnAccountChange(userId: string | undefined): void {
     if (userId === undefined) return;
     if (lastUserId.current !== undefined && lastUserId.current !== userId) {
       discardTreeStateForAccountChange();
+    } else if (lastUserId.current === userId) {
+      // The same account is back after its session ended: send what was kept.
+      useTreeStore.getState().resumeAfterSignIn();
     }
     lastUserId.current = userId;
   }, [userId]);

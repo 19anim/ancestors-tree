@@ -11,7 +11,13 @@ import {
   SON,
   treeRoutes,
 } from './fixtures';
-import { RETRY_DELAYS_MS, resetTreeStore, selectHasUnsentChanges, useTreeStore } from './store';
+import {
+  RETRY_DELAYS_MS,
+  discardTreeStateForAccountChange,
+  resetTreeStore,
+  selectHasUnsentChanges,
+  useTreeStore,
+} from './store';
 
 const OPS = `POST /clans/${CLAN_ID}/ops`;
 const NEW_ID = '64b7f0c2a1b2c3d4e5f6a0f1';
@@ -481,6 +487,54 @@ describe('a notice nobody has seen yet', () => {
     store().apply(bio('Con trưởng'));
     await store().load(OTHER_CLAN);
     expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+  });
+});
+
+describe('a discarded notice after an account change', () => {
+  it('survives the next load of a tree', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => new Promise(() => undefined),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    discardTreeStateForAccountChange();
+    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+
+    await store().load(CLAN_ID);
+    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+  });
+});
+
+describe('signing in again after the session expired', () => {
+  it('clears the notice and sends the kept ops', async () => {
+    let signedIn = false;
+    const bodies: unknown[] = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: ({ body }) => {
+        bodies.push(body);
+        return signedIn ? { body: { seq: 4 } } : UNAUTHENTICATED_REPLY;
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await vi.waitFor(() => expect(store().signedOut).toBe(true));
+
+    signedIn = true;
+    store().resumeAfterSignIn();
+    expect(store().signedOut).toBe(false);
+    expect(store().notice).toBeNull();
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(bodies).toHaveLength(2);
+  });
+
+  it('does nothing when the session had not expired', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    await store().load(CLAN_ID);
+    useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
+    store().resumeAfterSignIn();
+    expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID });
   });
 });
 

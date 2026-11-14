@@ -85,6 +85,8 @@ test('build a small family tree and find it again after a reload', async ({ page
   // React Flow draws the thread once the cards are measured; the couple shares one stitch.
   await expect(page.locator('[data-relation="parent-child"]')).toHaveCount(1);
   await expect(page.locator('[data-relation="marriage"]')).toHaveCount(1);
+  // The threads are decoration: React Flow must not expose them as images.
+  await expect(page.getByRole('img', { name: /^Edge from/ })).toHaveCount(0);
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

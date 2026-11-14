@@ -56,13 +56,15 @@ export interface TreeStoreState {
   load: (clanId: string) => Promise<void>;
   apply: (op: Op) => ApplyResult;
   dismissNotice: () => void;
+  /** The same account signed in again after a 401: forget the notice and send the kept ops. */
+  resumeAfterSignIn: () => void;
 }
 
 /** For the unsent-changes guard: primitives, so they are stable selectors. */
 export const selectHasUnsentChanges = (state: TreeStoreState): boolean => state.pending.length > 0;
 export const selectUnsentCount = (state: TreeStoreState): number => state.pending.length;
 
-type TreeData = Omit<TreeStoreState, 'load' | 'apply' | 'dismissNotice'>;
+type TreeData = Omit<TreeStoreState, 'load' | 'apply' | 'dismissNotice' | 'resumeAfterSignIn'>;
 
 const INITIAL: TreeData = {
   clanId: null,
@@ -292,7 +294,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       // dismissed yet (a 409, a refused op, a lost session) stays: it may be the only word they
       // get about edits that were dropped while another page was on screen.
       const discarded = current.pending.length;
-      const unseen = current.notice?.kind === 'discarded' ? null : current.notice;
+      const unseen = current.notice;
       session += 1;
       const mine = session;
       sending = false;
@@ -345,6 +347,10 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
 
     dismissNotice() {
       set({ notice: null });
+    },
+
+    resumeAfterSignIn() {
+      if (get().signedOut) resume();
     },
   };
 });

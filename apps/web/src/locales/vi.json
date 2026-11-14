@@ -291,6 +291,7 @@
       "retrying": "Chưa lưu được, đang thử lại…"
     },
     "notice": {
+      "otherTree": "Về cây gia phả bạn vừa sửa: {{message}}",
       "reloaded": "Đã tải lại bản mới nhất của cây gia phả từ máy chủ; thay đổi chưa lưu của bạn đã bị bỏ.",
       "rejected": "Không lưu được thay đổi: {{reason}}",
       "rejectedDependents": "Đồng thời bỏ {{count}} thay đổi phụ thuộc vào nó.",

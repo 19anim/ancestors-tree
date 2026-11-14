@@ -89,6 +89,26 @@ describe('TreePage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Đã tải lại bản mới nhất');
   });
 
+  it('names the family tree a notice is about when another page is on screen', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET /clans/${CLAN_ID}/members`]: () => ({ body: [] }),
+    });
+    useTreeStore.setState({ notice: { kind: 'reloaded', clanId: '64b7f0c2a1b2c3d4e5f60002' } });
+    renderRoute(`/clans/${CLAN_ID}/members`);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Về cây gia phả bạn vừa sửa: Đã tải lại bản mới nhất',
+    );
+  });
+
+  it('does not offer to sign in again on the sign-in page itself', async () => {
+    mockApi();
+    useTreeStore.setState({ notice: { kind: 'signedOut', clanId: CLAN_ID } });
+    renderRoute('/login');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Phiên đăng nhập đã hết hạn');
+    expect(screen.queryByRole('link', { name: 'Đăng nhập lại' })).not.toBeInTheDocument();
+  });
+
   it('shows a notice once on the tree page', async () => {
     mockApi(treeRoutes(EMPTY_TREE_RESPONSE, VIEWER));
     renderRoute(`/clans/${CLAN_ID}/tree`);

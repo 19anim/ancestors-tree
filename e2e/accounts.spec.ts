@@ -55,7 +55,12 @@ test('a silent refresh keeps the user signed in, and sign-out then sign-in works
   await expect(page.getByText('Hà', { exact: true })).toBeVisible();
   expect((await context.cookies()).some((cookie) => cookie.name === 'at')).toBe(true);
 
+  // Wait for the server to clear the cookies; navigating straight away races the logout request.
+  const loggedOut = page.waitForResponse(
+    (response) => response.url().endsWith('/api/auth/logout') && response.ok(),
+  );
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await loggedOut;
   await page.goto('/clans');
   await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập' })).toBeVisible();
 

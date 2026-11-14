@@ -141,7 +141,7 @@
       "noAccount": "No account yet?",
       "register": "Create an account",
       "googleFailed": "Google sign-in did not work. Try again, or use your email and password.",
-      "googleDropsChanges": "Signing in with Google leaves this page and drops your {{count}} unsaved changes. Sign in with email and password to keep them."
+      "googleDropsChanges": "Signing in with Google leaves this page and drops your unsaved changes ({{count}}). Sign in with email and password to keep them."
     },
     "register": {
       "title": "Create an account",
@@ -291,9 +291,10 @@
       "retrying": "Not saved yet, trying again…"
     },
     "notice": {
+      "otherTree": "About the family tree you were editing: {{message}}",
       "reloaded": "The latest version of the family tree was reloaded from the server; your unsaved changes were dropped.",
       "rejected": "The change was not saved: {{reason}}",
-      "rejectedDependents": "Also dropped, because they depended on it: {{count}}.",
+      "rejectedDependents": "Changes that depended on it were dropped too: {{count}}.",
       "dismiss": "Got it",
       "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
       "signIn": "Sign in again",

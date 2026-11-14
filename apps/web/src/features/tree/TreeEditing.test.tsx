@@ -606,6 +606,41 @@ describe('unsent changes', () => {
     expect(beforeUnloadPrevented()).toBe(false);
   });
 
+  it('tells the user when another account signs in over a tree page that stays open', async () => {
+    const user = userEvent.setup();
+    unsentApp();
+    const queryClient = createQueryClient();
+    renderRoute(`/clans/${CLAN_ID}/tree`, queryClient);
+    await addFirstPerson(user);
+
+    act(() => queryClient.setQueryData(['me'], OTHER_USER));
+    expect(await screen.findByText(OTHER_USER.name)).toBeInTheDocument();
+    await vi.waitFor(() => expect(useTreeStore.getState().status).toBe('ready'));
+    expect(screen.getByRole('alert')).toHaveTextContent('1 thay đổi chưa lưu đã bị bỏ.');
+  });
+
+  it('sends the kept change when the same account signs in again after a 401', async () => {
+    const user = userEvent.setup();
+    let signedIn = false;
+    let posts = 0;
+    unsentApp(() => {
+      posts += 1;
+      return signedIn ? { body: { seq: 1 } } : UNAUTHENTICATED_REPLY;
+    });
+    const queryClient = createQueryClient();
+    renderRoute(`/clans/${CLAN_ID}/tree`, queryClient);
+    await addFirstPerson(user);
+    await vi.waitFor(() => expect(useTreeStore.getState().signedOut).toBe(true));
+
+    act(() => queryClient.setQueryData(['me'], null));
+    expect(await screen.findByRole('link', { name: 'Đăng nhập' })).toBeInTheDocument();
+    signedIn = true;
+    act(() => queryClient.setQueryData(['me'], ME));
+    await vi.waitFor(() => expect(pendingCount()).toBe(0));
+    expect(useTreeStore.getState()).toMatchObject({ signedOut: false, notice: null });
+    expect(posts).toBe(2);
+  });
+
   it('keeps guarding changes after the tree became unavailable', async () => {
     const user = userEvent.setup();
     let reads = 0;

@@ -1,10 +1,14 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
+import { resetTreeStore, useTreeStore } from '../tree/store';
+
+const ID = '64b7f0c2a1b2c3d4e5f6a0f1';
 
 afterEach(() => {
+  resetTreeStore();
   vi.unstubAllGlobals();
 });
 
@@ -40,6 +44,19 @@ describe('RegisterPage', () => {
       password: 'long-enough-password',
       locale: 'vi',
     });
+  });
+
+  it('warns that Google sign-in drops unsaved tree changes, only while there are any', async () => {
+    mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
+    renderRoute('/register');
+    await screen.findByRole('link', { name: 'Tiếp tục với Google' });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    act(() => useTreeStore.setState({ pending: [{ type: 'deletePerson', payload: { id: ID } }] }));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ 1 thay đổi chưa lưu.',
+    );
+    act(() => resetTreeStore());
   });
 
   it('puts a taken email next to the email field', async () => {

@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useLocation, useMatch } from 'react-router';
 import { Button, buttonVariants } from '../../shared/ui';
 import { rejectionMessage } from './format';
 import { useTreeStore, type TreeNotice } from './store';
@@ -33,15 +33,21 @@ export function TreeNoticeBanner() {
   const { t } = useTranslation();
   const notice = useTreeStore((state) => state.notice);
   const dismiss = useTreeStore((state) => state.dismissNotice);
+  const onScreenClanId = useMatch('/clans/:id/*')?.params.id;
+  const { pathname } = useLocation();
   if (!notice) return null;
+  // On another page, or another family tree's page, the plain text would read as about that one.
+  const text = noticeText(t, notice);
   return (
     <div
       role="alert"
       className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
     >
-      <p className="font-medium text-stamp">{noticeText(t, notice)}</p>
+      <p className="font-medium text-stamp">
+        {notice.clanId === onScreenClanId ? text : t('tree.notice.otherTree', { message: text })}
+      </p>
       <div className="flex items-center gap-2">
-        {notice.kind === 'signedOut' ? (
+        {notice.kind === 'signedOut' && pathname !== '/login' ? (
           <Link
             to={`/login?${new URLSearchParams({ returnTo: `/clans/${notice.clanId}/tree` })}`}
             className={buttonVariants({ variant: 'secondary', size: 'sm' })}

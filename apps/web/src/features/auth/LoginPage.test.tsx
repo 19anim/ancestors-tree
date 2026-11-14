@@ -91,6 +91,13 @@ describe('LoginPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('does not warn about unsaved changes when there are none to lose', async () => {
+    mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
+    renderRoute('/login');
+    await screen.findByRole('link', { name: 'Tiếp tục với Google' });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('ignores return paths outside the app', async () => {
     mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
     renderRoute('/login?returnTo=https://evil.example.test');

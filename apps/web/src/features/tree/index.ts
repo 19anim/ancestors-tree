@@ -4,6 +4,7 @@ export {
   discardTreeStateFor,
   discardTreeStateForAccountChange,
   resetTreeStore,
+  useTreeStore,
   useUnsentChangeCount,
 } from './store';
 export { TreeNoticeBanner } from './TreeNoticeBanner';
