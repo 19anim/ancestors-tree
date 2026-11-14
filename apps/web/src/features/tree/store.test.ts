@@ -1,6 +1,6 @@
 import type { Op } from '@ancestors-tree/shared/tree';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiErrorReply, mockApi, UNAUTHENTICATED_REPLY } from '../../test/api';
+import { apiErrorReply, mockApi, UNAUTHENTICATED_REPLY, type MockRoutes } from '../../test/api';
 import {
   CLAN_ID,
   EMPTY_TREE_RESPONSE,
@@ -231,7 +231,7 @@ describe('when the server says no', () => {
     expect(api.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
   });
 
-  it(`reloads the whole tree on the ${MAX_CONFLICTS_IN_A_ROW}rd conflict in a row`, async () => {
+  it(`reloads the whole tree after ${MAX_CONFLICTS_IN_A_ROW} conflicts in a row`, async () => {
     let treeReads = 0;
     const api = mockApi({
       ...treeRoutes(),
@@ -950,5 +950,219 @@ describe('before the tree is ready', () => {
     mockApi({ [TREE]: () => apiErrorReply('NOT_FOUND', 404) });
     await store().load(CLAN_ID);
     expect(store().apply(bio('Con trưởng'))).toEqual({ ok: false, reason: 'NOT_LOADED' });
+  });
+});
+
+describe('counting conflicts in a row', () => {
+  it('starts again for each edit: two dropped edits do not make the next 409 a reload', async () => {
+    const FIRST = '64b7f0c2a1b2c3d4e5f6a0f3';
+    const SECOND = '64b7f0c2a1b2c3d4e5f6a0f4';
+    let bioPosts = 0;
+    let treeReads = 0;
+    mockApi({
+      ...treeRoutes(),
+      [TREE]: () => {
+        treeReads += 1;
+        return { body: FAMILY };
+      },
+      // Someone else saved a person with the id of each of our first two edits.
+      [OPS_LOG]: ({ url }) => {
+        const since = url.searchParams.get('since');
+        if (since === '3') return { body: [remoteEntry(4, addPerson(FIRST, 'Người khác'))] };
+        if (since === '4') return { body: [remoteEntry(5, addPerson(SECOND, 'Người khác'))] };
+        return { body: [] };
+      },
+      [OPS]: ({ body }) => {
+        const op = (body as { op: Op }).op;
+        if (op.type !== 'updatePerson') return apiErrorReply('VERSION_CONFLICT', 409);
+        bioPosts += 1;
+        return bioPosts === 1 ? apiErrorReply('VERSION_CONFLICT', 409) : { body: { seq: 6 } };
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(FIRST));
+    await until(() => store().confirmedVersion === 4 && store().pending.length === 0);
+    store().apply(addPerson(SECOND));
+    await until(() => store().confirmedVersion === 5 && store().pending.length === 0);
+
+    store().apply(bio('Con trưởng'));
+    await until(() => store().pending.length === 0);
+    expect(store().notice?.kind).not.toBe('reloaded');
+    expect(store().confirmedVersion).toBe(6);
+    expect(store().confirmedTree.persons[SON]?.bio).toBe('Con trưởng');
+    expect(treeReads).toBe(1);
+  });
+});
+
+describe('the rebase and what happens around it', () => {
+  /** A 409 for the first POST, then the next seq each time. */
+  function conflictOnce(): MockRoutes[string] {
+    let posts = 0;
+    let seq = 3;
+    return () => {
+      posts += 1;
+      if (posts === 1) return apiErrorReply('VERSION_CONFLICT', 409);
+      seq += 1;
+      return { body: { seq } };
+    };
+  }
+
+  it('replays an edit made while the rebase reads the log, after the one that was refused', async () => {
+    const held = gate();
+    const api = mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: async () => {
+        await held.wait;
+        return { body: [] };
+      },
+      [OPS]: conflictOnce(),
+    });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(NEW_ID));
+    await until(() =>
+      api.calls.some((call) => call.path.endsWith('/ops') && call.method === 'GET'),
+    );
+
+    expect(store().apply(bio('Con trưởng'))).toEqual({ ok: true });
+    held.open();
+    await until(() => store().pending.length === 0);
+    expect(store().confirmedTree.persons[NEW_ID]).toBeDefined();
+    expect(store().confirmedTree.persons[SON]?.bio).toBe('Con trưởng');
+    expect(store().confirmedVersion).toBe(5);
+    expect(store().notice).toBeNull();
+  });
+
+  it('ignores a rebase answer that arrives after another family tree was opened', async () => {
+    const held = gate();
+    mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: async () => {
+        await held.wait;
+        return { body: [remoteEntry(4, addPerson(OTHER_ID, 'Nguyễn Văn Sáu'))] };
+      },
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await until(() => vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('since=')));
+
+    await store().load(OTHER_CLAN);
+    const before = store();
+    held.open();
+    await new Promise((resolve) => realSetTimeout(resolve, 20));
+    expect(store().clanId).toBe(OTHER_CLAN);
+    expect(store().confirmedTree).toBe(before.confirmedTree);
+    expect(store().confirmedVersion).toBe(before.confirmedVersion);
+    expect(store().pending).toEqual([]);
+    expect(store().notice).toMatchObject({ kind: 'discarded', count: 1 });
+  });
+
+  it('retries the log read with backoff when the server cannot be reached', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let reads = 0;
+    mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: () => {
+        reads += 1;
+        return reads === 1 ? { status: 503, body: {} } : { body: [] };
+      },
+      [OPS]: conflictOnce(),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+
+    await retryScheduled();
+    expect(store().retrying).toBe(true);
+    expect(store().pending).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(reads).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await until(() => store().pending.length === 0);
+    expect(reads).toBe(2);
+    expect(store().notice).toBeNull();
+  });
+
+  it('stops and keeps the ops when the session ended during the log read', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: () => UNAUTHENTICATED_REPLY,
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+
+    await until(() => store().signedOut);
+    expect(store().notice).toEqual({ kind: 'signedOut', clanId: CLAN_ID });
+    expect(store().pending).toHaveLength(1);
+    expect(store().retrying).toBe(false);
+  });
+
+  it('shows an error and keeps the ops when the log may not be read', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: () => apiErrorReply('FORBIDDEN', 403),
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+
+    await until(() => store().status === 'error');
+    expect(store().loadError).toMatchObject({ code: 'FORBIDDEN' });
+    expect(store().pending).toHaveLength(1);
+    expect(selectHasUnsentChanges(store())).toBe(true);
+  });
+
+  it('reads the whole tree when the missed log has a gap', async () => {
+    let treeReads = 0;
+    mockApi({
+      ...treeRoutes(),
+      [TREE]: () => {
+        treeReads += 1;
+        return { body: { ...FAMILY, version: treeReads === 1 ? 3 : 9 } };
+      },
+      // Seq 4 is missing.
+      [OPS_LOG]: () => ({ body: [remoteEntry(5, addPerson(OTHER_ID, 'Nguyễn Văn Sáu'))] }),
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+
+    await until(() => store().notice?.kind === 'reloaded');
+    expect(treeReads).toBe(2);
+    expect(store().confirmedVersion).toBe(9);
+    expect(store().pending).toEqual([]);
+  });
+
+  it('counts the edits that depended on a dropped one', async () => {
+    const unionId = '64b7f0c2a1b2c3d4e5f6b0f1';
+    const union: Op = {
+      type: 'addUnion',
+      payload: { id: unionId, partnerIds: [LOOSE], order: 1, status: 'married' },
+    };
+    mockApi({
+      ...treeRoutes(),
+      // Someone else used the id of our new union for a person.
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, addPerson(unionId, 'Người khác'))] }),
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+    });
+    await store().load(CLAN_ID);
+    store().apply(union);
+    // The child needs the union, which the missed change made impossible.
+    store().apply({
+      type: 'addPerson',
+      payload: fixturePerson(NEW_ID, 'Trần Văn Cường', { parentUnionId: unionId }),
+    });
+
+    await until(() => store().notice?.kind === 'rejected');
+    expect(store().notice).toMatchObject({
+      kind: 'rejected',
+      clanId: CLAN_ID,
+      error: { code: 'DUPLICATE_ID' },
+    });
+    const notice = store().notice;
+    expect(notice?.kind === 'rejected' && notice.dropped).toBeGreaterThan(0);
+    expect(store().pending).toEqual([]);
+    expect(store().tree.persons[NEW_ID]).toBeUndefined();
   });
 });

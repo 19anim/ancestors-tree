@@ -84,6 +84,20 @@ describe('rebase', () => {
     expect(result.pending).toHaveLength(1);
   });
 
+  it('takes our own identical op for the queue head only when it is the first missed entry', () => {
+    // The server only takes an op at clan.version === baseVersion, so a lost answer is seq 4.
+    const result = rebase(
+      input(
+        [{ id: 1, op: bio('x') }],
+        [remoteEntry(4, looseChild), remoteEntry(5, bio('x'), ME.id)],
+      ),
+    );
+    if (!result.ok) throw new Error('expected a rebase');
+    expect(result.saved).toBeNull();
+    expect(result.confirmedVersion).toBe(5);
+    expect(result.pending.map((entry) => entry.id)).toEqual([1]);
+  });
+
   it('asks for a reload when the log has a gap or does not apply', () => {
     expect(rebase(input([], [remoteEntry(5, looseChild)])).ok).toBe(false);
     const impossible: Op = { type: 'deletePerson', payload: { id: NEW_ID } };

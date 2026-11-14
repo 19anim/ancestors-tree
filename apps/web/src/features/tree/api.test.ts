@@ -25,4 +25,20 @@ describe('fetchOpsSince', () => {
     expect(entries.at(-1)?.seq).toBe(OPS_PAGE_SIZE + 4);
     expect(api.calls.map((call) => call.method)).toEqual(['GET', 'GET']);
   });
+
+  it('stops paging when a full page does not move past the last seq', async () => {
+    const choose = { type: 'setProgenitor' as const, payload: { personId: GRANDPA } };
+    let reads = 0;
+    mockApi({
+      [`GET /clans/${CLAN_ID}/ops`]: () => {
+        reads += 1;
+        // A broken server: a full page that never advances. Bounded, so a missing guard ends.
+        const count = reads <= 3 ? OPS_PAGE_SIZE : 0;
+        return { body: Array.from({ length: count }, () => remoteEntry(2, choose)) };
+      },
+    });
+    const entries = await fetchOpsSince(CLAN_ID, 3);
+    expect(reads).toBe(1);
+    expect(entries).toHaveLength(OPS_PAGE_SIZE);
+  });
 });

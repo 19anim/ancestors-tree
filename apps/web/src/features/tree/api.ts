@@ -30,6 +30,9 @@ export async function fetchOpsSince(clanId: string, since: number): Promise<Oper
     entries.push(...page);
     const last = page.at(-1);
     if (page.length < OPS_PAGE_SIZE || last === undefined) return entries;
+    // A full page that does not move past `after` would repeat forever: stop, and let the
+    // rebase's gap check decide what the entries read so far mean.
+    if (last.seq <= after) return entries;
     after = last.seq;
   }
 }

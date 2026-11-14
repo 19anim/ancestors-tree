@@ -117,8 +117,10 @@ let attempt = 0;
 let needsReload = false;
 /** The queue must catch up with the log and replay its entries (after a 409). */
 let needsRebase = false;
-/** 409s since the server last accepted one of this tab's changes. */
+/** 409s the same pending entry (conflictHead) got since the server last accepted a change. */
 let conflictsInARow = 0;
+/** The local id of the entry that got those 409s; another head starts the count again. */
+let conflictHead: number | null = null;
 /** The local id of the next pending entry. */
 let nextPendingId = 1;
 /** The load() in progress, so a second load() of the same tree (StrictMode) shares it. */
@@ -128,6 +130,18 @@ function clearRetry(): void {
   if (retryTimer !== undefined) clearTimeout(retryTimer);
   retryTimer = undefined;
   attempt = 0;
+}
+
+function resetConflicts(): void {
+  conflictsInARow = 0;
+  conflictHead = null;
+}
+
+/** Counts a 409 for the queue's head entry; a different head than last time counts from 1. */
+function noteConflict(headId: number): void {
+  if (conflictHead !== headId) conflictsInARow = 0;
+  conflictHead = headId;
+  conflictsInARow += 1;
 }
 
 function newEntry(op: Op): PendingEntry {
@@ -190,6 +204,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     const [refused, ...rest] = pending;
     if (refused === undefined) return;
     const replayed = replayPending(confirmedTree, rest, { alreadyDropped: [refused.id] });
+    if (replayed.kept.length === 0) resetConflicts();
     set({
       tree: replayed.tree,
       pending: replayed.kept,
@@ -240,7 +255,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       const tree = treeStateFromLists(response.progenitorId, response.persons, response.unions);
       needsReload = false;
       needsRebase = false;
-      conflictsInARow = 0;
+      resetConflicts();
       attempt = 0;
       set({
         tree,
@@ -279,7 +294,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         needsReload = true;
         return;
       }
-      if (result.saved) conflictsInARow = 0;
+      if (result.saved || result.pending.length === 0) resetConflicts();
       const [first, ...others] = result.dropped;
       set({
         confirmedTree: result.confirmedTree,
@@ -313,7 +328,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       });
       if (mine !== session) return;
       attempt = 0;
-      conflictsInARow = 0;
+      resetConflicts();
       const state = get();
       set({
         confirmedTree: applyOp(state.confirmedTree, entry.op).tree,
@@ -331,7 +346,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         stopOtherAccount(clanId);
       } else if (isConflict(error)) {
         attempt = 0;
-        conflictsInARow += 1;
+        noteConflict(entry.id);
         // Someone keeps saving first: stop rebasing and read the whole tree.
         if (conflictsInARow >= MAX_CONFLICTS_IN_A_ROW) needsReload = true;
         else needsRebase = true;
@@ -415,7 +430,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       sending = false;
       needsReload = false;
       needsRebase = false;
-      conflictsInARow = 0;
+      resetConflicts();
       clearRetry();
       set({
         ...INITIAL,
@@ -488,7 +503,7 @@ function stopSending(): void {
   sending = false;
   needsReload = false;
   needsRebase = false;
-  conflictsInARow = 0;
+  resetConflicts();
   loading = undefined;
   clearRetry();
 }
