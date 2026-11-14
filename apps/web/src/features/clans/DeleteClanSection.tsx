@@ -3,8 +3,15 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
-import { Button, Dialog, DialogClose, DialogContent, TextField } from '../../shared/ui';
-import { resetTreeStore, useTreeStore } from '../tree';
+import {
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTrigger,
+  TextField,
+} from '../../shared/ui';
+import { discardTreeStateFor } from '../tree';
 import { useDeleteClan } from './api';
 
 /** The Owner deletes the whole family tree (spec §3); typing its name guards against a slip. */
@@ -15,9 +22,10 @@ export function DeleteClanSection({ clan }: { clan: Clan }) {
   const headingId = useId();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
-  const matches = typed.trim() === clan.name;
+  const matches = typed.trim().normalize('NFC') === clan.name.normalize('NFC');
 
   const onOpenChange = (next: boolean) => {
+    if (!next && deleteClan.isPending) return; // The request cannot be cancelled once sent.
     setOpen(next);
     if (!next) {
       setTyped('');
@@ -32,7 +40,7 @@ export function DeleteClanSection({ clan }: { clan: Clan }) {
       return; // Shown in the dialog through deleteClan.error.
     }
     // Edits queued for the deleted tree are meaningless now; do not ask about them later.
-    if (useTreeStore.getState().clanId === clan.id) resetTreeStore();
+    discardTreeStateFor(clan.id);
     void navigate('/clans', { replace: true });
   };
 
@@ -45,13 +53,14 @@ export function DeleteClanSection({ clan }: { clan: Clan }) {
         {t('clans.delete.title')}
       </h2>
       <p className="text-ink-muted">{t('clans.delete.body')}</p>
-      <Button variant="danger" onClick={() => onOpenChange(true)}>
-        {t('clans.delete.open')}
-      </Button>
       <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogTrigger asChild>
+          <Button variant="danger">{t('clans.delete.open')}</Button>
+        </DialogTrigger>
         <DialogContent
           title={t('clans.delete.confirmTitle', { name: clan.name })}
           description={t('clans.delete.body')}
+          closeDisabled={deleteClan.isPending}
         >
           <form
             noValidate
@@ -74,12 +83,12 @@ export function DeleteClanSection({ clan }: { clan: Clan }) {
             ) : null}
             <div className="flex justify-end gap-2">
               <DialogClose asChild>
-                <Button type="button" variant="ghost">
+                <Button type="button" variant="ghost" disabled={deleteClan.isPending}>
                   {t('clans.delete.cancel')}
                 </Button>
               </DialogClose>
               <Button type="submit" variant="danger" disabled={!matches || deleteClan.isPending}>
-                {t('clans.delete.confirm')}
+                {deleteClan.isPending ? t('clans.delete.pending') : t('clans.delete.confirm')}
               </Button>
             </div>
           </form>

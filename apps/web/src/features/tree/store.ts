@@ -344,6 +344,11 @@ export function resetTreeStore(): void {
   useTreeStore.setState(INITIAL);
 }
 
+/** Forgets the tree store when it holds this family tree (it was deleted); other trees stay. */
+export function discardTreeStateFor(clanId: string): void {
+  if (useTreeStore.getState().clanId === clanId) resetTreeStore();
+}
+
 /** How many changes are not saved yet, for the app shell (sign-out asks first when any). */
 export function useUnsentChangeCount(): number {
   return useTreeStore(selectUnsentCount);

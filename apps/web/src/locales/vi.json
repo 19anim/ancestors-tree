@@ -233,6 +233,7 @@
       "confirmTitle": "Xoá {{name}}?",
       "confirmLabel": "Nhập \"{{name}}\" để xác nhận",
       "confirm": "Xoá vĩnh viễn",
+      "pending": "Đang xoá…",
       "cancel": "Huỷ"
     },
     "join": {

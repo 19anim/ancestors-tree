@@ -233,6 +233,7 @@
       "confirmTitle": "Delete {{name}}?",
       "confirmLabel": "Type \"{{name}}\" to confirm",
       "confirm": "Delete for good",
+      "pending": "Deleting…",
       "cancel": "Cancel"
     },
     "join": {
