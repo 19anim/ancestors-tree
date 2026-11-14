@@ -34,6 +34,8 @@ A family tree is edited by several relatives, often on weak mobile connections. 
 
 A notice stays until the user dismisses it, and it survives `load()` of another tree; a later account change replaces it with a `discarded` one. `resetTreeStore()` clears it: after sign-out, after the guard's "discard and open", and when the tree it belongs to is deleted. It carries the `clanId` of the tree it belongs to; when another page or tree is on screen, the banner says it is about "the family tree you were editing". When the same account signs in again after a `signedOut` notice, the store clears it and sends the kept ops (`resumeAfterSignIn`).
 
+P6a replaces the reload on 409 with a rebase and persists the queue in `sessionStorage`, so the Google sign-in warning is gone: see [ADR 0008](0008-undo-rebase-and-revert.md).
+
 The guard never asks for Members, Settings, the `/clans` list or `/login`. When the signed-in account changes, the app shell resets the store (`resetTreeStore`), so one person's unsent edits are never sent as another's in this tab. Deleting a tree calls `discardTreeStateFor(id)`, which resets the store only when it holds that tree.
 
 **Deleting a family tree.** `DELETE /api/clans/:id` (Owner only, 204) removes the Clan and every clan-scoped collection: Person, Union, Operation, Invite, ClanRemoval and Membership. The dialog asks the Manager to type the tree's name; the comparison is Unicode NFC-normalised, so a name typed with composed or decomposed Vietnamese diacritics both match.
