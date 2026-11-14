@@ -1,5 +1,13 @@
 import {
+  anniversaryFor,
+  canChiYear,
+  type Anniversary,
+  type LunarDate,
+  type SolarDate,
+} from '@ancestors-tree/shared/lunar';
+import {
   completeDateInfo,
+  derivedLunar,
   OpError,
   type DateInfo,
   type OpErrorCode,
@@ -103,6 +111,42 @@ export function cardLabel(t: TFunction, person: Person, generation: number, inLa
       : t('tree.card.label', { name, years, generation });
   const family = inLaw ? birthFamilySubtitle(t, person) : undefined;
   return family === undefined ? label : t('tree.card.inLawLabel', { label, family });
+}
+
+function dmy(date: { day: number; month: number; year: number }): string {
+  return `${date.day}/${date.month}/${date.year}`;
+}
+
+function lunarText(t: TFunction, lunar: LunarDate): string {
+  return lunar.isLeap
+    ? t('tree.date.lunarLeap', { day: lunar.day, month: lunar.month, year: lunar.year })
+    : t('tree.date.lunar', { date: dmy(lunar) });
+}
+
+/** "1/1/2026 âm lịch (= 17/2/2026 dương lịch) · năm Bính Ngọ": the entered side first (spec §7.6). */
+export function dateText(t: TFunction, date: DateInfo): string {
+  if (date.source === 'approx') return t('tree.date.approx', { year: date.approxYear });
+  const full = completeDateInfo(date);
+  const solar = full.solar ? t('tree.date.solar', { date: dmy(full.solar) }) : undefined;
+  const lunar = full.lunar ? lunarText(t, full.lunar) : undefined;
+  const [entered, other] = date.source === 'solar' ? [solar, lunar] : [lunar, solar];
+  const text = other === undefined ? (entered ?? '') : t('tree.date.withOther', { entered, other });
+  return full.lunar ? t('tree.date.canChi', { text, name: canChiYear(full.lunar.year) }) : text;
+}
+
+/** This lunar year's anniversary of the death (spec §9.2), or null when there is none yet. */
+export function thisYearsAnniversary(person: Person, today: SolarDate): Anniversary | null {
+  const date = person.death.isDeceased ? person.death.date : undefined;
+  if (!date || date.source === 'approx') return null;
+  const deathLunar = completeDateInfo(date).lunar;
+  const lunarToday = derivedLunar(today);
+  if (!deathLunar || !lunarToday) return null;
+  try {
+    return anniversaryFor(deathLunar, lunarToday.year);
+  } catch (error) {
+    if (error instanceof RangeError) return null;
+    throw error;
+  }
 }
 
 export function ruleKey(reason: OpErrorCode): `tree.rules.${OpErrorCode}` {

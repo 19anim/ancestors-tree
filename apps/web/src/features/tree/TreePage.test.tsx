@@ -32,8 +32,8 @@ describe('TreePage', () => {
     expect(screen.getByText('Đã lưu')).toHaveAttribute('role', 'status');
     const tray = screen.getByRole('region', { name: 'Chưa nối vào cây' });
     expect(within(tray).getByText('Trần Văn Bình')).toBeInTheDocument();
-    // Viewers get no editing controls.
-    expect(screen.queryByRole('button', { name: /Thao tác với/ })).not.toBeInTheDocument();
+    // Viewers get no editing controls: the toolbar has no undo.
+    expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
   });
 
   it('says when the family tree is empty', async () => {

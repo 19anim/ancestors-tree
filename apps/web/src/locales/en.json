@@ -290,7 +290,6 @@
     "card": {
       "label": "{{name}}, {{years}}, generation {{generation}}",
       "labelNoYears": "{{name}}, generation {{generation}}",
-      "actions": "Actions for {{name}}",
       "approxYear": "around {{year}}",
       "inLawLabel": "{{label}}, {{family}}"
     },
@@ -321,15 +320,52 @@
     "outOfDate": "The family tree has just changed. Check again, then try again.",
     "actions": {
       "addFirst": "Add the first person",
-      "description": "What would you like to do with this person?",
       "addChild": "Add a child",
       "addSpouse": "Add a spouse",
+      "addParent": "Add parent",
       "setProgenitor": "Set as progenitor",
       "delete": "Delete this person"
     },
     "unlinked": {
       "title": "Not yet linked",
       "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
+    },
+    "profile": {
+      "close": "Close the profile",
+      "edit": "Edit",
+      "actions": "Actions",
+      "aliases": "Other names",
+      "gender": "Gender",
+      "birth": "Born",
+      "death": "Died",
+      "living": "Living",
+      "deceasedNoDate": "Deceased, date unknown",
+      "anniversary": "This year's death anniversary",
+      "anniversaryValue": "{{lunar}} lunar, that is {{solar}} solar",
+      "anniversaryFirst": "first anniversary",
+      "anniversarySecond": "second anniversary",
+      "burialPlace": "Burial place",
+      "siblingOrder": "Order among siblings",
+      "branch": "Branch",
+      "adopted": "Adopted",
+      "yes": "Yes",
+      "bio": "Biography",
+      "birthFamily": "Birth family",
+      "surname": "Surname",
+      "fatherName": "Father's name",
+      "motherName": "Mother's name",
+      "hometown": "Hometown",
+      "note": "Note",
+      "missing": "{{name}} is no longer in the tree, so the profile closed.",
+      "missingUnnamed": "This person is not in the tree, so the profile closed."
+    },
+    "date": {
+      "solar": "{{date}} solar",
+      "lunar": "{{date}} lunar",
+      "lunarLeap": "{{day}}/leap {{month}}/{{year}} lunar",
+      "approx": "around {{year}}",
+      "withOther": "{{entered}} (= {{other}})",
+      "canChi": "{{text}} · year of {{name}}"
     },
     "toolbar": {
       "label": "Tree tools"

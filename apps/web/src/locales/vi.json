@@ -290,7 +290,6 @@
     "card": {
       "label": "{{name}}, {{years}}, đời thứ {{generation}}",
       "labelNoYears": "{{name}}, đời thứ {{generation}}",
-      "actions": "Thao tác với {{name}}",
       "approxYear": "khoảng năm {{year}}",
       "inLawLabel": "{{label}}, {{family}}"
     },
@@ -321,15 +320,52 @@
     "outOfDate": "Cây gia phả vừa có thay đổi mới. Hãy xem lại rồi thử lại.",
     "actions": {
       "addFirst": "Thêm người đầu tiên",
-      "description": "Bạn muốn làm gì với người này?",
       "addChild": "Thêm con",
       "addSpouse": "Thêm vợ/chồng",
+      "addParent": "Thêm cha/mẹ",
       "setProgenitor": "Chọn làm thuỷ tổ",
       "delete": "Xoá người này"
     },
     "unlinked": {
       "title": "Chưa nối vào cây",
       "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
+    },
+    "profile": {
+      "close": "Đóng hồ sơ",
+      "edit": "Sửa",
+      "actions": "Thao tác",
+      "aliases": "Tên gọi khác",
+      "gender": "Giới tính",
+      "birth": "Ngày sinh",
+      "death": "Ngày mất",
+      "living": "Còn sống",
+      "deceasedNoDate": "Đã mất, chưa rõ ngày",
+      "anniversary": "Giỗ năm nay",
+      "anniversaryValue": "{{lunar}} âm lịch, tức {{solar}} dương lịch",
+      "anniversaryFirst": "giỗ đầu",
+      "anniversarySecond": "giỗ hết",
+      "burialPlace": "Nơi an táng",
+      "siblingOrder": "Thứ tự trong anh chị em",
+      "branch": "Chi, nhánh",
+      "adopted": "Con nuôi",
+      "yes": "Có",
+      "bio": "Tiểu sử",
+      "birthFamily": "Gia đình gốc",
+      "surname": "Họ",
+      "fatherName": "Tên cha",
+      "motherName": "Tên mẹ",
+      "hometown": "Quê quán",
+      "note": "Ghi chú",
+      "missing": "{{name}} không còn trong cây nên hồ sơ đã đóng.",
+      "missingUnnamed": "Không tìm thấy người này trong cây nên hồ sơ đã đóng."
+    },
+    "date": {
+      "solar": "{{date}} dương lịch",
+      "lunar": "{{date}} âm lịch",
+      "lunarLeap": "{{day}}/{{month}} nhuận/{{year}} âm lịch",
+      "approx": "khoảng năm {{year}}",
+      "withOther": "{{entered}} (= {{other}})",
+      "canChi": "{{text}} · năm {{name}}"
     },
     "toolbar": {
       "label": "Công cụ của cây"

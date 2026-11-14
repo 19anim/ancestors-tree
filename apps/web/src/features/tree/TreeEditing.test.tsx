@@ -42,8 +42,20 @@ function idOf(op: Op | undefined): string | undefined {
   return op?.type === 'addPerson' || op?.type === 'addUnion' ? op.payload.id : undefined;
 }
 
-function actionsButton(name: string): HTMLElement {
-  return screen.getByRole('button', { name: `Thao tác với ${name}` });
+/** A person's card button, named by their label: the name, then the years and generation. */
+function cardName(name: string): RegExp {
+  return new RegExp(`^${name}(,|$)`);
+}
+
+function card(name: string): HTMLElement {
+  return screen.getByRole('button', { name: cardName(name) });
+}
+
+/** The Polaroid inside a card button; it is hidden from screen readers. */
+function figureOf(button: HTMLElement): HTMLElement {
+  const figure = button.querySelector('figure');
+  if (!figure) throw new Error('no Polaroid in the card');
+  return figure;
 }
 
 /** Mocks the tree and accepts every op; returns the ops the page sent. */
@@ -59,9 +71,10 @@ function editableTree(tree: TreeResponse, clan = CLAN) {
   return () => api.calls.filter((call) => call.method === 'POST').map((call) => call.body);
 }
 
+/** Opens the person's profile from their card; its actions replace P5's actions dialog. */
 async function openActions(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(await screen.findByRole('button', { name: `Thao tác với ${name}` }));
-  return screen.getByRole('dialog', { name });
+  await user.click(await screen.findByRole('button', { name: cardName(name) }));
+  return screen.getByRole('complementary', { name });
 }
 
 beforeEach(() => {
@@ -77,12 +90,14 @@ afterEach(() => {
 
 describe('editing the tree', () => {
   it('shows no editing controls to a viewer', async () => {
+    const user = userEvent.setup();
     editableTree(FAMILY, { ...CLAN, role: 'viewer' });
     renderRoute(`/clans/${CLAN_ID}/tree`);
+    const profile = await openActions(user, 'Nguyễn Văn Nam');
+    expect(within(profile).queryByRole('button', { name: 'Thêm con' })).not.toBeInTheDocument();
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Thao tác với/ })).not.toBeInTheDocument();
+      within(profile).queryByRole('button', { name: 'Xoá người này' }),
+    ).not.toBeInTheDocument();
   });
 
   it('offers a viewer no way to add the first person', async () => {
@@ -110,8 +125,8 @@ describe('editing the tree', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const tray = screen.getByRole('region', { name: 'Chưa nối vào cây' });
     expect(within(tray).getByText('Lê Thị Hoa')).toBeInTheDocument();
-    // The button that opened the form is gone: focus goes to the new person's button.
-    await waitFor(() => expect(actionsButton('Lê Thị Hoa')).toHaveFocus());
+    // The button that opened the form is gone: focus goes to the new person's card.
+    await waitFor(() => expect(card('Lê Thị Hoa')).toHaveFocus());
     await waitFor(() => expect(screen.getByText('Đã lưu')).toHaveAttribute('role', 'status'));
     expect(sent()).toEqual([
       {
@@ -133,12 +148,18 @@ describe('editing the tree', () => {
     const user = userEvent.setup();
     const sent = editableTree(FAMILY);
     renderRoute(`/clans/${CLAN_ID}/tree`);
-    const dialog = await openActions(user, 'Trần Văn Bình');
-    await user.click(within(dialog).getByRole('button', { name: 'Chọn làm thuỷ tổ' }));
+    const profile = await openActions(user, 'Trần Văn Bình');
+    await user.click(within(profile).getByRole('button', { name: 'Chọn làm thuỷ tổ' }));
 
-    expect(await screen.findByRole('figure', { name: 'Trần Văn Bình, đời thứ 1' })).toHaveAttribute(
-      'data-tape',
-      'progenitor',
+    expect(
+      figureOf(await screen.findByRole('button', { name: 'Trần Văn Bình, đời thứ 1' })),
+    ).toHaveAttribute('data-tape', 'progenitor');
+    // Now the progenitor: the button goes, and focus stays in the profile.
+    expect(
+      within(profile).queryByRole('button', { name: 'Chọn làm thuỷ tổ' }),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(profile).getByRole('heading', { name: 'Trần Văn Bình' })).toHaveFocus(),
     );
     await waitFor(() => expect(sent()).toHaveLength(1));
     expect(sent()[0]).toEqual({
@@ -152,15 +173,15 @@ describe('editing the tree', () => {
     const user = userEvent.setup();
     const sent = editableTree(FAMILY);
     renderRoute(`/clans/${CLAN_ID}/tree`);
-    const dialog = await openActions(user, 'Trần Văn Bình');
+    const profile = await openActions(user, 'Trần Văn Bình');
     const realApply = useTreeStore.getState().apply;
     act(() => useTreeStore.setState({ apply: () => ({ ok: false, reason: 'PERSON_NOT_FOUND' }) }));
     try {
-      await user.click(within(dialog).getByRole('button', { name: 'Chọn làm thuỷ tổ' }));
-      expect(within(dialog).getByRole('alert')).toHaveTextContent(
-        'Người này không còn trong cây gia phả.',
-      );
-      expect(screen.getByRole('dialog', { name: 'Trần Văn Bình' })).toBeInTheDocument();
+      const choose = within(profile).getByRole('button', { name: 'Chọn làm thuỷ tổ' });
+      await user.click(choose);
+      expect(screen.getByRole('alert')).toHaveTextContent('Người này không còn trong cây gia phả.');
+      expect(screen.getByRole('complementary', { name: 'Trần Văn Bình' })).toBeInTheDocument();
+      expect(choose).toHaveFocus();
       expect(sent()).toEqual([]);
     } finally {
       act(() => useTreeStore.setState({ apply: realApply }));
@@ -180,10 +201,12 @@ describe('editing the tree', () => {
     await user.click(within(form).getByRole('button', { name: 'Thêm vào cây' }));
 
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Út, đời thứ 3' }),
+      await screen.findByRole('button', { name: 'Nguyễn Văn Út, đời thứ 3' }),
     ).toBeInTheDocument();
-    // Focus is back on the button that opened the actions.
-    await waitFor(() => expect(actionsButton('Nguyễn Văn Nam')).toHaveFocus());
+    // Focus is back on the profile's button that opened the form.
+    await waitFor(() =>
+      expect(within(actions).getByRole('button', { name: 'Thêm con' })).toHaveFocus(),
+    );
     await waitFor(() => expect(sent()).toHaveLength(1));
     // Nam had no marriage yet: a one-parent union and the child in it, as one change.
     const ops = batchOps(sent()[0]);
@@ -196,29 +219,31 @@ describe('editing the tree', () => {
     });
   });
 
-  it('returns focus to the card after the actions are closed or handed on', async () => {
+  it('returns focus to the profile after a form closes, and to the card after the profile', async () => {
     const user = userEvent.setup();
     editableTree(FAMILY, EDITOR);
     renderRoute(`/clans/${CLAN_ID}/tree`);
 
-    await openActions(user, 'Nguyễn Văn Nam');
-    await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(actionsButton('Nguyễn Văn Nam')).toHaveFocus());
-
     const actions = await openActions(user, 'Nguyễn Văn Nam');
-    await user.click(within(actions).getByRole('button', { name: 'Thêm vợ/chồng' }));
+    const addSpouse = within(actions).getByRole('button', { name: 'Thêm vợ/chồng' });
+    await user.click(addSpouse);
     const form = screen.getByRole('dialog', { name: 'Thêm vợ/chồng của Nguyễn Văn Nam' });
     await user.click(within(form).getByRole('button', { name: 'Huỷ' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(actionsButton('Nguyễn Văn Nam')).toHaveFocus());
+    await waitFor(() => expect(addSpouse).toHaveFocus());
 
-    const again = await openActions(user, 'Nguyễn Văn Nam');
-    await user.click(within(again).getByRole('button', { name: 'Thêm con' }));
+    const addChild = within(actions).getByRole('button', { name: 'Thêm con' });
+    await user.click(addChild);
     expect(screen.getByRole('dialog', { name: 'Thêm con của Nguyễn Văn Nam' })).toBeInTheDocument();
+    // Esc closes the form only, not the profile under it.
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(actionsButton('Nguyễn Văn Nam')).toHaveFocus());
+    expect(screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' })).toBeInTheDocument();
+    await waitFor(() => expect(addChild).toHaveFocus());
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    await waitFor(() => expect(card('Nguyễn Văn Nam')).toHaveFocus());
   });
 
   it('asks which marriage a child belongs to when there are several', async () => {
@@ -269,10 +294,9 @@ describe('editing the tree', () => {
     await user.click(within(form).getByRole('radio', { name: 'Nữ' }));
     await user.click(within(form).getByRole('button', { name: 'Thêm vào cây' }));
 
-    expect(await screen.findByRole('figure', { name: 'Đỗ Thị Lan, đời thứ 2' })).toHaveAttribute(
-      'data-tape',
-      'in-law',
-    );
+    expect(
+      figureOf(await screen.findByRole('button', { name: 'Đỗ Thị Lan, đời thứ 2' })),
+    ).toHaveAttribute('data-tape', 'in-law');
     await waitFor(() => expect(sent()).toHaveLength(1));
     // Nam had no marriage: the spouse and a new union of the two.
     const ops = batchOps(sent()[0]);
@@ -329,7 +353,9 @@ describe('editing the tree', () => {
     expect(within(confirm).getByRole('alert')).toHaveTextContent('Không xoá được người còn con.');
     await user.click(within(confirm).getByRole('button', { name: 'Huỷ' }));
     expect(sent()).toEqual([]);
-    await waitFor(() => expect(actionsButton('Lê Thị Hoa')).toHaveFocus());
+    await waitFor(() =>
+      expect(within(actions).getByRole('button', { name: 'Xoá người này' })).toHaveFocus(),
+    );
 
     const looseActions = await openActions(user, 'Trần Văn Bình');
     await user.click(within(looseActions).getByRole('button', { name: 'Xoá người này' }));
@@ -345,8 +371,11 @@ describe('editing the tree', () => {
       op: { type: 'deletePerson', payload: { id: LOOSE } },
     });
     expect(screen.queryByRole('region', { name: 'Chưa nối vào cây' })).not.toBeInTheDocument();
-    // The person and their button are gone: focus goes to the start of the page content.
+    // The person, their profile and their card are gone: focus goes to the start of the page
+    // content, and no notice says the profile closed (the user deleted them).
     await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    expect(screen.queryByText(/hồ sơ đã đóng/)).not.toBeInTheDocument();
   });
 });
 
@@ -430,7 +459,7 @@ describe('unsent changes', () => {
       }),
     );
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
+      await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Họ Trần' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -480,7 +509,7 @@ describe('unsent changes', () => {
     expect(screen.getByRole('dialog', { name: ASK })).toBeInTheDocument();
     release();
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
+      await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByText(/đã bị bỏ/)).not.toBeInTheDocument();
@@ -522,7 +551,7 @@ describe('unsent changes', () => {
 
     await openOtherTree(user);
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
+      await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

@@ -1,24 +1,19 @@
 import { buildTreeIndex } from '@ancestors-tree/shared/tree';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DeletePersonDialog } from './DeletePersonDialog';
-import { addChildOp, addFirstPersonOp, addSpouseOp, deletePersonOp, setProgenitorOp } from './ops';
-import { PersonActionsDialog } from './PersonActionsDialog';
+import { addChildOp, addFirstPersonOp, addSpouseOp, deletePersonOp } from './ops';
 import { PersonFormDialog, type UnionChoice } from './PersonFormDialog';
+import { personCardButton } from './profileParams';
 import { useTreeStore } from './store';
 
 export type TreeDialog =
-  { kind: 'first' } | { kind: 'actions' | 'child' | 'spouse' | 'delete'; personId: string } | null;
-
-/** The person's actions button (on the board or in the tray): see PersonCard and UnlinkedTray. */
-function actionsButtonOf(personId: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`[data-person-actions="${personId}"]`);
-}
+  { kind: 'first' } | { kind: 'child' | 'spouse' | 'delete'; personId: string } | null;
 
 /**
  * The tree page's dialog, and where focus goes when the last one closes (WCAG 2.4.3). The
  * dialogs open without a Radix trigger, so they record what opened them: on close, focus goes
- * back to that element, else to the person's actions button (after an add, the new person's),
+ * back to that element, else to the person's card (after an add, the new person's),
  * else to the main content.
  */
 export function useTreeDialog() {
@@ -45,13 +40,13 @@ export function useTreeDialog() {
 
   const returnFocus = useCallback((event: Event) => {
     event.preventDefault();
-    // Handed on to the next dialog (actions, then add a child): focus belongs to that one.
+    // Handed on to another dialog: focus belongs to that one.
     if (current.current !== null) return;
     const from = opener.current;
     opener.current = null;
     const target =
       (from?.element?.isConnected ? from.element : null) ??
-      (from?.personId ? actionsButtonOf(from.personId) : null) ??
+      (from?.personId ? personCardButton(from.personId) : null) ??
       document.querySelector<HTMLElement>('main');
     target?.focus();
   }, []);
@@ -61,9 +56,10 @@ export function useTreeDialog() {
 
 interface TreeDialogsProps {
   dialog: TreeDialog;
-  isOwner: boolean;
   onDialogChange: (next: TreeDialog) => void;
   onFirstPersonAdded: (personId: string) => void;
+  /** The user deleted this person here (the profile then closes without a notice). */
+  onPersonDeleted: (personId: string) => void;
   /** Given to every dialog's onCloseAutoFocus. */
   onCloseAutoFocus: (event: Event) => void;
 }
@@ -71,9 +67,9 @@ interface TreeDialogsProps {
 /** One dialog at a time; each is mounted only while open, so its form starts empty. */
 export function TreeDialogs({
   dialog,
-  isOwner,
   onDialogChange,
   onFirstPersonAdded,
+  onPersonDeleted,
   onCloseAutoFocus,
 }: TreeDialogsProps) {
   const { t } = useTranslation();
@@ -83,6 +79,13 @@ export function TreeDialogs({
   const needsIndex = dialog?.kind === 'child' || dialog?.kind === 'spouse';
   const index = useMemo(() => (needsIndex ? buildTreeIndex(tree) : null), [needsIndex, tree]);
   const close = () => onDialogChange(null);
+  // A dialog whose person is gone (deleted meanwhile, for example by a reload after a conflict)
+  // is reset, so the next dialog records its opener again.
+  const missing =
+    dialog !== null && dialog.kind !== 'first' && tree.persons[dialog.personId] === undefined;
+  useEffect(() => {
+    if (missing) onDialogChange(null);
+  }, [missing, onDialogChange]);
 
   if (dialog === null) return null;
   if (dialog.kind === 'first') {
@@ -105,20 +108,6 @@ export function TreeDialogs({
   if (!person) return null;
 
   switch (dialog.kind) {
-    case 'actions':
-      return (
-        <PersonActionsDialog
-          person={person}
-          isOwner={isOwner}
-          isProgenitor={tree.progenitorId === person.id}
-          onAddChild={() => onDialogChange({ kind: 'child', personId: person.id })}
-          onAddSpouse={() => onDialogChange({ kind: 'spouse', personId: person.id })}
-          onSetProgenitor={() => apply(setProgenitorOp(person.id))}
-          onDelete={() => onDialogChange({ kind: 'delete', personId: person.id })}
-          onClose={close}
-          onCloseAutoFocus={onCloseAutoFocus}
-        />
-      );
     case 'child': {
       if (index === null) return null;
       const choices: UnionChoice[] = index.unionsOf(person.id).map((union) => {
@@ -155,7 +144,11 @@ export function TreeDialogs({
       return (
         <DeletePersonDialog
           person={person}
-          onConfirm={() => apply(deletePersonOp(person.id))}
+          onConfirm={() => {
+            const result = apply(deletePersonOp(person.id));
+            if (result.ok) onPersonDeleted(person.id);
+            return result;
+          }}
           onClose={close}
           onCloseAutoFocus={onCloseAutoFocus}
         />

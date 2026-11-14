@@ -7,11 +7,13 @@ import {
   birthdayOf,
   birthFamilySubtitle,
   cardLabel,
+  dateText,
   dayMonth,
   deathAnniversaryOf,
   lifeYears,
   lifeYearsSpoken,
   rejectionMessage,
+  thisYearsAnniversary,
   yearOf,
 } from './format';
 
@@ -142,5 +144,39 @@ describe('in-law subtitle and card label', () => {
     });
     expect(cardLabel(i18n.t, wife, 2, true)).toBe('Lê Thị Hoa, đời thứ 2, Con gái ông Lê Văn Ba');
     expect(cardLabel(i18n.t, wife, 2, false)).toBe('Lê Thị Hoa, đời thứ 2');
+  });
+});
+
+describe('dates in the profile', () => {
+  it('shows the entered side first, the other side, and the Can Chi year', () => {
+    expect(
+      dateText(i18n.t, {
+        source: 'lunar',
+        lunar: { day: 1, month: 1, year: 2026, isLeap: false },
+        solar: { day: 17, month: 2, year: 2026 },
+      }),
+    ).toBe('1/1/2026 âm lịch (= 17/2/2026 dương lịch) · năm Bính Ngọ');
+    expect(dateText(i18n.t, { source: 'solar', solar: { day: 17, month: 2, year: 2026 } })).toBe(
+      '17/2/2026 dương lịch (= 1/1/2026 âm lịch) · năm Bính Ngọ',
+    );
+    expect(dateText(i18n.t, { source: 'approx', approxYear: 1920 })).toBe('khoảng năm 1920');
+  });
+
+  it("gives this lunar year's anniversary of a death", () => {
+    const person = fixturePerson(ID, 'A', {
+      death: {
+        isDeceased: true,
+        date: { source: 'lunar', lunar: { day: 1, month: 1, year: 2020, isLeap: false } },
+      },
+    });
+    // 1 March 2026 is in lunar year 2026, whose 1/1 is 17 February 2026.
+    expect(thisYearsAnniversary(person, { day: 1, month: 3, year: 2026 })?.solarDate).toEqual({
+      day: 17,
+      month: 2,
+      year: 2026,
+    });
+    expect(
+      thisYearsAnniversary(fixturePerson(ID, 'B'), { day: 1, month: 3, year: 2026 }),
+    ).toBeNull();
   });
 });

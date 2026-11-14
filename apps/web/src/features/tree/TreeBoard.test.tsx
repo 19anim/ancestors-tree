@@ -9,9 +9,16 @@ import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
 import { CLAN_ID, FAMILY, GRANDMA, GRANDPA, ME, SON } from './fixtures';
 import { PersonCard } from './PersonCard';
+import { OpenPersonContext } from './profileParams';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
-import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
+
+/** The Polaroid inside a card button; it is hidden from screen readers. */
+function figureOf(card: HTMLElement): HTMLElement {
+  const figure = card.querySelector('figure');
+  if (!figure) throw new Error('no Polaroid in the card');
+  return figure;
+}
 
 function showTree(tree: TreeState): void {
   useTreeStore.setState({
@@ -64,7 +71,7 @@ describe('TreeBoard', () => {
   it('keeps threads and union knots away from screen readers', async () => {
     showTree(family);
     const { container } = renderWithProviders(<TreeBoard label="Cây gia phả: Họ Nguyễn" />);
-    await screen.findByRole('figure', { name: /Nguyễn Văn Tư/ });
+    await screen.findByRole('button', { name: /^Nguyễn Văn Tư,/ });
     // React Flow names every edge "Edge from <id> to <id>" (role="img"); the threads carry
     // aria-hidden (flowElements.test.ts), so none is exposed. The board is rendered inside its own
     // ReactFlowProvider, so jsdom draws the edges; the union knots are drawn too.
@@ -81,21 +88,22 @@ describe('TreeBoard', () => {
     showTree(family);
     renderWithProviders(<TreeBoard label="Cây gia phả: Họ Nguyễn" />);
     expect(screen.getByRole('group', { name: 'Cây gia phả: Họ Nguyễn' })).toBeInTheDocument();
-    expect(
-      await screen.findByRole('figure', {
-        name: 'Nguyễn Văn Tư, khoảng năm 1931–khoảng năm 2004, đời thứ 1',
-      }),
-    ).toHaveAttribute('data-tape', 'progenitor');
-    expect(screen.getByRole('figure', { name: 'Lê Thị Hoa, đời thứ 1' })).toHaveAttribute(
+    const grandpa = await screen.findByRole('button', {
+      name: 'Nguyễn Văn Tư, khoảng năm 1931–khoảng năm 2004, đời thứ 1',
+    });
+    expect(figureOf(grandpa)).toHaveAttribute('data-tape', 'progenitor');
+    expect(figureOf(screen.getByRole('button', { name: 'Lê Thị Hoa, đời thứ 1' }))).toHaveAttribute(
       'data-tape',
       'in-law',
     );
-    expect(screen.getByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' })).toHaveAttribute(
-      'data-tape',
-      'branch-1',
-    );
+    expect(
+      figureOf(screen.getByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' })),
+    ).toHaveAttribute('data-tape', 'branch-1');
+    // The card is the button: the Polaroid inside it is not read a second time.
+    expect(figureOf(grandpa)).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('figure')).not.toBeInTheDocument();
     // Not linked to the progenitor: listed in the tray, not drawn.
-    expect(screen.queryByRole('figure', { name: /Trần Văn Bình/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Trần Văn Bình/ })).not.toBeInTheDocument();
   });
 
   it('shows the anniversary line and the birthday sticker', async () => {
@@ -117,36 +125,43 @@ describe('TreeBoard', () => {
     } satisfies TreeResponse;
     showTree(treeStateFromLists(tree.progenitorId, tree.persons, tree.unions));
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
-    expect(await screen.findByText('Ngày giỗ 15/10 âm lịch')).toBeInTheDocument();
-    expect(screen.getByText('Sinh nhật 21/11')).toBeInTheDocument();
+    // The marks are inside the hidden Polaroid: the card buttons describe them.
+    expect(
+      await screen.findByRole('button', { name: /^Nguyễn Văn Tư,/ }),
+    ).toHaveAccessibleDescription('Ngày giỗ 15/10 âm lịch');
+    expect(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ })).toHaveAccessibleDescription(
+      'Sinh nhật 21/11',
+    );
+    expect(screen.getByRole('button', { name: /^Lê Thị Hoa,/ })).not.toHaveAttribute(
+      'aria-describedby',
+    );
   });
 
-  it('names an in-law card’s birth family and shows it as the actions button’s tooltip', async () => {
+  it('names an in-law card’s birth family and shows it as the card’s tooltip', async () => {
     showTree(withHoaBirthFamily());
     renderWithProviders(
-      <TreeActionsContext value={vi.fn()}>
+      <OpenPersonContext value={vi.fn()}>
         <TreeBoard label="Cây gia phả" />
-      </TreeActionsContext>,
+      </OpenPersonContext>,
     );
-    expect(
-      await screen.findByRole('figure', { name: 'Lê Thị Hoa, đời thứ 1, Con gái ông Lê Văn Ba' }),
-    ).toBeInTheDocument();
+    const card = await screen.findByRole('button', {
+      name: 'Lê Thị Hoa, đời thứ 1, Con gái ông Lê Văn Ba',
+    });
     const tooltip = screen.getByRole('tooltip', { hidden: true });
     expect(tooltip).toHaveTextContent('Con gái ông Lê Văn Ba');
-    const actions = screen.getByRole('button', { name: 'Thao tác với Lê Thị Hoa' });
-    expect(actions).toHaveAttribute('aria-describedby', tooltip.id);
-    expect(actions).toHaveAccessibleDescription('Con gái ông Lê Văn Ba');
+    expect(card).toHaveAttribute('aria-describedby', tooltip.id);
+    expect(card).toHaveAccessibleDescription('Con gái ông Lê Văn Ba');
   });
 
   it('hides the in-law tooltip on Escape until the pointer or focus leaves', async () => {
     const user = userEvent.setup();
     showTree(withHoaBirthFamily());
     renderWithProviders(
-      <TreeActionsContext value={vi.fn()}>
+      <OpenPersonContext value={vi.fn()}>
         <TreeBoard label="Cây gia phả" />
-      </TreeActionsContext>,
+      </OpenPersonContext>,
     );
-    const actions = await screen.findByRole('button', { name: 'Thao tác với Lê Thị Hoa' });
+    const actions = await screen.findByRole('button', { name: /^Lê Thị Hoa,/ });
     // jsdom has no CSS: the hover and focus rules are the classes that show the tooltip.
     const tooltip = () => screen.getByRole('tooltip', { hidden: true });
     // Hoverable (WCAG 1.4.13): the pointer can move onto the tooltip without it vanishing.
@@ -171,7 +186,7 @@ describe('TreeBoard', () => {
     mockApi({ [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 4 } }) });
     showTree(family);
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     act(() => {
       useTreeStore.getState().apply({
         type: 'updatePerson',
@@ -179,7 +194,7 @@ describe('TreeBoard', () => {
       });
     });
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Năm, đời thứ 2' }),
+      await screen.findByRole('button', { name: 'Nguyễn Văn Năm, đời thứ 2' }),
     ).toBeInTheDocument();
   });
 
@@ -190,29 +205,29 @@ describe('TreeBoard', () => {
     expect(screen.queryByRole('group')).not.toBeInTheDocument();
   });
 
-  it('offers a card’s actions only when editing is possible', async () => {
+  it('opens a person’s profile from their card, by click or by Enter', async () => {
     const user = userEvent.setup();
-    const openActions = vi.fn();
+    const openPerson = vi.fn();
     showTree(family);
-    const { unmount } = renderWithProviders(<TreeBoard label="Cây gia phả" />);
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
-    expect(screen.queryByRole('button', { name: /Thao tác với/ })).not.toBeInTheDocument();
-    unmount();
-
     renderWithProviders(
-      <TreeActionsContext value={openActions}>
+      <OpenPersonContext value={openPerson}>
         <TreeBoard label="Cây gia phả" />
-      </TreeActionsContext>,
+      </OpenPersonContext>,
     );
-    await user.click(await screen.findByRole('button', { name: 'Thao tác với Nguyễn Văn Nam' }));
-    expect(openActions).toHaveBeenCalledWith(SON);
+    const card = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    expect(card).toHaveAttribute('data-person-open', SON);
+    await user.click(card);
+    expect(openPerson).toHaveBeenLastCalledWith(SON);
+    act(() => screen.getByRole('button', { name: /^Lê Thị Hoa,/ }).focus());
+    await user.keyboard('{Enter}');
+    expect(openPerson).toHaveBeenLastCalledWith(GRANDMA);
   });
 
   it('re-renders only the edited person’s card', async () => {
     mockApi({ [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 4 } }) });
     showTree(family);
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const renderedFor = (id: string) =>
       vi.mocked(PersonCard).mock.calls.filter(([props]) => props.person.id === id).length;
     const before = { son: renderedFor(SON), grandma: renderedFor(GRANDMA) };
@@ -223,21 +238,34 @@ describe('TreeBoard', () => {
         payload: { id: SON, changes: { fullName: 'Nguyễn Văn Năm' } },
       });
     });
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Năm, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Năm, đời thứ 2' });
     expect(renderedFor(SON)).toBeGreaterThan(before.son);
     expect(renderedFor(GRANDMA)).toBe(before.grandma);
   });
 
-  it('tabs to the board, then the actions buttons, then the zoom buttons', async () => {
+  it('does not re-render a card without a tooltip on hover', async () => {
+    const user = userEvent.setup();
+    showTree(family);
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    const card = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const renderedFor = (id: string) =>
+      vi.mocked(PersonCard).mock.calls.filter(([props]) => props.person.id === id).length;
+    const before = renderedFor(SON);
+    await user.hover(card);
+    await user.unhover(card);
+    expect(renderedFor(SON)).toBe(before);
+  });
+
+  it('tabs to the board, then the cards, then the zoom buttons', async () => {
     const user = userEvent.setup();
     showTree(family);
     renderWithProviders(
-      <TreeActionsContext value={vi.fn()}>
+      <OpenPersonContext value={vi.fn()}>
         <button type="button">Before</button>
         <TreeBoard label="Cây gia phả" />
-      </TreeActionsContext>,
+      </OpenPersonContext>,
     );
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const stops: string[] = [];
     for (let i = 0; i < 9; i += 1) {
       await user.tab();
@@ -247,9 +275,9 @@ describe('TreeBoard', () => {
     expect(stops).toEqual([
       'Before',
       'Cây gia phả',
-      'Thao tác với Nguyễn Văn Tư',
-      'Thao tác với Lê Thị Hoa',
-      'Thao tác với Nguyễn Văn Nam',
+      'Nguyễn Văn Tư, khoảng năm 1931–khoảng năm 2004, đời thứ 1',
+      'Lê Thị Hoa, đời thứ 1',
+      'Nguyễn Văn Nam, đời thứ 2',
       'React Flow attribution',
       'Phóng to',
       'Thu nhỏ',
@@ -257,18 +285,22 @@ describe('TreeBoard', () => {
     ]);
   });
 
-  it('gives a viewer’s board one stop and the zoom buttons, with the keys described', async () => {
+  it('gives a viewer’s board one stop, the cards and the zoom buttons, with the keys described', async () => {
     showTree(family);
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const board = screen.getByRole('group', { name: 'Cây gia phả' });
     expect(board).toHaveAttribute('tabindex', '0');
     expect(board).toHaveAccessibleDescription(
       'Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây.',
     );
-    // No node or edge wrapper is a tab stop; the only buttons are the zoom buttons.
+    // No node or edge wrapper is a tab stop; the only buttons are the cards (a viewer opens
+    // profiles too) and the zoom buttons.
     expect(board.querySelectorAll('[tabindex]')).toHaveLength(0);
     expect([...board.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Nguyễn Văn Tư, khoảng năm 1931–khoảng năm 2004, đời thứ 1',
+      'Lê Thị Hoa, đời thứ 1',
+      'Nguyễn Văn Nam, đời thứ 2',
       'Phóng to',
       'Thu nhỏ',
       'Xem cả cây',
@@ -279,11 +311,11 @@ describe('TreeBoard', () => {
     const user = userEvent.setup();
     showTree(family);
     renderWithProviders(
-      <TreeActionsContext value={vi.fn()}>
+      <OpenPersonContext value={vi.fn()}>
         <TreeBoard label="Cây gia phả" />
-      </TreeActionsContext>,
+      </OpenPersonContext>,
     );
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const board = screen.getByRole('group', { name: 'Cây gia phả' });
     act(() => board.focus());
     const start = viewportOf(board);
@@ -295,7 +327,7 @@ describe('TreeBoard', () => {
     await user.keyboard('+');
     await waitFor(() => expect(viewportOf(board).zoom).toBeGreaterThan(start.zoom));
 
-    act(() => screen.getByRole('button', { name: 'Thao tác với Nguyễn Văn Nam' }).focus());
+    act(() => screen.getByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' }).focus());
     const onCard = viewportOf(board);
     await user.keyboard('{ArrowLeft}');
     expect(viewportOf(board).x).toBeCloseTo(onCard.x);
@@ -304,15 +336,15 @@ describe('TreeBoard', () => {
   it('brings a card into view when its button gets focus', async () => {
     showTree(family);
     renderWithProviders(
-      <TreeActionsContext value={vi.fn()}>
+      <OpenPersonContext value={vi.fn()}>
         <TreeBoard label="Cây gia phả" />
-      </TreeActionsContext>,
+      </OpenPersonContext>,
     );
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const board = screen.getByRole('group', { name: 'Cây gia phả' });
     // jsdom boards are 1×1 pixel (test/reactFlow.ts), so no card is ever fully in view.
     const before = viewportOf(board);
-    act(() => screen.getByRole('button', { name: 'Thao tác với Nguyễn Văn Nam' }).focus());
+    act(() => screen.getByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' }).focus());
     await waitFor(() => expect(viewportOf(board)).not.toEqual(before));
   });
 });

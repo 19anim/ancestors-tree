@@ -166,7 +166,7 @@ describe('HistoryPage', () => {
     expect(reads()).toBe(1);
 
     await user.click(screen.getByRole('link', { name: 'Cây' }));
-    await screen.findByRole('figure', { name: /Nguyễn Văn Nam/ });
+    await screen.findByRole('button', { name: /Nguyễn Văn Nam/ });
     act(() => {
       useTreeStore.getState().apply(saved.op);
     });
