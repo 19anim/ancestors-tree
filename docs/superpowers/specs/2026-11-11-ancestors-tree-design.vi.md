@@ -352,6 +352,11 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 
 **Giới hạn:** một `batch` có 1–500 thao tác và không chứa `batch` khác; một dòng họ có tối đa 5.000 người (`TREE_FULL`); `GET /api/clans/:id/ops?since=` trả tối đa 500 thao tác mỗi lần gọi.
 
+**Các trường của request ngoài `op` và `baseVersion`** (P6a):
+- `expectedUserId`: tài khoản sở hữu hàng đợi của client. Nếu khác người đang đăng nhập, server trả `IDENTITY_MISMATCH` (409) và không áp gì cả. Việc này chặn một tab gửi thay đổi của tài khoản khác sau khi tab thứ hai đăng nhập.
+- `revertsSeq`: do thao tác hoàn tác và nút "Hoàn tác" ở trang Lịch sử đặt. Nó ghi seq của thay đổi bị hoàn tác, và được lưu vào Operation để lịch sử ghi được "đã hoàn tác #42".
+- `revertsToSeq`: do "Quay về thời điểm này" đặt. Cần quyền Quản lý, và được lưu vào Operation.
+
 **Luật nghiệp vụ** (do `applyOp` kiểm tra, vi phạm thì ném `OpError`):
 - Không xoá được người còn con (phải gỡ hoặc chuyển con trước). Xoá một người thì các Union mà người đó là partner duy nhất cũng bị xoá theo.
 - Không xoá được Union còn con, để không đứa con nào trỏ tới một Union không còn tồn tại (`UNION_HAS_CHILDREN`).
@@ -399,7 +404,12 @@ pending.shift(); version = 43
 
 Thử lại tối đa 3 lần; quá số đó thì tải lại toàn bộ cây và báo người dùng.
 
-**Hành vi ở P5 (cho tới khi rebase xong ở P6).** Khi gặp 409, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng. Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác bỏ thao tác bị từ chối cùng các thao tác phụ thuộc vào nó, báo lý do và số lượng đã bỏ, rồi chạy lại phần còn lại.
+**Chi tiết (P6a).**
+- **Đọc nhiều trang.** Bước 1 đọc tiếp các trang sau cho tới khi bắt kịp phiên bản của server. Đọc thất bại thì chờ theo cùng thời gian chờ tăng dần như khi gửi.
+- **Chồng undo.** Thao tác bị bỏ ở bước 4 được báo trong thông báo `rejected` có sẵn (lý do và số lượng), và mục của nó rời khỏi chồng undo lẫn redo. Nhờ vậy hoàn tác không bao giờ hoàn tác một thứ chưa từng được lưu.
+- **Khi nào tải lại.** Sau 3 lần 409 liên tiếp, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng (như hành vi ở P5). Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục.
+
+**Các lỗi khác.** `IDENTITY_MISMATCH` dừng hàng đợi và giữ mọi thao tác, rồi báo rằng tab này đang đăng nhập bằng tài khoản khác. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác bỏ thao tác bị từ chối cùng các thao tác phụ thuộc vào nó, báo lý do và số lượng đã bỏ, rồi chạy lại phần còn lại.
 
 ### 6.4 Undo / redo / hoàn tác thay đổi cũ
 
@@ -408,7 +418,16 @@ Thử lại tối đa 3 lần; quá số đó thì tải lại toàn bộ cây v
 - **Undo** lấy op gần nhất **của chính người dùng trong phiên này** và gửi `inverse` của nó như một **op mới** (có `revertsSeq`). Lịch sử không bao giờ bị xoá, nên nhật ký luôn đầy đủ và trung thực.
 - **Redo** gửi lại op vừa bị undo. Có thay đổi mới thì xoá stack redo.
 - Stack undo bị xoá khi tải lại trang.
-- **Trang Lịch sử**: bấm "Hoàn tác" ở một thay đổi cũ bất kỳ sẽ gửi `inverse` của nó. Nếu không còn áp được (VD người đó đã bị xoá sau đó), hiện lý do lỗi từ `applyOp`.
+- Hoàn tác được cả thao tác còn đang chờ lưu. Thao tác ngược xếp hàng ngay sau nó, và `revertsSeq` được điền khi thao tác gốc đã có seq. Nếu thao tác ngược không còn áp được trên máy thì không gửi gì: người dùng thấy "Không hoàn tác được: <lý do>" và mục đó rời khỏi chồng.
+- **Trang Lịch sử** (`/clans/:id/history`):
+  - **Ai xem được.** Mọi thành viên, kể cả người chỉ có quyền xem.
+  - **Danh sách.** Thay đổi mới nhất ở trên, có phân trang. Mỗi dòng ghi người sửa, thời gian và một câu tóm tắt dễ đọc ("Lan thêm Nguyễn Văn Bình"). Server ghép kèm tên hiển thị của người sửa.
+  - **"Hoàn tác" một thay đổi.** Người Biên tập trở lên dùng được. App gửi `inverse` của đúng thay đổi đó. Nếu không còn áp được (VD người đó đã bị xoá sau đó), hiện lý do lỗi từ `applyOp`.
+- **"Quay về thời điểm này"** (chỉ người Quản lý, trên trang Lịch sử). Client gom `inverse` của mọi thay đổi sau seq đã chọn thành một `batch`, mới nhất trước, với các `batch` lồng nhau được làm phẳng, rồi gửi kèm `revertsToSeq`.
+  - **Hỏi trước.** Hộp xác nhận ghi rõ số thay đổi sẽ bị hoàn tác.
+  - **Giới hạn.** Quá 500 bước thì báo "Chọn một mốc gần hơn".
+  - **Tất cả hoặc không gì cả.** Nếu có thao tác ngược không còn áp được, cả lần quay về bị từ chối kèm lý do, và cây giữ nguyên.
+  - **Một bước hoàn tác.** Lần quay về là một thao tác riêng, nên ↶ hoàn tác cả lần quay về trong một lần.
 - Undo một lần AI nhập liệu = gửi inverse của `batch`, gỡ toàn bộ lần nhập đó.
 
 ---
@@ -465,7 +484,13 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 
 Component đọc store qua **selector** (`useTreeStore(s => s.persons[id])`) để chỉ vẽ lại khi đúng phần đó đổi.
 
-**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác, trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại và báo người dùng đã bỏ bao nhiêu thay đổi. Các thông báo (tải lại, thay đổi bị từ chối, hết phiên, thay đổi bị bỏ) hiện ở mọi trang cho tới khi người dùng đóng, vì thay đổi có thể đã mất trong lúc đang ở trang khác. Sau khi hết phiên, đăng nhập bằng Google sẽ rời khỏi trang và bỏ các thay đổi đang giữ, nên trang đăng nhập cảnh báo và gợi ý dùng email và mật khẩu. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
+**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác, trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại và báo người dùng đã bỏ bao nhiêu thay đổi. Các thông báo (tải lại, thay đổi bị từ chối, hết phiên, thay đổi bị bỏ) hiện ở mọi trang cho tới khi người dùng đóng, vì thay đổi có thể đã mất trong lúc đang ở trang khác. Hàng đợi còn được lưu vào `sessionStorage` (P6a), theo người dùng, cây và phiên bản đã xác nhận:
+- **Cùng người, cùng cây, cùng phiên bản:** hàng đợi được khôi phục sau khi tải lại trang, hoặc sau khi đăng nhập bằng Google lúc hết phiên.
+- **Cùng người và cây nhưng phiên bản mới hơn:** khôi phục qua rebase ở §6.3.
+- **Tài khoản khác:** bỏ bản lưu, kèm thông báo `discarded`.
+- **Dữ liệu không đọc được:** bỏ đi, kèm thông báo.
+
+P5 chỉ cảnh báo trước khi đăng nhập bằng Google; P6a bỏ cảnh báo đó. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
 
 **Xoá cây gia phả** (chỉ Quản lý, `DELETE /api/clans/:id`, 204) xoá dòng họ cùng mọi người, union, thao tác, lời mời, bản ghi bị gỡ và tư cách thành viên. Quản lý phải gõ tên cây để xác nhận; việc so khớp chuẩn hoá Unicode NFC.
 
@@ -827,7 +852,7 @@ ancestors-tree/                      gốc trên Cloudinary
   ```json
   { "error": { "code": "VERSION_CONFLICT", "message": "The tree was updated by someone else" } }
   ```
-  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, từ `applyOp`, kèm `reason`: mã `OpError`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
+  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `IDENTITY_MISMATCH` (409, `expectedUserId` của thao tác không phải người đang đăng nhập), `RULE_VIOLATION` (422, từ `applyOp`, kèm `reason`: mã `OpError`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
 - **Client:** api client chuyển lỗi thành `ApiError { code, message }`, giao diện hiện câu tiếng Việt tương ứng với `code`. Mỗi feature được bọc trong một **Error Boundary**. Thao tác lỗi thì hiện toast. Mất mạng khi gửi op thì giữ trong `pending` và thử lại kiểu **exponential backoff** (1 s, 2 s, 4 s…); thanh công cụ hiện "Chưa lưu".
 - **Render cold start (~30–60 giây):** lần tải đầu hiện màn hình "Đang khởi động máy chủ…" thay vì trang trắng.
 - **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production.
