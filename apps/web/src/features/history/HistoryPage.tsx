@@ -28,34 +28,76 @@ function useRefreshOnSave(clanId: string) {
 }
 
 export function HistoryPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const clan = useOutletContext<Clan>();
   const view = useClanTree(clan.id);
   const history = useHistory(clan.id);
   const tree = useTreeStore((state) => state.tree);
+  const pending = useTreeStore((state) => state.pending);
   const revertChange = useTreeStore((state) => state.revertChange);
   const lookup = useMemo(() => lookupIn(tree), [tree]);
-  const [failure, setFailure] = useState<string | null>(null);
+  const formatTime = useMemo(() => {
+    const format = new Intl.DateTimeFormat(i18n.language, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+    return (date: Date) => format.format(date);
+  }, [i18n.language]);
+  // The changes a queued revert is about to undo: their Revert waits for the save.
+  const reverting = useMemo(() => {
+    const seqs = new Set<number>();
+    for (const entry of pending) {
+      if (entry.reverts !== undefined && 'seq' in entry.reverts) seqs.add(entry.reverts.seq);
+    }
+    return seqs;
+  }, [pending]);
+  // A revert that failed, for the history it was tried on: new data makes it stale.
+  const [failure, setFailure] = useState<{ message: string; data: unknown } | null>(null);
   const titleId = useId();
+  const listRef = useRef<HTMLOListElement>(null);
+  // How many entries the list had when Show more was pressed; focus follows the new ones.
+  const focusFrom = useRef<number | null>(null);
   useRefreshOnSave(clan.id);
 
   const canEdit = hasRoleAtLeast(clan.role, 'editor');
   const isOwner = clan.role === 'owner';
   const entries = history.data?.pages.flatMap((page) => page.entries) ?? [];
+  const entryCount = entries.length;
+  const hasNextPage = history.hasNextPage;
+
+  // When the last page arrives the button goes away and takes keyboard focus with it.
+  useEffect(() => {
+    const from = focusFrom.current;
+    if (from === null || entryCount <= from) return;
+    focusFrom.current = null;
+    const target = listRef.current?.children[from];
+    if (!hasNextPage && target instanceof HTMLElement) target.focus();
+  }, [entryCount, hasNextPage]);
 
   const revert = (entry: HistoryEntry) => {
+    if (reverting.has(entry.seq)) return;
     const result = revertChange(entry.inverse, entry.seq);
     setFailure(
       result.ok
         ? null
-        : t('history.revertFailed', {
-            seq: entry.seq,
-            reason: applyFailureMessage(t, result.reason),
-          }),
+        : {
+            message: t('history.revertFailed', {
+              seq: entry.seq,
+              reason: applyFailureMessage(t, result.reason),
+            }),
+            data: history.data,
+          },
     );
   };
 
-  if (view.state === 'error' || history.isError) {
+  const showMore = () => {
+    if (history.isFetchingNextPage) return;
+    focusFrom.current = entryCount;
+    void history.fetchNextPage();
+  };
+
+  const historyFailed = history.isError && history.data === undefined;
+  if (view.state === 'error' || historyFailed) {
     const error = view.state === 'error' ? view.error : history.error;
     return (
       <div className="flex flex-col items-start gap-3">
@@ -64,7 +106,10 @@ export function HistoryPage() {
         </p>
         <Button
           variant="secondary"
-          onClick={() => (view.state === 'error' ? view.retry() : void history.refetch())}
+          onClick={() => {
+            if (view.state === 'error') view.retry();
+            if (historyFailed) void history.refetch();
+          }}
         >
           {t('tree.retry')}
         </Button>
@@ -72,8 +117,13 @@ export function HistoryPage() {
     );
   }
   if (view.state === 'loading' || history.isPending) {
-    return <p className="text-ink-muted">{t('common.loading')}</p>;
+    return (
+      <p role="status" className="text-ink-muted">
+        {t('common.loading')}
+      </p>
+    );
   }
+  const shownFailure = failure !== null && failure.data === history.data ? failure.message : null;
   return (
     <section aria-labelledby={titleId} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -82,37 +132,66 @@ export function HistoryPage() {
         </h2>
         <SaveStatus />
       </div>
-      {failure !== null ? (
+      {shownFailure !== null ? (
         <p role="alert" className="text-sm font-medium text-stamp">
-          {failure}
+          {shownFailure}
         </p>
+      ) : null}
+      {history.isError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-3 text-sm font-medium text-stamp"
+        >
+          <span>{t(errorMessageKey(history.error))}</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (history.isFetchNextPageError) showMore();
+              else void history.refetch();
+            }}
+          >
+            {t('tree.retry')}
+          </Button>
+        </div>
       ) : null}
       {entries.length === 0 ? (
         <p className="text-ink-muted">{t('history.empty')}</p>
       ) : (
-        <ol aria-labelledby={titleId} className="flex flex-col">
+        <ol ref={listRef} aria-labelledby={titleId} className="flex flex-col">
           {entries.map((entry) => (
-            <HistoryEntryItem key={entry.seq} entry={entry} lookup={lookup}>
+            <HistoryEntryItem key={entry.seq} entry={entry} lookup={lookup} formatTime={formatTime}>
               {canEdit && (isOwner || !needsOwner(entry.inverse)) ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  aria-label={t('history.revertLabel', { seq: entry.seq })}
-                  onClick={() => revert(entry)}
-                >
-                  {t('history.revert')}
-                </Button>
+                reverting.has(entry.seq) ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-disabled="true"
+                    className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                  >
+                    {t('history.reverting')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label={t('history.revertLabel', { seq: entry.seq })}
+                    onClick={() => revert(entry)}
+                  >
+                    {t('history.revert')}
+                  </Button>
+                )
               ) : null}
             </HistoryEntryItem>
           ))}
         </ol>
       )}
-      {history.hasNextPage ? (
+      {hasNextPage ? (
         <Button
           variant="ghost"
-          className="self-start"
-          disabled={history.isFetchingNextPage}
-          onClick={() => void history.fetchNextPage()}
+          className="self-start aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          aria-disabled={history.isFetchingNextPage}
+          onClick={showMore}
         >
           {t('history.more')}
         </Button>

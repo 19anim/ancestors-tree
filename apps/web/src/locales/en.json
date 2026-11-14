@@ -260,6 +260,7 @@
     },
     "revert": "Revert",
     "revertLabel": "Revert change #{{seq}}",
+    "reverting": "Reverting…",
     "revertFailed": "Could not revert change #{{seq}}: {{reason}}"
   },
   "tree": {

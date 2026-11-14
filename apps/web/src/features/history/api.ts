@@ -31,5 +31,7 @@ export function useHistory(clanId: string) {
     queryFn: ({ pageParam, signal }) => fetchHistoryPage(clanId, pageParam, signal),
     initialPageParam: null as number | null,
     getNextPageParam: (last) => last.nextBefore,
+    // Changes saved while the page was closed are not in a cached list, however fresh it is.
+    refetchOnMount: 'always',
   });
 }

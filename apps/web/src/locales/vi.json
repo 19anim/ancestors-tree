@@ -260,6 +260,7 @@
     },
     "revert": "Hoàn tác",
     "revertLabel": "Hoàn tác thay đổi #{{seq}}",
+    "reverting": "Đang hoàn tác…",
     "revertFailed": "Không hoàn tác được thay đổi #{{seq}}: {{reason}}"
   },
   "tree": {

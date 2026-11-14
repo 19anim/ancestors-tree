@@ -7,19 +7,21 @@ import { entryNote, entrySummary } from './historyText';
 interface HistoryEntryItemProps {
   entry: HistoryEntry;
   lookup: NameLookup;
+  /** Formats the time of the change; built once by the page. */
+  formatTime: (date: Date) => string;
   /** The entry's buttons. */
   children?: ReactNode;
 }
 
-export function HistoryEntryItem({ entry, lookup, children }: HistoryEntryItemProps) {
-  const { t, i18n } = useTranslation();
+export function HistoryEntryItem({ entry, lookup, formatTime, children }: HistoryEntryItemProps) {
+  const { t } = useTranslation();
   const note = entryNote(t, entry);
-  const time = new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(entry.createdAt));
+  const time = formatTime(new Date(entry.createdAt));
   return (
-    <li className="flex flex-wrap items-start justify-between gap-3 border-b border-line py-3">
+    <li
+      tabIndex={-1}
+      className="flex flex-wrap items-start justify-between gap-3 border-b border-line py-3"
+    >
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-ink">{entrySummary(t, entry, lookup)}</p>
         <div className="flex flex-wrap gap-x-3 text-sm text-ink-muted">

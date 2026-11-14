@@ -3,10 +3,12 @@ import type { Op } from '@ancestors-tree/shared/tree';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import { createQueryClient } from '../../app/providers';
+import { routes } from '../../app/routes';
 import { apiErrorReply, mockApi, UNAUTHENTICATED_REPLY, type MockRoutes } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
-import { renderRoute } from '../../test/render';
+import { renderRoute, renderWithProviders } from '../../test/render';
 import {
   CLAN,
   CLAN_ID,
@@ -482,6 +484,34 @@ describe('unsent changes', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByText(/đã bị bỏ/)).not.toBeInTheDocument();
+  });
+
+  it('asks before the history of another family tree opens, and stays when told to', async () => {
+    const user = userEvent.setup();
+    unsentApp();
+    const router = createMemoryRouter(routes, { initialEntries: [`/clans/${CLAN_ID}/tree`] });
+    renderWithProviders(<RouterProvider router={router} />);
+    await addFirstPerson(user);
+
+    await act(() => router.navigate(`/clans/${OTHER_ID}/history`));
+    const ask = await screen.findByRole('dialog', { name: ASK });
+    await user.click(within(ask).getByRole('button', { name: 'Ở lại' }));
+    expect(router.state.location.pathname).toBe(`/clans/${CLAN_ID}/tree`);
+    expect(pendingCount()).toBe(1);
+  });
+
+  it('does not ask when going from the tree tab to the history tab of the same tree', async () => {
+    const user = userEvent.setup();
+    unsentApp(undefined, {
+      [`GET /clans/${CLAN_ID}/history`]: () => ({ body: { entries: [], nextBefore: null } }),
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await addFirstPerson(user);
+
+    await user.click(screen.getByRole('link', { name: 'Lịch sử' }));
+    expect(await screen.findByRole('heading', { name: 'Lịch sử thay đổi' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(pendingCount()).toBe(1);
   });
 
   it('does not ask when nothing is unsent', async () => {
