@@ -16,7 +16,9 @@ function noticeText(t: TFunction, notice: TreeNotice): string {
     case 'signedOut':
       return t('tree.notice.signedOut');
     case 'discarded':
-      return t('tree.notice.discarded', { count: notice.count });
+      return notice.inFlight
+        ? t('tree.notice.discardedInFlight', { count: notice.count })
+        : t('tree.notice.discarded', { count: notice.count });
     default: {
       // A new notice kind must be handled above: this stops compiling until it is.
       const unhandled: never = notice;

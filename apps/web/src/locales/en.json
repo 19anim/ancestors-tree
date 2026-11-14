@@ -299,7 +299,8 @@
       "dismiss": "Got it",
       "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
       "signIn": "Sign in again",
-      "discarded": "Unsaved changes were dropped: {{count}}."
+      "discarded": "Unsaved changes were dropped: {{count}}.",
+      "discardedInFlight": "Unsaved changes were dropped: {{count}}. The one being sent at that moment may have been saved; check the family tree."
     },
     "form": {
       "firstTitle": "Add the first person",

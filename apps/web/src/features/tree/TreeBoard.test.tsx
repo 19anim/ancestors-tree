@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
-import { CLAN_ID, FAMILY, GRANDMA, SON } from './fixtures';
+import { CLAN_ID, FAMILY, GRANDMA, ME, SON } from './fixtures';
 import { PersonCard } from './PersonCard';
-import { resetTreeStore, useTreeStore } from './store';
+import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
 
@@ -32,7 +32,8 @@ const family = treeStateFromLists(FAMILY.progenitorId, FAMILY.persons, FAMILY.un
 
 beforeEach(() => {
   mockReactFlow();
-  resetTreeStore();
+  signOutTreeStore();
+  useTreeStore.getState().setAccount(ME.id);
 });
 
 afterEach(() => {

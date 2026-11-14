@@ -19,7 +19,7 @@ import {
   SON,
   treeRoutes,
 } from './fixtures';
-import { resetTreeStore, useTreeStore } from './store';
+import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 
 const OPS = `POST /clans/${CLAN_ID}/ops`;
 const EDITOR = { ...CLAN, role: 'editor' as const };
@@ -64,7 +64,8 @@ async function openActions(user: ReturnType<typeof userEvent.setup>, name: strin
 
 beforeEach(() => {
   mockReactFlow();
-  resetTreeStore();
+  signOutTreeStore();
+  useTreeStore.getState().setAccount(ME.id);
 });
 
 afterEach(() => {

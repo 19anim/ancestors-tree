@@ -5,14 +5,15 @@ import { ApiError } from '../../shared/lib/apiError';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, treeRoutes } from './fixtures';
-import { resetTreeStore, useTreeStore } from './store';
+import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, treeRoutes } from './fixtures';
+import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 
 const VIEWER = { ...CLAN, role: 'viewer' as const };
 
 beforeEach(() => {
   mockReactFlow();
-  resetTreeStore();
+  signOutTreeStore();
+  useTreeStore.getState().setAccount(ME.id);
 });
 
 afterEach(() => {
@@ -64,7 +65,11 @@ describe('TreePage', () => {
     });
     renderRoute(`/clans/${CLAN_ID}/tree`);
     await screen.findByRole('button', { name: 'Thử lại' });
-    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'discarded', count: 2 } }));
+    act(() =>
+      useTreeStore.setState({
+        notice: { clanId: CLAN_ID, kind: 'discarded', count: 2, inFlight: false },
+      }),
+    );
     expect(screen.getByText('2 thay đổi chưa lưu đã bị bỏ.')).toBeInTheDocument();
   });
 
@@ -159,7 +164,11 @@ describe('TreePage', () => {
     );
     act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'signedOut' } }));
     expect(screen.getByRole('alert')).toHaveTextContent('Phiên đăng nhập đã hết hạn.');
-    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'discarded', count: 3 } }));
+    act(() =>
+      useTreeStore.setState({
+        notice: { clanId: CLAN_ID, kind: 'discarded', count: 3, inFlight: false },
+      }),
+    );
     expect(screen.getByRole('alert')).toHaveTextContent('3 thay đổi chưa lưu đã bị bỏ.');
     await user.click(screen.getByRole('button', { name: 'Đã hiểu' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

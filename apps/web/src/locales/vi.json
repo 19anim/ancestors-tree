@@ -299,7 +299,8 @@
       "dismiss": "Đã hiểu",
       "signedOut": "Phiên đăng nhập đã hết hạn. Thay đổi chưa lưu vẫn được giữ nếu bạn đăng nhập lại bằng email và mật khẩu; đăng nhập bằng Google sẽ bỏ chúng.",
       "signIn": "Đăng nhập lại",
-      "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
+      "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ.",
+      "discardedInFlight": "{{count}} thay đổi chưa lưu đã bị bỏ. Thay đổi đang gửi dở lúc đó có thể đã được lưu; hãy xem lại cây gia phả."
     },
     "form": {
       "firstTitle": "Thêm người đầu tiên",

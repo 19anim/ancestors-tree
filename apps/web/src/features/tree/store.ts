@@ -24,8 +24,11 @@ export type TreeNotice = { clanId: string } &
     | { kind: 'rejected'; error: unknown; dropped: number }
     /** The session expired: sending stopped, every unsent op is kept until the user signs in. */
     | { kind: 'signedOut' }
-    /** `count` ops were still unsent when another tree opened or the account changed: dropped. */
-    | { kind: 'discarded'; count: number }
+    /**
+     * `count` ops were still unsent when another tree opened or the account changed: dropped.
+     * `inFlight`: the first of them was on its way, so it may have been saved after all.
+     */
+    | { kind: 'discarded'; count: number; inFlight: boolean }
   );
 /** Why apply() did nothing: a broken rule, or no tree to edit (loading or failed to load). */
 export type ApplyFailure = OpErrorCode | 'NOT_LOADED';
@@ -35,6 +38,8 @@ export type ApplyResult = { ok: true } | { ok: false; reason: ApplyFailure };
 export const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000] as const;
 
 export interface TreeStoreState {
+  /** The signed-in account (from the app shell); null until known and after sign-out. */
+  userId: string | null;
   clanId: string | null;
   status: TreeStatus;
   loadError: unknown;
@@ -56,17 +61,25 @@ export interface TreeStoreState {
   load: (clanId: string) => Promise<void>;
   apply: (op: Op) => ApplyResult;
   dismissNotice: () => void;
-  /** The same account signed in again after a 401: forget the notice and send the kept ops. */
-  resumeAfterSignIn: () => void;
+  /**
+   * The app shell says who is signed in. The same account again resumes a queue stopped by a
+   * lost session; another account drops what the previous one left unsent (spec §7.3).
+   */
+  setAccount: (userId: string) => void;
 }
 
 /** For the unsent-changes guard: primitives, so they are stable selectors. */
 export const selectHasUnsentChanges = (state: TreeStoreState): boolean => state.pending.length > 0;
 export const selectUnsentCount = (state: TreeStoreState): number => state.pending.length;
 
-type TreeData = Omit<TreeStoreState, 'load' | 'apply' | 'dismissNotice' | 'resumeAfterSignIn'>;
+/** The store's data: every member that is not an action. */
+type DataKeys = {
+  [K in keyof TreeStoreState]: TreeStoreState[K] extends (...args: never[]) => unknown ? never : K;
+}[keyof TreeStoreState];
+type TreeData = Pick<TreeStoreState, DataKeys>;
 
 const INITIAL: TreeData = {
+  userId: null,
   clanId: null,
   status: 'idle',
   loadError: null,
@@ -240,8 +253,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
 
   async function flush(): Promise<void> {
     if (sending || retryTimer !== undefined) return;
-    const { clanId, status, signedOut, pending, confirmedVersion } = get();
-    if (clanId === null || status !== 'ready' || signedOut) return;
+    const { userId, clanId, status, signedOut, pending, confirmedVersion } = get();
+    if (userId === null || clanId === null || status !== 'ready' || signedOut) return;
     const op = pending[0];
     if (!needsReload && op === undefined) return;
     const mine = session;
@@ -294,6 +307,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       // dismissed yet (a 409, a refused op, a lost session) stays: it may be the only word they
       // get about edits that were dropped while another page was on screen.
       const discarded = current.pending.length;
+      const inFlight = sending && !needsReload;
       const unseen = current.notice;
       session += 1;
       const mine = session;
@@ -302,11 +316,12 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       clearRetry();
       set({
         ...INITIAL,
+        userId: current.userId,
         clanId,
         status: 'loading',
         notice:
           discarded > 0
-            ? { kind: 'discarded', clanId: current.clanId ?? clanId, count: discarded }
+            ? { kind: 'discarded', clanId: current.clanId ?? clanId, count: discarded, inFlight }
             : unseen,
       });
       const run = (async () => {
@@ -332,8 +347,11 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
 
     apply(op) {
       const state = get();
-      // While a reload is pending (after a 409) it would drop every new op: refuse instead.
-      if (state.status !== 'ready' || needsReload) return { ok: false, reason: 'NOT_LOADED' };
+      // While a reload is pending (after a 409) it would drop every new op: refuse instead. No
+      // account yet: an op could not be tied to the person who made it.
+      if (state.status !== 'ready' || needsReload || state.userId === null) {
+        return { ok: false, reason: 'NOT_LOADED' };
+      }
       try {
         const { tree } = applyOp(state.tree, op);
         set({ tree, pending: [...state.pending, op] });
@@ -349,35 +367,53 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       set({ notice: null });
     },
 
-    resumeAfterSignIn() {
-      if (get().signedOut) resume();
+    setAccount(userId) {
+      const state = get();
+      if (state.userId === userId) {
+        if (state.signedOut) resume();
+        return;
+      }
+      if (state.userId !== null) discardForAccountChange();
+      set({ userId });
     },
   };
 });
 
-/**
- * Forgets everything, including the module-level send state: answers still on their way are
- * ignored and nothing more is sent. For sign-out, a change of account, the user discarding
- * unsent changes, and tests.
- */
-export function resetTreeStore(): void {
+/** Stops the queue and forgets every answer still on its way. */
+function stopSending(): void {
   session += 1;
   sending = false;
   needsReload = false;
   loading = undefined;
   clearRetry();
-  useTreeStore.setState(INITIAL);
 }
 
 /**
- * For an account change: forgets the tree store like resetTreeStore and, when unsent changes
- * went with it, leaves a `discarded` notice saying how many.
+ * Forgets the tree and the queue, including the module-level send state: answers still on their
+ * way are ignored and nothing more is sent. Keeps the account. For the user discarding unsent
+ * changes, a deleted tree, and tests.
  */
-export function discardTreeStateForAccountChange(): void {
+export function resetTreeStore(): void {
+  const { userId } = useTreeStore.getState();
+  stopSending();
+  useTreeStore.setState({ ...INITIAL, userId });
+}
+
+/** Sign-out: forgets everything, the account too. */
+export function signOutTreeStore(): void {
+  stopSending();
+  useTreeStore.setState(INITIAL);
+}
+
+/** Another account signed in: what the previous one left unsent is dropped, with a notice. */
+function discardForAccountChange(): void {
   const { pending, clanId } = useTreeStore.getState();
-  resetTreeStore();
+  const inFlight = sending && !needsReload;
+  signOutTreeStore();
   if (pending.length > 0 && clanId !== null) {
-    useTreeStore.setState({ notice: { kind: 'discarded', clanId, count: pending.length } });
+    useTreeStore.setState({
+      notice: { kind: 'discarded', clanId, count: pending.length, inFlight },
+    });
   }
 }
 

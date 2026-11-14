@@ -8,14 +8,15 @@ import {
   fixturePerson,
   GRANDPA,
   LOOSE,
+  ME,
   SON,
   treeRoutes,
 } from './fixtures';
 import {
   RETRY_DELAYS_MS,
-  discardTreeStateForAccountChange,
   resetTreeStore,
   selectHasUnsentChanges,
+  signOutTreeStore,
   useTreeStore,
 } from './store';
 
@@ -30,6 +31,7 @@ const addPerson = (id: string, fullName = 'Nguyễn Văn Út'): Op => ({
 const store = () => useTreeStore.getState();
 const TREE = `GET /clans/${CLAN_ID}/tree`;
 const OTHER_CLAN = '64b7f0c2a1b2c3d4e5f60002';
+const OTHER_USER_ID = '64b7f0c2a1b2c3d4e5f60719';
 const bio = (text: string): Op => ({
   type: 'updatePerson',
   payload: { id: SON, changes: { bio: text } },
@@ -63,7 +65,8 @@ async function until(check: () => boolean): Promise<void> {
 const retryScheduled = () => until(() => vi.getTimerCount() === 1);
 
 beforeEach(() => {
-  resetTreeStore();
+  signOutTreeStore();
+  store().setAccount(ME.id);
 });
 
 afterEach(() => {
@@ -485,29 +488,54 @@ describe('a notice nobody has seen yet', () => {
     await store().load(CLAN_ID);
     useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
     store().apply(bio('Con trưởng'));
+    await retryScheduled();
     await store().load(OTHER_CLAN);
-    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: false,
+    });
   });
 });
 
-describe('a discarded notice after an account change', () => {
-  it('survives the next load of a tree', async () => {
-    mockApi({
-      ...treeRoutes(),
-      [OPS]: () => new Promise(() => undefined),
-    });
+describe('the account', () => {
+  it('drops the unsent ops of the previous account when another one signs in', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
     await store().load(CLAN_ID);
     store().apply(bio('Con trưởng'));
-    discardTreeStateForAccountChange();
-    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+    store().setAccount(OTHER_USER_ID);
+    expect(store().userId).toBe(OTHER_USER_ID);
+    expect(store().pending).toEqual([]);
+    expect(store().clanId).toBeNull();
+    // The op was on its way: it may have been saved after all.
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: true,
+    });
 
     await store().load(CLAN_ID);
-    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: true,
+    });
   });
-});
 
-describe('signing in again after the session expired', () => {
-  it('clears the notice and sends the kept ops', async () => {
+  it('keeps everything when the same account is set again', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
+    store().setAccount(ME.id);
+    expect(store().pending).toHaveLength(1);
+    expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID });
+  });
+
+  it('sends the kept ops when the same account signs in again after its session expired', async () => {
     let signedIn = false;
     const bodies: unknown[] = [];
     mockApi({
@@ -522,19 +550,26 @@ describe('signing in again after the session expired', () => {
     await vi.waitFor(() => expect(store().signedOut).toBe(true));
 
     signedIn = true;
-    store().resumeAfterSignIn();
+    store().setAccount(ME.id);
     expect(store().signedOut).toBe(false);
     expect(store().notice).toBeNull();
     await vi.waitFor(() => expect(store().pending).toHaveLength(0));
     expect(bodies).toHaveLength(2);
   });
 
-  it('does nothing when the session had not expired', async () => {
-    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+  it('refuses an edit until the account is known', async () => {
+    signOutTreeStore();
+    const api = mockApi(treeRoutes());
     await store().load(CLAN_ID);
-    useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
-    store().resumeAfterSignIn();
-    expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID });
+    expect(store().apply(bio('Con trưởng'))).toEqual({ ok: false, reason: 'NOT_LOADED' });
+    expect(api.calls.filter((call) => call.method === 'POST')).toEqual([]);
+  });
+
+  it('survives a reset but not a sign-out', () => {
+    resetTreeStore();
+    expect(store().userId).toBe(ME.id);
+    signOutTreeStore();
+    expect(store().userId).toBeNull();
   });
 });
 
@@ -696,7 +731,12 @@ describe('opening the tree again', () => {
     await vi.waitFor(() => expect(posted).toBe(1));
 
     await store().load(OTHER_CLAN);
-    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 2 });
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 2,
+      inFlight: true,
+    });
     expect(store().clanId).toBe(OTHER_CLAN);
 
     // The answer for the old family tree arrives late: it must change nothing.
@@ -724,7 +764,12 @@ describe('opening the tree again', () => {
 
     await store().load(CLAN_ID);
     expect(store().status).toBe('ready');
-    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: false,
+    });
     expect(store().pending).toEqual([]);
   });
 });
