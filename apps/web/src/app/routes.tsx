@@ -18,16 +18,12 @@ import { HomePage } from '../features/home';
 import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
 import { RouteError } from './RouteError';
+import { TreePage } from '../features/tree';
 
 // Only the gallery's own code is a separate chunk that home-page visitors never download.
 // Shared components it uses (such as Dialog and TextField) stay in the main bundle.
 const DesignGalleryPage = lazy(() =>
   import('../features/design-gallery').then((module) => ({ default: module.DesignGalleryPage })),
-);
-
-// React Flow is only downloaded by people who open a family tree.
-const TreePage = lazy(() =>
-  import('../features/tree').then((module) => ({ default: module.TreePage })),
 );
 
 /** Shared by the browser router (App) and memory routers in tests (renderRoute). */
