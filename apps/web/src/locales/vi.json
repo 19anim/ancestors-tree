@@ -305,6 +305,24 @@
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ.",
       "discardedInFlight": "{{count}} thay đổi chưa lưu đã bị bỏ. Thay đổi đang gửi dở lúc đó có thể đã được lưu; hãy xem lại cây gia phả."
     },
+    "change": {
+      "addPerson": "thêm {{name}}",
+      "addPeople": "thêm {{count}} người",
+      "updatePerson": "sửa thông tin của {{name}}",
+      "deletePerson": "xoá {{name}}",
+      "restorePerson": "khôi phục {{name}}",
+      "addUnion": "thêm hôn nhân của {{names}}",
+      "updateUnion": "sửa hôn nhân của {{names}}",
+      "deleteUnion": "xoá hôn nhân của {{names}}",
+      "restoreUnion": "khôi phục hôn nhân của {{names}}",
+      "setParents": "đặt {{name}} làm con của {{parents}}",
+      "detachParents": "gỡ {{name}} khỏi cha mẹ",
+      "setProgenitor": "chọn {{name}} làm thuỷ tổ",
+      "clearProgenitor": "bỏ chọn thuỷ tổ",
+      "changes": "{{count}} thay đổi",
+      "someone": "một người",
+      "pair": "{{first}} và {{second}}"
+    },
     "form": {
       "firstTitle": "Thêm người đầu tiên",
       "childTitle": "Thêm con của {{name}}",

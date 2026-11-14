@@ -14,6 +14,7 @@ import {
   SON,
   treeRoutes,
 } from './fixtures';
+import { MAX_UNDO_STEPS } from './pending';
 import { SAVED_QUEUE_KEY, writeSavedQueue } from './persist';
 import {
   MAX_CONFLICTS_IN_A_ROW,
@@ -1408,5 +1409,113 @@ describe('keeping the queue across a reload of the tab', () => {
     expect(savedQueue()).not.toBeNull();
     signOutTreeStore();
     expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
+  });
+});
+
+describe('undo and redo', () => {
+  it('undoes and redoes a change, also one not saved yet', async () => {
+    const held = gate();
+    const bodies: Array<Record<string, unknown>> = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: async ({ body }) => {
+        bodies.push(body as Record<string, unknown>);
+        if (bodies.length === 1) await held.wait;
+        return { body: { seq: 3 + bodies.length } };
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(NEW_ID));
+    expect(store().undo()).toEqual({ ok: true });
+    expect(store().tree.persons[NEW_ID]).toBeUndefined();
+    expect(store().undoStack).toEqual([]);
+    expect(store().redoStack).toHaveLength(1);
+    expect(store().pending[1]?.reverts).toEqual({ pendingId: store().pending[0]?.id });
+
+    held.open();
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    // The undo names the change it undoes by the seq it got.
+    expect(bodies[1]).toEqual({
+      op: { type: 'deletePerson', payload: { id: NEW_ID } },
+      baseVersion: 4,
+      expectedUserId: ME.id,
+      revertsSeq: 4,
+    });
+
+    expect(store().redo()).toEqual({ ok: true });
+    expect(store().tree.persons[NEW_ID]).toBeDefined();
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    // Redo is the change made again: no revertsSeq.
+    expect(bodies[2]).toEqual({ op: addPerson(NEW_ID), baseVersion: 5, expectedUserId: ME.id });
+    expect(store().undoStack.map((entry) => entry.ref)).toEqual([{ seq: 6 }]);
+    expect(store().redoStack).toEqual([]);
+  });
+
+  it('answers null when there is nothing to undo or redo', async () => {
+    mockApi(treeRoutes());
+    await store().load(CLAN_ID);
+    expect(store().undo()).toBeNull();
+    expect(store().redo()).toBeNull();
+  });
+
+  it('says why an undo no longer applies, and drops that step', async () => {
+    mockApi(treeRoutes());
+    await store().load(CLAN_ID);
+    useTreeStore.setState({
+      undoStack: [
+        {
+          op: addPerson(NEW_ID),
+          inverse: { type: 'deletePerson', payload: { id: GRANDPA } },
+          ref: { seq: 2 },
+        },
+      ],
+    });
+    expect(store().undo()).toEqual({ ok: false, reason: 'PROGENITOR_PROTECTED' });
+    expect(store().undoStack).toEqual([]);
+    expect(store().pending).toEqual([]);
+  });
+
+  it('starts a new branch: a new change forgets what could be redone', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    await store().load(CLAN_ID);
+    store().apply(bio('Một'));
+    store().undo();
+    expect(store().redoStack).toHaveLength(1);
+    store().apply(bio('Hai'));
+    expect(store().redoStack).toEqual([]);
+  });
+
+  it('forgets the steps of a refused change', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => apiErrorReply('FORBIDDEN', 403) });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await vi.waitFor(() => expect(store().notice?.kind).toBe('rejected'));
+    expect(store().undoStack).toEqual([]);
+  });
+
+  it('keeps the step of a rebased change with its inverse on the new tree', async () => {
+    let posts = 0;
+    mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, bio('Từ máy khác'))] }),
+      [OPS]: () => {
+        posts += 1;
+        return posts === 1 ? apiErrorReply('VERSION_CONFLICT', 409) : { body: { seq: 5 } };
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Của tôi'));
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(store().undoStack).toEqual([
+      { op: bio('Của tôi'), inverse: bio('Từ máy khác'), ref: { seq: 5 } },
+    ]);
+  });
+
+  it(`keeps the latest ${MAX_UNDO_STEPS} steps`, async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    await store().load(CLAN_ID);
+    for (let index = 0; index <= MAX_UNDO_STEPS; index += 1) store().apply(bio(`Lần ${index}`));
+    expect(store().undoStack).toHaveLength(MAX_UNDO_STEPS);
+    expect(store().undoStack[0]?.op).toEqual(bio('Lần 1'));
   });
 });

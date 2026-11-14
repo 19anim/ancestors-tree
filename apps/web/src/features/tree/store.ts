@@ -3,6 +3,7 @@ import {
   EMPTY_TREE,
   OpError,
   treeStateFromLists,
+  type ApplyOpResult,
   type Op,
   type OpErrorCode,
   type TreeState,
@@ -10,7 +11,19 @@ import {
 import { create } from 'zustand';
 import { ApiError } from '../../shared/lib/apiError';
 import { fetchOpsSince, fetchTree, submitOp } from './api';
-import { replayPending, resolveRefs, revertFieldsOf, type PendingEntry } from './pending';
+import {
+  pushCapped,
+  replayPending,
+  resolveRefs,
+  resolveStack,
+  revertFieldsOf,
+  withInverses,
+  withoutPendingRefs,
+  withoutRefsTo,
+  type PendingEntry,
+  type RedoEntry,
+  type UndoEntry,
+} from './pending';
 import { clearSavedQueue, readSavedQueue, writeSavedQueue, type SavedQueueRead } from './persist';
 import { rebase, restoreQueue } from './rebase';
 
@@ -81,6 +94,10 @@ export interface TreeStoreState {
    * on the server's tree; null otherwise.
    */
   restoredFrom: number | null;
+  /** This user's changes in this session that can be undone, oldest first (spec §6.4). */
+  undoStack: UndoEntry[];
+  /** Undone changes that can be made again, oldest first; a new change clears it. */
+  redoStack: RedoEntry[];
   load: (clanId: string) => Promise<void>;
   /**
    * The app shell says who is signed in. The same account again resumes a stopped queue;
@@ -88,6 +105,10 @@ export interface TreeStoreState {
    */
   setAccount: (userId: string) => void;
   apply: (op: Op) => ApplyResult;
+  /** Undoes the latest step; null when there is none. A step that no longer applies leaves. */
+  undo: () => ApplyResult | null;
+  /** Makes the latest undone change again; null when there is none. */
+  redo: () => ApplyResult | null;
   dismissNotice: () => void;
 }
 
@@ -115,6 +136,8 @@ const INITIAL: TreeData = {
   otherAccount: false,
   notice: null,
   restoredFrom: null,
+  undoStack: [],
+  redoStack: [],
 };
 
 /** A new session per load(): answers that belong to an older one are ignored. */
@@ -186,6 +209,48 @@ function isRefusal(error: unknown): boolean {
 }
 
 export const useTreeStore = create<TreeStoreState>()((set, get) => {
+  type Applied = { ok: true; entry: PendingEntry } | { ok: false; reason: ApplyFailure };
+
+  /**
+   * Applies a change on screen and queues it. `stacks` gives the new undo and redo stacks for
+   * the entry and its inverse, so the tree, the queue and the stacks change in one update.
+   */
+  function applyChange(
+    op: Op,
+    extra: Pick<PendingEntry, 'reverts' | 'revertsToSeq'>,
+    stacks: (
+      entry: PendingEntry,
+      inverse: Op,
+      state: TreeStoreState,
+    ) => Pick<TreeStoreState, 'undoStack' | 'redoStack'>,
+  ): Applied {
+    const state = get();
+    // While a reload is pending it would drop every new entry: refuse instead. No account yet:
+    // an op could not be tied to the person who made it.
+    if (state.status !== 'ready' || needsReload || state.userId === null) {
+      return { ok: false, reason: 'NOT_LOADED' };
+    }
+    let result: ApplyOpResult;
+    try {
+      result = applyOp(state.tree, op);
+    } catch (error) {
+      if (error instanceof OpError) return { ok: false, reason: error.code };
+      throw error;
+    }
+    const entry: PendingEntry = { ...newEntry(op), ...extra };
+    set({
+      tree: result.tree,
+      pending: [...state.pending, entry],
+      ...stacks(entry, result.inverse, state),
+    });
+    resume();
+    return { ok: true, entry };
+  }
+
+  function toApplyResult(applied: Applied): ApplyResult {
+    return applied.ok ? { ok: true } : applied;
+  }
+
   /** Stops the queue after a 401; every pending entry stays. */
   function stopSignedOut(clanId: string): void {
     attempt = 0;
@@ -215,11 +280,15 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     if (refused === undefined) return;
     const replayed = replayPending(confirmedTree, rest, { alreadyDropped: [refused.id] });
     if (replayed.kept.length === 0) resetConflicts();
+    const gone = [refused.id, ...replayed.dropped.map((dropped) => dropped.entry.id)];
+    const { undoStack, redoStack } = get();
     set({
       tree: replayed.tree,
       pending: replayed.kept,
       retrying: false,
       notice: { kind: 'rejected', clanId, error, dropped: replayed.dropped.length },
+      undoStack: withInverses(withoutRefsTo(undoStack, gone), replayed.inverses),
+      redoStack: withoutRefsTo(redoStack, gone),
     });
   }
 
@@ -274,6 +343,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         pending: [],
         retrying: false,
         notice: { kind: 'reloaded', clanId },
+        undoStack: withoutPendingRefs(get().undoStack),
+        redoStack: withoutPendingRefs(get().redoStack),
       });
     } catch (error) {
       if (mine !== session) return;
@@ -306,6 +377,12 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       }
       if (result.saved || result.pending.length === 0) resetConflicts();
       const [first, ...others] = result.dropped;
+      let { undoStack, redoStack } = state;
+      if (result.saved) {
+        undoStack = resolveStack(undoStack, result.saved.entry.id, result.saved.seq);
+        redoStack = resolveStack(redoStack, result.saved.entry.id, result.saved.seq);
+      }
+      const gone = result.dropped.map((dropped) => dropped.entry.id);
       set({
         confirmedTree: result.confirmedTree,
         confirmedVersion: result.confirmedVersion,
@@ -315,6 +392,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         notice: first
           ? { kind: 'rejected', clanId, error: first.error, dropped: others.length }
           : state.notice,
+        undoStack: withInverses(withoutRefsTo(undoStack, gone), result.inverses),
+        redoStack: withoutRefsTo(redoStack, gone),
       });
     } catch (error) {
       if (mine !== session) return;
@@ -345,6 +424,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         confirmedVersion: seq,
         pending: resolveRefs(state.pending.slice(1), entry.id, seq),
         retrying: false,
+        undoStack: resolveStack(state.undoStack, entry.id, seq),
+        redoStack: resolveStack(state.redoStack, entry.id, seq),
       });
     } catch (error) {
       if (mine !== session) return;
@@ -459,6 +540,13 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
           return;
         }
         const [first, ...others] = result.dropped;
+        // Every confirmed entry of the prefix names its steps by its seq.
+        let { undoStack, redoStack } = state;
+        for (const { entry, seq } of result.saved) {
+          undoStack = resolveStack(undoStack, entry.id, seq);
+          redoStack = resolveStack(redoStack, entry.id, seq);
+        }
+        const gone = result.dropped.map((dropped) => dropped.entry.id);
         set({
           ...base,
           tree: result.tree,
@@ -466,6 +554,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
           notice: first
             ? { kind: 'rejected', clanId, error: first.error, dropped: others.length }
             : state.notice,
+          undoStack: withInverses(withoutRefsTo(undoStack, gone), result.inverses),
+          redoStack: withoutRefsTo(redoStack, gone),
         });
         void flush();
       } catch (error) {
@@ -602,21 +692,49 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     },
 
     apply(op) {
-      const state = get();
-      // While a reload is pending it would drop every new entry: refuse instead. No account
-      // yet: an op could not be tied to the person who made it.
-      if (state.status !== 'ready' || needsReload || state.userId === null) {
-        return { ok: false, reason: 'NOT_LOADED' };
+      return toApplyResult(
+        applyChange(op, {}, (entry, inverse, state) => ({
+          undoStack: pushCapped(state.undoStack, { op, inverse, ref: { pendingId: entry.id } }),
+          redoStack: [],
+        })),
+      );
+    },
+
+    undo() {
+      const step = get().undoStack.at(-1);
+      if (step === undefined) return null;
+      const applied = applyChange(
+        step.inverse,
+        { reverts: step.ref },
+        (entry, _inverse, state) => ({
+          undoStack: state.undoStack.slice(0, -1),
+          // Redo makes the undone change again (not the undo's inverse): the history reads as
+          // the same change.
+          redoStack: pushCapped(state.redoStack, { op: step.op, ref: { pendingId: entry.id } }),
+        }),
+      );
+      // The inverse no longer applies (someone changed the tree): the step cannot come back.
+      if (!applied.ok && applied.reason !== 'NOT_LOADED') {
+        set({ undoStack: get().undoStack.slice(0, -1) });
       }
-      try {
-        const { tree } = applyOp(state.tree, op);
-        set({ tree, pending: [...state.pending, newEntry(op)] });
-      } catch (error) {
-        if (error instanceof OpError) return { ok: false, reason: error.code };
-        throw error;
+      return toApplyResult(applied);
+    },
+
+    redo() {
+      const step = get().redoStack.at(-1);
+      if (step === undefined) return null;
+      const applied = applyChange(step.op, {}, (entry, inverse, state) => ({
+        redoStack: state.redoStack.slice(0, -1),
+        undoStack: pushCapped(state.undoStack, {
+          op: step.op,
+          inverse,
+          ref: { pendingId: entry.id },
+        }),
+      }));
+      if (!applied.ok && applied.reason !== 'NOT_LOADED') {
+        set({ redoStack: get().redoStack.slice(0, -1) });
       }
-      resume();
-      return { ok: true };
+      return toApplyResult(applied);
     },
 
     dismissNotice() {

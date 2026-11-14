@@ -2,7 +2,19 @@ import { OpError, treeStateFromLists, type Op, type TreeState } from '@ancestors
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../shared/lib/apiError';
 import { FAMILY, fixturePerson, LOOSE, SON } from './fixtures';
-import { replayPending, resolveRefs, revertFieldsOf, type PendingEntry } from './pending';
+import {
+  MAX_UNDO_STEPS,
+  pushCapped,
+  replayPending,
+  resolveRefs,
+  resolveStack,
+  revertFieldsOf,
+  withInverses,
+  withoutPendingRefs,
+  withoutRefsTo,
+  type PendingEntry,
+  type UndoEntry,
+} from './pending';
 
 const NEW_ID = '64b7f0c2a1b2c3d4e5f6a0f1';
 const family = (): TreeState =>
@@ -70,5 +82,38 @@ describe('resolveRefs and revertFieldsOf', () => {
     // Not saved yet: nothing to name.
     expect(revertFieldsOf(resolved[1] as PendingEntry)).toEqual({});
     expect(revertFieldsOf({ id: 4, op: add, revertsToSeq: 3 })).toEqual({ revertsToSeq: 3 });
+  });
+});
+
+describe('the undo stack helpers', () => {
+  const step = (ref: UndoEntry['ref'], text = 'x'): UndoEntry => ({
+    op: bio(text),
+    inverse: { type: 'updatePerson', payload: { id: SON, changes: { bio: null } } },
+    ref,
+  });
+
+  it('keeps the latest MAX_UNDO_STEPS steps', () => {
+    let stack: UndoEntry[] = [];
+    for (let index = 0; index <= MAX_UNDO_STEPS; index += 1) {
+      stack = pushCapped(stack, step({ seq: index + 1 }));
+    }
+    expect(stack).toHaveLength(MAX_UNDO_STEPS);
+    expect(stack[0]?.ref).toEqual({ seq: 2 });
+  });
+
+  it('follows the queue: saved, dropped, replayed, reloaded', () => {
+    const stack = [step({ pendingId: 1 }), step({ pendingId: 2 }), step({ seq: 9 })];
+    expect(resolveStack(stack, 1, 12).map((entry) => entry.ref)).toEqual([
+      { seq: 12 },
+      { pendingId: 2 },
+      { seq: 9 },
+    ]);
+    expect(withoutRefsTo(stack, [2]).map((entry) => entry.ref)).toEqual([
+      { pendingId: 1 },
+      { seq: 9 },
+    ]);
+    const newInverse = bio('Từ máy khác');
+    expect(withInverses(stack, new Map([[2, newInverse]]))[1]?.inverse).toEqual(newInverse);
+    expect(withoutPendingRefs(stack).map((entry) => entry.ref)).toEqual([{ seq: 9 }]);
   });
 });

@@ -305,6 +305,24 @@
       "discarded": "Unsaved changes were dropped: {{count}}.",
       "discardedInFlight": "Unsaved changes were dropped: {{count}}. The one being sent at that moment may have been saved; check the family tree."
     },
+    "change": {
+      "addPerson": "add {{name}}",
+      "addPeople": "add {{count}} people",
+      "updatePerson": "edit the details of {{name}}",
+      "deletePerson": "delete {{name}}",
+      "restorePerson": "restore {{name}}",
+      "addUnion": "add the marriage of {{names}}",
+      "updateUnion": "edit the marriage of {{names}}",
+      "deleteUnion": "delete the marriage of {{names}}",
+      "restoreUnion": "restore the marriage of {{names}}",
+      "setParents": "make {{name}} a child of {{parents}}",
+      "detachParents": "detach {{name}} from their parents",
+      "setProgenitor": "choose {{name}} as the progenitor",
+      "clearProgenitor": "clear the progenitor",
+      "changes": "changes: {{count}}",
+      "someone": "someone",
+      "pair": "{{first}} and {{second}}"
+    },
     "form": {
       "firstTitle": "Add the first person",
       "childTitle": "Add a child of {{name}}",

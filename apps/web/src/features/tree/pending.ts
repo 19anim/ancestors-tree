@@ -112,3 +112,63 @@ export function revertFieldsOf(entry: PendingEntry): {
   if (entry.reverts && 'seq' in entry.reverts) return { revertsSeq: entry.reverts.seq };
   return {};
 }
+
+/** One step of the undo stack: the change made, the op that undoes it, and which change it is. */
+export interface UndoEntry {
+  op: Op;
+  inverse: Op;
+  ref: OpRef;
+}
+
+/** One step of the redo stack: the change to make again, and the undo it came from. */
+export interface RedoEntry {
+  op: Op;
+  ref: OpRef;
+}
+
+/** The undo and redo stacks keep this many steps (the oldest go first). */
+export const MAX_UNDO_STEPS = 100;
+
+export function pushCapped<T>(stack: readonly T[], item: T): T[] {
+  const next = [...stack, item];
+  return next.length > MAX_UNDO_STEPS ? next.slice(next.length - MAX_UNDO_STEPS) : next;
+}
+
+function isPendingRef(ref: OpRef, ids: ReadonlySet<number>): boolean {
+  return 'pendingId' in ref && ids.has(ref.pendingId);
+}
+
+/** Pending entry `pendingId` was saved as `seq`. */
+export function resolveStack<T extends { ref: OpRef }>(
+  stack: readonly T[],
+  pendingId: number,
+  seq: number,
+): T[] {
+  const ids = new Set([pendingId]);
+  return stack.map((step) => (isPendingRef(step.ref, ids) ? { ...step, ref: { seq } } : step));
+}
+
+/** These pending entries were dropped: their steps go too. */
+export function withoutRefsTo<T extends { ref: OpRef }>(
+  stack: readonly T[],
+  pendingIds: Iterable<number>,
+): T[] {
+  const ids = new Set(pendingIds);
+  return stack.filter((step) => !isPendingRef(step.ref, ids));
+}
+
+/** The whole tree was read again: steps of unsent changes go, saved ones stay. */
+export function withoutPendingRefs<T extends { ref: OpRef }>(stack: readonly T[]): T[] {
+  return stack.filter((step) => 'seq' in step.ref);
+}
+
+/** The queue was replayed on another tree: kept entries undo with their new inverse. */
+export function withInverses(
+  stack: readonly UndoEntry[],
+  inverses: ReadonlyMap<number, Op>,
+): UndoEntry[] {
+  return stack.map((step) => {
+    const inverse = 'pendingId' in step.ref ? inverses.get(step.ref.pendingId) : undefined;
+    return inverse === undefined ? step : { ...step, inverse };
+  });
+}
