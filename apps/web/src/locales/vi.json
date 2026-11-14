@@ -414,5 +414,30 @@
       "stay": "Ở lại",
       "discard": "Bỏ thay đổi và mở"
     }
+  },
+  "dates": {
+    "lunar": "Âm lịch",
+    "solar": "Dương lịch",
+    "approx": "Chỉ biết năm",
+    "mode": "Loại ngày",
+    "day": "Ngày",
+    "month": "Tháng",
+    "year": "Năm",
+    "leap": "Tháng nhuận",
+    "leapHint": "Năm {{year}} nhuận tháng {{month}}.",
+    "noLeapHint": "Năm {{year}} không có tháng nhuận.",
+    "toSolar": "= {{date}} dương lịch",
+    "toLunar": "= {{date}} âm lịch",
+    "leapMonth": "{{day}}/{{month}} nhuận/{{year}}",
+    "canChi": "năm {{name}}",
+    "clear": "Xoá ngày",
+    "errors": {
+      "incomplete": "Nhập đủ ngày, tháng và năm.",
+      "yearOnly": "Chỉ biết năm? Hãy chọn “Chỉ biết năm”.",
+      "notANumber": "Chỉ nhập số.",
+      "yearRange": "Năm phải từ 1000 đến 3000.",
+      "notADate": "Ngày này không có trong lịch.",
+      "leapMonthAbsent": "Năm này không có tháng nhuận đó."
+    }
   }
 }

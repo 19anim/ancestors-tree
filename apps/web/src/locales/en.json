@@ -414,5 +414,30 @@
       "stay": "Stay",
       "discard": "Discard changes and open"
     }
+  },
+  "dates": {
+    "lunar": "Lunar",
+    "solar": "Solar",
+    "approx": "Year only",
+    "mode": "Calendar",
+    "day": "Day",
+    "month": "Month",
+    "year": "Year",
+    "leap": "Leap month",
+    "leapHint": "Year {{year}} has a leap month {{month}}.",
+    "noLeapHint": "Year {{year}} has no leap month.",
+    "toSolar": "= {{date}} solar",
+    "toLunar": "= {{date}} lunar",
+    "leapMonth": "{{day}}/leap {{month}}/{{year}}",
+    "canChi": "year of {{name}}",
+    "clear": "Clear the date",
+    "errors": {
+      "incomplete": "Enter the day, month and year.",
+      "yearOnly": "Only the year? Choose “Year only”.",
+      "notANumber": "Numbers only.",
+      "yearRange": "The year must be between 1000 and 3000.",
+      "notADate": "This day is not in the calendar.",
+      "leapMonthAbsent": "That year has no such leap month."
+    }
   }
 }
