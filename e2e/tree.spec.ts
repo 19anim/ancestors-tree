@@ -50,6 +50,31 @@ test('build a small family tree and find it again after a reload', async ({ page
   await addPerson(page, 'Nguyễn Thị Ba', 'Nữ');
   await expect(page.getByText('Đã lưu', { exact: true })).toBeVisible();
 
+  // "Đã lưu" is also the idle state, so confirm on the server that every edit is stored. The
+  // request shares the page's session cookies.
+  const clanId = /\/clans\/([0-9a-f]{24})\//.exec(page.url())?.[1];
+  expect(clanId).toBeDefined();
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(`/api/clans/${clanId}/tree`);
+        if (!response.ok()) return { status: response.status() };
+        const tree = (await response.json()) as {
+          persons: unknown[];
+          unions: unknown[];
+          progenitorId: string | null;
+        };
+        return {
+          status: response.status(),
+          persons: tree.persons.length,
+          unions: tree.unions.length,
+          hasProgenitor: tree.progenitorId !== null,
+        };
+      },
+      { message: 'the server stores all three people and the one union' },
+    )
+    .toEqual({ status: 200, persons: 3, unions: 1, hasProgenitor: true });
+
   await page.reload();
   await expect(page.getByRole('figure', { name: 'Phạm Văn Cả, đời thứ 1' })).toBeVisible();
   await expect(page.getByRole('figure', { name: 'Nguyễn Thị Ba, đời thứ 1' })).toHaveAttribute(
@@ -76,6 +101,9 @@ test('the Manager deletes the family tree', async ({ page }) => {
   await page.getByLabel('Tên cây gia phả').fill('Họ Đỗ');
   await page.getByRole('button', { name: 'Tạo cây gia phả' }).click();
   await expect(page).toHaveURL(/\/tree$/);
+  const treeUrl = page.url();
+  const clanId = /\/clans\/([0-9a-f]{24})\//.exec(treeUrl)?.[1];
+  expect(clanId).toBeDefined();
 
   await page.getByRole('link', { name: 'Cài đặt' }).click();
   await page.getByRole('button', { name: 'Xoá cây gia phả này' }).click();
@@ -85,4 +113,11 @@ test('the Manager deletes the family tree', async ({ page }) => {
 
   await expect(page.getByRole('heading', { level: 1, name: 'Cây gia phả của tôi' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Họ Đỗ/ })).toHaveCount(0);
+
+  // The server no longer knows the tree: the API answers 404 and the page says so.
+  const response = await page.request.get(`/api/clans/${clanId}/tree`);
+  expect(response.status()).toBe(404);
+  await page.goto(treeUrl);
+  await expect(page.getByRole('alert')).toHaveText('Không tìm thấy nội dung bạn cần.');
+  await expect(page.getByRole('link', { name: 'Về danh sách cây gia phả' })).toBeVisible();
 });
