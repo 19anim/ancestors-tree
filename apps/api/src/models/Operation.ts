@@ -13,6 +13,10 @@ const operationSchema = new Schema(
     payload: { type: Schema.Types.Mixed, required: true },
     /** The op that undoes this one, as returned by applyOp (undo and history in P6). */
     inverse: { type: Schema.Types.Mixed, required: true },
+    /** This op undoes or reverts the change with this seq (undo, history "Revert"). */
+    revertsSeq: { type: Number, min: 1 },
+    /** This op reverts every change after this seq ("Revert to this point"). */
+    revertsToSeq: { type: Number, min: 1 },
   },
   { timestamps: { createdAt: true, updatedAt: false }, minimize: false },
 );

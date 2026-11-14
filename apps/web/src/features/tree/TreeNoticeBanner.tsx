@@ -15,6 +15,8 @@ function noticeText(t: TFunction, notice: TreeNotice): string {
         : t('tree.notice.rejected', { reason: rejectionMessage(t, notice.error) });
     case 'signedOut':
       return t('tree.notice.signedOut');
+    case 'otherAccount':
+      return t('tree.notice.otherAccount');
     case 'discarded':
       return notice.inFlight
         ? t('tree.notice.discardedInFlight', { count: notice.count })
@@ -49,7 +51,8 @@ export function TreeNoticeBanner() {
         {notice.clanId === onScreenClanId ? text : t('tree.notice.otherTree', { message: text })}
       </p>
       <div className="flex items-center gap-2">
-        {notice.kind === 'signedOut' && pathname !== '/login' ? (
+        {(notice.kind === 'signedOut' || notice.kind === 'otherAccount') &&
+        pathname !== '/login' ? (
           <Link
             to={`/login?${new URLSearchParams({ returnTo: `/clans/${notice.clanId}/tree` })}`}
             className={buttonVariants({ variant: 'secondary', size: 'sm' })}

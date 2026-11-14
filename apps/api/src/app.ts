@@ -21,7 +21,7 @@ import {
 } from './http/routeRegistry.ts';
 import { buildOpenApiDocument, type OpenApiDocument } from './openapi/document.ts';
 import { registerAuthRoutes } from './routes/auth.ts';
-import { createRequireClanRole } from './clans/access.ts';
+import { createRequireClanRole, createRequireExpectedUser } from './clans/access.ts';
 import { registerClanRoutes } from './routes/clans.ts';
 import { registerMemberRoutes } from './routes/members.ts';
 import { registerInviteRoutes } from './routes/invites.ts';
@@ -84,7 +84,11 @@ export function createApp(options: AppOptions): CreatedApp {
   const signedIn = [createRequireAuth(tokens), createUserRateLimit(options.rateLimits.user)];
   const policies: AccessPolicies = {
     signedIn,
-    clanRole: (role) => [...signedIn, createRequireClanRole(role)],
+    clanRole: (role, { expectedUser }) => [
+      ...signedIn,
+      ...(expectedUser ? [createRequireExpectedUser()] : []),
+      createRequireClanRole(role),
+    ],
   };
 
   const api = createRouteRegistry({ policies });

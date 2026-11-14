@@ -24,14 +24,17 @@ const SECURITY_SCHEME = 'sessionCookie';
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
-/** Who may call a route. Every route must say it explicitly. */
-export type Access = 'public' | 'signedIn' | { clanRole: ClanRole };
+/**
+ * Who may call a route. Every route must say it explicitly. `checksExpectedUser`: the body's
+ * `expectedUserId` must be the signed-in user, checked before the role (IDENTITY_MISMATCH).
+ */
+export type Access = 'public' | 'signedIn' | { clanRole: ClanRole; checksExpectedUser?: true };
 
 /** The middleware that enforces each access level (built by createApp). */
 export interface AccessPolicies {
   signedIn: RequestHandler[];
   /** Must also authenticate: it runs instead of `signedIn`, not after it. */
-  clanRole: (role: ClanRole) => RequestHandler[];
+  clanRole: (role: ClanRole, options: { expectedUser: boolean }) => RequestHandler[];
 }
 
 export type CookieInstruction =
@@ -148,13 +151,16 @@ function parsePart(schema: z.ZodType | undefined, value: unknown, part: RequestP
 function accessMiddleware(access: Access, policies: AccessPolicies): RequestHandler[] {
   if (access === 'public') return [];
   if (access === 'signedIn') return policies.signedIn;
-  return policies.clanRole(access.clanRole);
+  return policies.clanRole(access.clanRole, { expectedUser: access.checksExpectedUser === true });
 }
 
 function describeAccess(access: Access): string | undefined {
   if (access === 'public') return undefined;
   if (access === 'signedIn') return 'Requires a signed-in user.';
-  return `Requires the ${access.clanRole} role (or higher) in the clan.`;
+  const role = `Requires the ${access.clanRole} role (or higher) in the clan.`;
+  return access.checksExpectedUser
+    ? `${role} The body's expectedUserId must be the signed-in user (409 IDENTITY_MISMATCH).`
+    : role;
 }
 
 function toOpenApiResponses(responses: Responses): RouteConfig['responses'] {

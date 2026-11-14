@@ -25,6 +25,11 @@ export type TreeNotice = { clanId: string } &
     /** The session expired: sending stopped, every unsent op is kept until the user signs in. */
     | { kind: 'signedOut' }
     /**
+     * The server says this tab's cookie is another account's (IDENTITY_MISMATCH): sending
+     * stopped, every unsent op is kept for the account that made them.
+     */
+    | { kind: 'otherAccount' }
+    /**
      * `count` ops were still unsent when another tree opened or the account changed: dropped.
      * `inFlight`: the first of them was on its way, so it may have been saved after all.
      */
@@ -57,6 +62,8 @@ export interface TreeStoreState {
    * or load() of the same family tree, which try again (the user signed in meanwhile).
    */
   signedOut: boolean;
+  /** True after IDENTITY_MISMATCH: nothing is sent until the right account is back. */
+  otherAccount: boolean;
   notice: TreeNotice | null;
   load: (clanId: string) => Promise<void>;
   apply: (op: Op) => ApplyResult;
@@ -89,6 +96,7 @@ const INITIAL: TreeData = {
   pending: [],
   retrying: false,
   signedOut: false,
+  otherAccount: false,
   notice: null,
 };
 
@@ -123,6 +131,11 @@ function isConflict(error: unknown): boolean {
   return error instanceof ApiError && error.status === 409;
 }
 
+/** The cookie belongs to another account than the one that made the queue. */
+function isOtherAccount(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'IDENTITY_MISMATCH';
+}
+
 /** A 4xx answer (check 401 and 429 before this one). */
 function isRefusal(error: unknown): boolean {
   return error instanceof ApiError && error.status >= 400 && error.status < 500;
@@ -150,11 +163,18 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     set({ signedOut: true, retrying: false, notice: { kind: 'signedOut', clanId } });
   }
 
-  /** The user is back (apply or load after a 401): send again. */
+  /** Stops the queue after IDENTITY_MISMATCH; every pending op stays for its account. */
+  function stopOtherAccount(clanId: string): void {
+    attempt = 0;
+    set({ otherAccount: true, retrying: false, notice: { kind: 'otherAccount', clanId } });
+  }
+
+  /** The user is back (apply, load, or a sign-in after a stop): send again. */
   function resume(): void {
-    const { signedOut, notice } = get();
-    if (signedOut) {
-      set({ signedOut: false, notice: notice?.kind === 'signedOut' ? null : notice });
+    const { signedOut, otherAccount, notice } = get();
+    if (signedOut || otherAccount) {
+      const stopNotice = notice?.kind === 'signedOut' || notice?.kind === 'otherAccount';
+      set({ signedOut: false, otherAccount: false, notice: stopNotice ? null : notice });
     }
     void flush();
   }
@@ -221,9 +241,15 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     }
   }
 
-  async function send(clanId: string, op: Op, baseVersion: number, mine: number): Promise<void> {
+  async function send(
+    clanId: string,
+    userId: string,
+    op: Op,
+    baseVersion: number,
+    mine: number,
+  ): Promise<void> {
     try {
-      const { seq } = await submitOp(clanId, { op, baseVersion });
+      const { seq } = await submitOp(clanId, { op, baseVersion, expectedUserId: userId });
       if (mine !== session) return;
       attempt = 0;
       const state = get();
@@ -239,6 +265,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         scheduleRetry(mine);
       } else if (isUnauthenticated(error)) {
         stopSignedOut(clanId);
+      } else if (isOtherAccount(error)) {
+        stopOtherAccount(clanId);
       } else if (isRefusal(error) && !isConflict(error)) {
         attempt = 0;
         reject(clanId, error);
@@ -253,15 +281,17 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
 
   async function flush(): Promise<void> {
     if (sending || retryTimer !== undefined) return;
-    const { userId, clanId, status, signedOut, pending, confirmedVersion } = get();
-    if (userId === null || clanId === null || status !== 'ready' || signedOut) return;
+    const { userId, clanId, status, signedOut, otherAccount, pending, confirmedVersion } = get();
+    if (userId === null || clanId === null || status !== 'ready' || signedOut || otherAccount) {
+      return;
+    }
     const op = pending[0];
     if (!needsReload && op === undefined) return;
     const mine = session;
     sending = true;
     try {
       if (needsReload) await reload(clanId, mine);
-      else if (op !== undefined) await send(clanId, op, confirmedVersion, mine);
+      else if (op !== undefined) await send(clanId, userId, op, confirmedVersion, mine);
     } finally {
       if (mine === session) sending = false;
     }
@@ -370,7 +400,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     setAccount(userId) {
       const state = get();
       if (state.userId === userId) {
-        if (state.signedOut) resume();
+        if (state.signedOut || state.otherAccount) resume();
         return;
       }
       if (state.userId !== null) discardForAccountChange();

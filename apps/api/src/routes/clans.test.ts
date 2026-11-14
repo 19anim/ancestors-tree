@@ -95,7 +95,8 @@ describe('clans', () => {
 
 describe('DELETE /api/clans/:id', () => {
   /** A family tree with one person, one union, one op, an invite and a removed member. */
-  async function filledClan(agent: Parameters<typeof createClan>[0], name: string) {
+  async function filledClan(member: Awaited<ReturnType<typeof signUp>>, name: string) {
+    const { agent } = member;
     const clan = await createClan(agent, { name });
     const personId = newObjectId();
     const op = {
@@ -121,7 +122,11 @@ describe('DELETE /api/clans/:id', () => {
       },
     };
     expect(
-      (await agent.post(`/api/clans/${clan.id}/ops`).send({ op, baseVersion: 0 })).status,
+      (
+        await agent
+          .post(`/api/clans/${clan.id}/ops`)
+          .send({ op, baseVersion: 0, expectedUserId: member.user.id })
+      ).status,
     ).toBe(200);
     expect(
       (await agent.post(`/api/clans/${clan.id}/invites`).send({ role: 'viewer' })).status,
@@ -145,8 +150,8 @@ describe('DELETE /api/clans/:id', () => {
   it('lets the owner delete the family tree and everything in it', async () => {
     const owner = await signUp(app);
     const editor = await signUp(app);
-    const doomed = await filledClan(owner.agent, 'Họ Nguyễn');
-    const kept = await filledClan(owner.agent, 'Họ Trần');
+    const doomed = await filledClan(owner, 'Họ Nguyễn');
+    const kept = await filledClan(owner, 'Họ Trần');
     await addMember(doomed.id, editor.user.id, 'editor');
 
     const response = await owner.agent.delete(`/api/clans/${doomed.id}`);

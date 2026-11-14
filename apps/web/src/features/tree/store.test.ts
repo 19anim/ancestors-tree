@@ -111,6 +111,7 @@ describe('applying ops', () => {
     expect(api.calls.find((call) => call.method === 'POST')?.body).toEqual({
       op: addPerson(NEW_ID),
       baseVersion: 0,
+      expectedUserId: ME.id,
     });
   });
 
@@ -148,8 +149,8 @@ describe('applying ops', () => {
     release();
     await vi.waitFor(() => expect(store().pending).toHaveLength(0));
     expect(bodies).toEqual([
-      { op: addPerson(NEW_ID), baseVersion: 0 },
-      { op: addPerson(OTHER_ID, 'Nguyễn Văn Sáu'), baseVersion: 1 },
+      { op: addPerson(NEW_ID), baseVersion: 0, expectedUserId: ME.id },
+      { op: addPerson(OTHER_ID, 'Nguyễn Văn Sáu'), baseVersion: 1, expectedUserId: ME.id },
     ]);
     expect(store().confirmedVersion).toBe(2);
   });
@@ -638,6 +639,52 @@ describe('when the session has expired', () => {
     store().apply(addPerson(NEW_ID));
     await vi.waitFor(() => expect(store().pending).toHaveLength(0));
     expect(store().signedOut).toBe(false);
+  });
+});
+
+describe('when the session belongs to another account', () => {
+  it('stops sending, keeps every op, and sends them when the right account is back', async () => {
+    let mismatch = true;
+    const bodies: unknown[] = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: ({ body }) => {
+        bodies.push(body);
+        return mismatch ? apiErrorReply('IDENTITY_MISMATCH', 409) : { body: { seq: 4 } };
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+
+    await vi.waitFor(() =>
+      expect(store().notice).toEqual({ kind: 'otherAccount', clanId: CLAN_ID }),
+    );
+    expect(store().otherAccount).toBe(true);
+    expect(store().pending).toHaveLength(1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(bodies).toHaveLength(1);
+
+    // The user signed in again with the account that made the change.
+    mismatch = false;
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(store().otherAccount).toBe(false);
+    expect(store().notice).toBeNull();
+  });
+
+  it('drops them when the tab learns that the other account is signed in', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => apiErrorReply('IDENTITY_MISMATCH', 409) });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await vi.waitFor(() => expect(store().otherAccount).toBe(true));
+    store().setAccount(OTHER_USER_ID);
+    expect(store().pending).toEqual([]);
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: false,
+    });
   });
 });
 

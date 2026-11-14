@@ -50,6 +50,13 @@ export const ERROR_CODES = {
       "The tree changed after the client's baseVersion; newer operations must be fetched first.",
     clientAction: 'Fetch missing operations, rebase pending changes, then resend.',
   },
+  IDENTITY_MISMATCH: {
+    status: 409,
+    description:
+      'The change was made for another account than the one signed in (`expectedUserId` differs from the session).',
+    clientAction:
+      'Stop sending, keep the unsent changes and ask the user to sign in again with the account that made them.',
+  },
   RULE_VIOLATION: {
     status: 422,
     description: 'The change breaks a genealogy business rule enforced by applyOp.',

@@ -114,6 +114,7 @@ describe('editing the tree', () => {
     expect(sent()).toEqual([
       {
         baseVersion: 0,
+        expectedUserId: ME.id,
         op: {
           type: 'addPerson',
           payload: expect.objectContaining({
@@ -140,6 +141,7 @@ describe('editing the tree', () => {
     await waitFor(() => expect(sent()).toHaveLength(1));
     expect(sent()[0]).toEqual({
       baseVersion: 3,
+      expectedUserId: ME.id,
       op: { type: 'setProgenitor', payload: { personId: LOOSE } },
     });
   });
@@ -337,6 +339,7 @@ describe('editing the tree', () => {
     await waitFor(() => expect(sent()).toHaveLength(1));
     expect(sent()[0]).toEqual({
       baseVersion: 3,
+      expectedUserId: ME.id,
       op: { type: 'deletePerson', payload: { id: LOOSE } },
     });
     expect(screen.queryByRole('region', { name: 'Chưa nối vào cây' })).not.toBeInTheDocument();
@@ -448,6 +451,19 @@ describe('unsent changes', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Họ Trần' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('link', { name: 'Họ Trần' })).toHaveFocus());
+    expect(pendingCount()).toBe(1);
+  });
+
+  it('stops and keeps the change when this tab is signed in as another account', async () => {
+    const user = userEvent.setup();
+    unsentApp(() => apiErrorReply('IDENTITY_MISMATCH', 409));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await addFirstPerson(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'trang này giờ đang đăng nhập bằng một tài khoản khác',
+    );
+    expect(screen.getByText('Chưa lưu: cần đăng nhập lại')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Đăng nhập lại' })).toBeInTheDocument();
     expect(pendingCount()).toBe(1);
   });
 

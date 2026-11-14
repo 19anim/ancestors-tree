@@ -11,11 +11,22 @@ export const TreeResponseSchema = z.object({
   unions: z.array(UnionSchema),
 });
 
-/** POST /api/clans/:id/ops: one op, made against `baseVersion` (spec §6.2). */
-export const SubmitOpRequestSchema = z.object({
-  op: OpSchema,
-  baseVersion: z.number().int().min(0),
-});
+/** POST /api/clans/:id/ops: one op, made against `baseVersion` (spec §6.1, §6.2). */
+export const SubmitOpRequestSchema = z
+  .object({
+    op: OpSchema,
+    baseVersion: z.number().int().min(0),
+    /** The account the client made the op with; IDENTITY_MISMATCH when the session differs. */
+    expectedUserId: IdSchema,
+    /** The op undoes or reverts the saved change with this seq (shown in the history). */
+    revertsSeq: z.number().int().min(1).optional(),
+    /** "Revert to this point": the op undoes every change after this seq (Manager only). */
+    revertsToSeq: z.number().int().min(1).optional(),
+  })
+  .refine((request) => request.revertsSeq === undefined || request.revertsToSeq === undefined, {
+    message: 'Send revertsSeq or revertsToSeq, not both',
+    path: ['revertsToSeq'],
+  });
 
 /** The op's sequence number, which is also the tree's new version. */
 export const SubmitOpResponseSchema = z.object({ seq: z.number().int().min(1) });

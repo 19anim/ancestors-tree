@@ -18,6 +18,7 @@ Every API error response has this shape:
 | `NOT_FOUND` | 404 | The requested resource or route does not exist. | Show a not-found state. |
 | `EMAIL_TAKEN` | 409 | An account with this email already exists. | Show the message next to the email field and offer sign-in or password reset. |
 | `VERSION_CONFLICT` | 409 | The tree changed after the client's baseVersion; newer operations must be fetched first. | Fetch missing operations, rebase pending changes, then resend. |
+| `IDENTITY_MISMATCH` | 409 | The change was made for another account than the one signed in (`expectedUserId` differs from the session). | Stop sending, keep the unsent changes and ask the user to sign in again with the account that made them. |
 | `RULE_VIOLATION` | 422 | The change breaks a genealogy business rule enforced by applyOp. | Show the reason and discard the change. |
 | `RATE_LIMITED` | 429 | Too many requests in a short time window. | Wait, then retry with exponential backoff. |
 | `INTERNAL_ERROR` | 500 | An unexpected server error occurred; details are only in the server logs. | Show a generic error with a retry button. |

@@ -108,6 +108,7 @@
     "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
     "NOT_FOUND": "Không tìm thấy nội dung bạn cần.",
     "VERSION_CONFLICT": "Cây gia phả vừa được người khác cập nhật.",
+    "IDENTITY_MISMATCH": "Thay đổi này thuộc về một tài khoản khác với tài khoản đang đăng nhập.",
     "RULE_VIOLATION": "Thay đổi này không hợp lệ với cây gia phả.",
     "RATE_LIMITED": "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.",
     "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
@@ -289,7 +290,8 @@
     "save": {
       "saved": "Đã lưu",
       "saving": "Đang lưu…",
-      "retrying": "Chưa lưu được, đang thử lại…"
+      "retrying": "Chưa lưu được, đang thử lại…",
+      "stopped": "Chưa lưu: cần đăng nhập lại"
     },
     "notice": {
       "otherTree": "Về cây gia phả bạn vừa sửa: {{message}}",
@@ -298,6 +300,7 @@
       "rejectedDependents": "Đồng thời bỏ {{count}} thay đổi phụ thuộc vào nó.",
       "dismiss": "Đã hiểu",
       "signedOut": "Phiên đăng nhập đã hết hạn. Thay đổi chưa lưu vẫn được giữ nếu bạn đăng nhập lại bằng email và mật khẩu; đăng nhập bằng Google sẽ bỏ chúng.",
+      "otherAccount": "Chưa gửi được thay đổi: trang này giờ đang đăng nhập bằng một tài khoản khác. Hãy đăng nhập lại bằng tài khoản đã tạo các thay đổi để lưu chúng; đăng nhập bằng tài khoản khác sẽ bỏ chúng.",
       "signIn": "Đăng nhập lại",
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ.",
       "discardedInFlight": "{{count}} thay đổi chưa lưu đã bị bỏ. Thay đổi đang gửi dở lúc đó có thể đã được lưu; hãy xem lại cây gia phả."

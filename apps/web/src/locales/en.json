@@ -108,6 +108,7 @@
     "FORBIDDEN": "You do not have permission to do this.",
     "NOT_FOUND": "We could not find what you were looking for.",
     "VERSION_CONFLICT": "Someone else just updated the family tree.",
+    "IDENTITY_MISMATCH": "These changes belong to another account than the one signed in.",
     "RULE_VIOLATION": "This change is not valid for the family tree.",
     "RATE_LIMITED": "Too many attempts. Please try again later.",
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
@@ -289,7 +290,8 @@
     "save": {
       "saved": "Saved",
       "saving": "Saving…",
-      "retrying": "Not saved yet, trying again…"
+      "retrying": "Not saved yet, trying again…",
+      "stopped": "Not saved: sign in again"
     },
     "notice": {
       "otherTree": "About the family tree you were editing: {{message}}",
@@ -298,6 +300,7 @@
       "rejectedDependents": "Changes that depended on it were dropped too: {{count}}.",
       "dismiss": "Got it",
       "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
+      "otherAccount": "Your changes were not sent: this tab is now signed in with another account. Sign in again with the account that made them to save them; signing in with another account drops them.",
       "signIn": "Sign in again",
       "discarded": "Unsaved changes were dropped: {{count}}.",
       "discardedInFlight": "Unsaved changes were dropped: {{count}}. The one being sent at that moment may have been saved; check the family tree."

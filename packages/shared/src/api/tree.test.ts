@@ -10,9 +10,25 @@ describe('tree API contracts', () => {
 
   it('needs a base version with every op', () => {
     const op = { type: 'setProgenitor', payload: { personId: null } };
-    expect(SubmitOpRequestSchema.safeParse({ op, baseVersion: 3 }).success).toBe(true);
-    expect(SubmitOpRequestSchema.safeParse({ op }).success).toBe(false);
-    expect(SubmitOpRequestSchema.safeParse({ op, baseVersion: -1 }).success).toBe(false);
+    const expectedUserId = '64b7f0c2a1b2c3d4e5f60718';
+    const parse = (request: object) => SubmitOpRequestSchema.safeParse(request).success;
+    expect(parse({ op, baseVersion: 3, expectedUserId })).toBe(true);
+    expect(parse({ op, expectedUserId })).toBe(false);
+    expect(parse({ op, baseVersion: -1, expectedUserId })).toBe(false);
+    expect(parse({ op, baseVersion: 3 })).toBe(false);
+  });
+
+  it('takes at most one revert field, each at least 1', () => {
+    const base = {
+      op: { type: 'setProgenitor', payload: { personId: null } },
+      baseVersion: 3,
+      expectedUserId: '64b7f0c2a1b2c3d4e5f60718',
+    };
+    const parse = (extra: object) => SubmitOpRequestSchema.safeParse({ ...base, ...extra }).success;
+    expect(parse({ revertsSeq: 1 })).toBe(true);
+    expect(parse({ revertsToSeq: 2 })).toBe(true);
+    expect(parse({ revertsSeq: 0 })).toBe(false);
+    expect(parse({ revertsSeq: 1, revertsToSeq: 2 })).toBe(false);
   });
 
   it('describes an empty tree', () => {
