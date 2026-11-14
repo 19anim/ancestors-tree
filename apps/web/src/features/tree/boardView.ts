@@ -53,6 +53,30 @@ export function isRectVisible(
   );
 }
 
+/** How far to move one axis so `[start, start + length]` sits inside the span; start wins. */
+function shiftInto(start: number, length: number, span: number, margin: number): number {
+  if (start < margin) return margin - start;
+  const overflow = start + length - (span - margin);
+  return overflow > 0 ? Math.max(-overflow, margin - start) : 0;
+}
+
+/**
+ * The smallest pan that puts the whole rectangle on screen, `margin` pixels from the edge, at
+ * the current zoom; null when it is already there. What was next to it stays in view.
+ */
+export function pannedToShow(
+  rect: Rect,
+  viewport: Viewport,
+  size: Size,
+  margin = REVEAL_MARGIN,
+): Viewport | null {
+  if (isRectVisible(rect, viewport, size, margin)) return null;
+  const { zoom } = viewport;
+  const dx = shiftInto(rect.x * zoom + viewport.x, rect.width * zoom, size.width, margin);
+  const dy = shiftInto(rect.y * zoom + viewport.y, rect.height * zoom, size.height, margin);
+  return { x: viewport.x + dx, y: viewport.y + dy, zoom };
+}
+
 export function personRect(layout: TreeLayout, personId: string): Rect | null {
   const person = layout.persons.find((placed) => placed.id === personId);
   return person ? { x: person.x, y: person.y, width: CARD.width, height: CARD.height } : null;

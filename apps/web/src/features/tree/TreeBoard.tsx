@@ -13,7 +13,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, useReducedMotion } from '../../shared/ui';
-import { firstNewPerson, isRectVisible, panned, personRect } from './boardView';
+import { firstNewPerson, isRectVisible, panned, pannedToShow, personRect } from './boardView';
 import { toFlowElements, type FlowElements } from './flowElements';
 import { layoutTree, type TreeLayout } from './layout';
 import { PersonNode } from './PersonNode';
@@ -26,9 +26,16 @@ const nodeTypes = { person: PersonNode, union: UnionNode };
 const edgeTypes = { thread: ThreadEdge };
 const FIT_VIEW_OPTIONS = { maxZoom: 1, padding: 0.1 };
 
-/** Centres a card at the current zoom when it is not fully on screen. */
-function useReveal(layout: TreeLayout, surface: RefObject<HTMLDivElement | null>) {
-  const { getViewport, setCenter } = useReactFlow();
+/**
+ * Shows a card at the current zoom when it is not fully on screen: centred (a card that gets
+ * focus), or by the smallest pan (a new person), so the relative it was added from stays in view.
+ */
+function useReveal(
+  layout: TreeLayout,
+  surface: RefObject<HTMLDivElement | null>,
+  how: 'centre' | 'nearest',
+) {
+  const { getViewport, setCenter, setViewport } = useReactFlow();
   const reducedMotion = useReducedMotion();
   return useCallback(
     (personId: string) => {
@@ -37,13 +44,19 @@ function useReveal(layout: TreeLayout, surface: RefObject<HTMLDivElement | null>
       if (rect === null || element === null) return;
       const viewport = getViewport();
       const size = { width: element.offsetWidth, height: element.offsetHeight };
+      const duration = reducedMotion ? 0 : 300;
+      if (how === 'nearest') {
+        const next = pannedToShow(rect, viewport, size);
+        if (next !== null) void setViewport(next, { duration });
+        return;
+      }
       if (isRectVisible(rect, viewport, size)) return;
       void setCenter(rect.x + rect.width / 2, rect.y + rect.height / 2, {
         zoom: viewport.zoom,
-        duration: reducedMotion ? 0 : 300,
+        duration,
       });
     },
-    [getViewport, layout, reducedMotion, setCenter, surface],
+    [getViewport, how, layout, reducedMotion, setCenter, setViewport, surface],
   );
 }
 
@@ -95,7 +108,8 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
   const { getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const reducedMotion = useReducedMotion();
   const surface = useRef<HTMLDivElement>(null);
-  const reveal = useReveal(layout, surface);
+  const reveal = useReveal(layout, surface, 'centre');
+  const bringIntoView = useReveal(layout, surface, 'nearest');
   const hintId = useId();
   const duration = reducedMotion ? 0 : 200;
 
@@ -146,8 +160,11 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
         fitViewOptions={FIT_VIEW_OPTIONS}
         minZoom={0.2}
         maxZoom={2}
+        // The small credit link keeps clear of the zoom buttons, which take the bottom right
+        // (WCAG 2.5.8: a target under 24 px needs the space around it).
+        attributionPosition="bottom-left"
       >
-        <RevealNewPeople layout={layout} reveal={reveal} />
+        <RevealNewPeople layout={layout} reveal={bringIntoView} />
       </ReactFlow>
       {/* After the cards in the DOM, so the tab order is board, cards, zoom buttons. */}
       <div className="absolute right-3 bottom-3 z-10 flex flex-col gap-2">
