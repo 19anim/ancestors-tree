@@ -269,7 +269,8 @@
       "CYCLE": "Thay đổi này sẽ khiến một người thành tổ tiên của chính mình.",
       "INVALID_PARTNERS": "Một cuộc hôn nhân cần một hoặc hai người khác nhau.",
       "RESTORE_CONFLICT": "Không khôi phục được: cuộc hôn nhân của người này đã thay đổi.",
-      "TREE_FULL": "Cây gia phả đã đủ 5.000 người, không thêm được nữa."
+      "TREE_FULL": "Cây gia phả đã đủ 5.000 người, không thêm được nữa.",
+      "TOO_MANY_UNIONS": "Một người chỉ có thể có tối đa 100 cuộc hôn nhân."
     },
     "empty": "Chưa có ai trong cây gia phả này.",
     "retry": "Thử lại",

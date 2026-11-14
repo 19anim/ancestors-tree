@@ -5,6 +5,9 @@ import { LunarDateSchema, MAX_YEAR, MIN_YEAR, SolarDateSchema } from '../lunar/d
 /** The design limit of one family tree (spec §5). */
 export const MAX_PERSONS = 5000;
 
+/** Most marriages one person can be in; also the most unions one restorePerson carries. */
+export const MAX_UNIONS_PER_PERSON = 100;
+
 export const GenderSchema = z.enum(['male', 'female']);
 // No custom messages: the web translates Zod issues by code (formErrors.ts).
 export const FullNameSchema = z.string().trim().min(1).max(120);

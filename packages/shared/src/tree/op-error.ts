@@ -14,6 +14,7 @@ export const OP_ERROR_CODES = {
   INVALID_PARTNERS: 'A union needs one or two different people (including the restored person).',
   RESTORE_CONFLICT: 'The person cannot be restored: one of their unions has changed partners.',
   TREE_FULL: 'The family tree already has the maximum of 5,000 people.',
+  TOO_MANY_UNIONS: 'A person can be in at most 100 unions (marriages).',
 } as const satisfies Record<string, string>;
 
 export type OpErrorCode = keyof typeof OP_ERROR_CODES;

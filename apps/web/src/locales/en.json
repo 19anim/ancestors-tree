@@ -269,7 +269,8 @@
       "CYCLE": "This change would make someone their own ancestor.",
       "INVALID_PARTNERS": "A marriage needs one or two different people.",
       "RESTORE_CONFLICT": "Cannot restore: this person's marriage has changed.",
-      "TREE_FULL": "The family tree already has 5,000 people; no more can be added."
+      "TREE_FULL": "The family tree already has 5,000 people; no more can be added.",
+      "TOO_MANY_UNIONS": "A person can be in at most 100 marriages."
     },
     "empty": "No one is in this family tree yet.",
     "retry": "Try again",

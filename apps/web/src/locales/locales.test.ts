@@ -24,6 +24,10 @@ describe('locales', () => {
     }
   });
 
+  it('translate no rule-violation reason that no longer exists', () => {
+    expect(Object.keys(vi.tree.rules).sort()).toEqual([...OP_ERROR_CODE_LIST].sort());
+  });
+
   it('define exactly the same keys in vi and en', () => {
     expect(Object.keys(enFlat).sort()).toEqual(Object.keys(viFlat).sort());
   });

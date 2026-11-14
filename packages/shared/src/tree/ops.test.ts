@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_BATCH_OPS, needsOwner, OpSchema, type Op } from './ops.ts';
+import { MAX_BATCH_OPS, needsOwner, OpSchema, sameOp, type Op } from './ops.ts';
 import { makePerson, makeUnion, testId } from './testing.ts';
 
 const setProgenitor: Op = { type: 'setProgenitor', payload: { personId: testId(1) } };
@@ -41,5 +41,32 @@ describe('needsOwner', () => {
     expect(needsOwner({ type: 'batch', payload: { ops: [addPerson, setProgenitor] } })).toBe(true);
     expect(needsOwner(addPerson)).toBe(false);
     expect(needsOwner({ type: 'batch', payload: { ops: [addPerson] } })).toBe(false);
+  });
+});
+
+describe('sameOp', () => {
+  const union = makeUnion(testId(2), [testId(1), testId(3)]);
+
+  it('ignores key order and undefined fields', () => {
+    const reordered: Op = {
+      payload: { status: 'married', order: 1, partnerIds: union.partnerIds, id: union.id },
+      type: 'addUnion',
+    };
+    expect(sameOp({ type: 'addUnion', payload: union }, reordered)).toBe(true);
+    const withUndefined = {
+      type: 'updatePerson',
+      payload: { id: testId(1), changes: { bio: 'x', nickname: undefined } },
+    } as Op;
+    const without: Op = { type: 'updatePerson', payload: { id: testId(1), changes: { bio: 'x' } } };
+    expect(sameOp(withUndefined, without)).toBe(true);
+  });
+
+  it('sees different values and array order', () => {
+    const swapped = { ...union, partnerIds: [testId(3), testId(1)] };
+    const original: Op = { type: 'addUnion', payload: union };
+    expect(sameOp(original, { type: 'addUnion', payload: swapped })).toBe(false);
+    expect(sameOp(setProgenitor, { type: 'setProgenitor', payload: { personId: null } })).toBe(
+      false,
+    );
   });
 });
