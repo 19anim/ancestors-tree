@@ -15,12 +15,17 @@ type Command =
   | { kind: 'deletePerson'; target: number }
   | { kind: 'deleteUnion'; target: number }
   | { kind: 'setParents'; target: number; union: number | null }
-  | { kind: 'setProgenitor'; target: number | null };
+  | { kind: 'setProgenitor'; target: number | null }
+  /** Applies the inverse of the latest change not undone yet (restore ops come from here). */
+  | { kind: 'undo' };
 
 const index = fc.nat({ max: 50 });
 const command: fc.Arbitrary<Command> = fc.oneof(
   fc.record({ kind: fc.constant('addPerson' as const), parent: fc.option(index) }),
-  fc.record({ kind: fc.constant('addUnion' as const), a: index, b: fc.option(index) }),
+  {
+    weight: 2,
+    arbitrary: fc.record({ kind: fc.constant('addUnion' as const), a: index, b: fc.option(index) }),
+  },
   fc.record({
     kind: fc.constant('updatePerson' as const),
     target: index,
@@ -34,9 +39,10 @@ const command: fc.Arbitrary<Command> = fc.oneof(
     b: fc.option(index),
   }),
   fc.record({ kind: fc.constant('deletePerson' as const), target: index }),
-  fc.record({ kind: fc.constant('deleteUnion' as const), target: index }),
+  { weight: 5, arbitrary: fc.record({ kind: fc.constant('deleteUnion' as const), target: index }) },
   fc.record({ kind: fc.constant('setParents' as const), target: index, union: fc.option(index) }),
   fc.record({ kind: fc.constant('setProgenitor' as const), target: fc.option(index) }),
+  { weight: 6, arbitrary: fc.constant({ kind: 'undo' as const }) },
 );
 
 function pick(ids: readonly string[], at: number): string | undefined {
@@ -99,6 +105,9 @@ function toOp(tree: TreeState, cmd: Command, nextId: () => string): SingleOp | n
       const personId = cmd.target === null ? null : (pick(people, cmd.target) ?? null);
       return { type: 'setProgenitor', payload: { personId } };
     }
+    case 'undo':
+      // Handled by run(): an undo needs the stored inverses, not the tree.
+      return null;
   }
 }
 
@@ -112,14 +121,14 @@ function tryApply(tree: TreeState, op: Op): ApplyOpResult | null {
 }
 
 /** Applies op; checks immutability, invariants and the inverse round trip on success. */
-function step(tree: TreeState, op: Op): TreeState {
+function step(tree: TreeState, op: Op): ApplyOpResult | null {
   const before = structuredClone(tree);
   const result = tryApply(tree, op);
-  expect(tree).toEqual(before);
-  if (!result) return tree;
+  expect(tree).toStrictEqual(before);
+  if (!result) return null;
   expect(invariantViolations(result.tree)).toEqual([]);
-  expect(applyOp(result.tree, result.inverse).tree).toEqual(before);
-  return result.tree;
+  expect(applyOp(result.tree, result.inverse).tree).toStrictEqual(before);
+  return result;
 }
 
 function idMaker(): () => string {
@@ -130,19 +139,45 @@ function idMaker(): () => string {
   };
 }
 
+/** How often the undo command applied each op type, over all runs. */
+type Seen = Partial<Record<Op['type'], number>>;
+
+/** Runs the commands from an empty tree; undo applies the latest inverse not used yet. */
+function run(commands: readonly Command[], nextId: () => string, seen: Seen): TreeState {
+  let tree = EMPTY_TREE;
+  const undoStack: Op[] = [];
+  for (const cmd of commands) {
+    if (cmd.kind === 'undo') {
+      const inverse = undoStack.pop();
+      const result = inverse ? step(tree, inverse) : null;
+      if (inverse && result) {
+        tree = result.tree;
+        seen[inverse.type] = (seen[inverse.type] ?? 0) + 1;
+      }
+      continue;
+    }
+    const op = toOp(tree, cmd, nextId);
+    const result = op ? step(tree, op) : null;
+    if (result) {
+      tree = result.tree;
+      undoStack.push(result.inverse);
+    }
+  }
+  return tree;
+}
+
 describe('applyOp properties', () => {
   it('keeps the tree valid, never mutates it, and every inverse restores it exactly', () => {
+    const seen: Seen = {};
     fc.assert(
-      fc.property(fc.array(command, { maxLength: 60 }), (commands) => {
-        const nextId = idMaker();
-        let tree = EMPTY_TREE;
-        for (const cmd of commands) {
-          const op = toOp(tree, cmd, nextId);
-          if (op) tree = step(tree, op);
-        }
+      fc.property(fc.array(command, { maxLength: 60, size: 'max' }), (commands) => {
+        run(commands, idMaker(), seen);
       }),
-      { numRuns: 300 },
+      { numRuns: 500 },
     );
+    // The undo command really produced the restore ops this test is about.
+    expect(seen.restorePerson ?? 0).toBeGreaterThan(0);
+    expect(seen.restoreUnion ?? 0).toBeGreaterThan(0);
   });
 
   it('round-trips batches', () => {
@@ -152,11 +187,7 @@ describe('applyOp properties', () => {
         fc.array(fc.array(command, { minLength: 1, maxLength: 4 }), { maxLength: 8 }),
         (setup, groups) => {
           const nextId = idMaker();
-          let tree = EMPTY_TREE;
-          for (const cmd of setup) {
-            const op = toOp(tree, cmd, nextId);
-            if (op) tree = step(tree, op);
-          }
+          let tree = run(setup, nextId, {});
           for (const group of groups) {
             // Build each child op against the tree as the batch will see it.
             const ops: SingleOp[] = [];
@@ -169,7 +200,8 @@ describe('applyOp properties', () => {
                 preview = result.tree;
               }
             }
-            if (ops.length > 0) tree = step(tree, { type: 'batch', payload: { ops } });
+            const result = ops.length > 0 ? step(tree, { type: 'batch', payload: { ops } }) : null;
+            if (result) tree = result.tree;
           }
         },
       ),

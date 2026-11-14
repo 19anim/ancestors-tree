@@ -15,8 +15,14 @@ function noticeText(t: TFunction, notice: TreeNotice): string {
         : t('tree.notice.rejected', { reason: rejectionMessage(t, notice.error) });
     case 'signedOut':
       return t('tree.notice.signedOut');
+    case 'otherAccount':
+      return t('tree.notice.otherAccount');
+    case 'savedUnreadable':
+      return t('tree.notice.savedUnreadable');
     case 'discarded':
-      return t('tree.notice.discarded', { count: notice.count });
+      return notice.inFlight
+        ? t('tree.notice.discardedInFlight', { count: notice.count })
+        : t('tree.notice.discarded', { count: notice.count });
     default: {
       // A new notice kind must be handled above: this stops compiling until it is.
       const unhandled: never = notice;
@@ -44,10 +50,13 @@ export function TreeNoticeBanner() {
       className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
     >
       <p className="font-medium text-stamp">
-        {notice.clanId === onScreenClanId ? text : t('tree.notice.otherTree', { message: text })}
+        {notice.clanId === null || notice.clanId === onScreenClanId
+          ? text
+          : t('tree.notice.otherTree', { message: text })}
       </p>
       <div className="flex items-center gap-2">
-        {notice.kind === 'signedOut' && pathname !== '/login' ? (
+        {(notice.kind === 'signedOut' || notice.kind === 'otherAccount') &&
+        pathname !== '/login' ? (
           <Link
             to={`/login?${new URLSearchParams({ returnTo: `/clans/${notice.clanId}/tree` })}`}
             className={buttonVariants({ variant: 'secondary', size: 'sm' })}

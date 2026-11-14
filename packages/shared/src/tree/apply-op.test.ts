@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, isOwnAncestor } from './apply-op.ts';
 import { OpError, type OpErrorCode } from './op-error.ts';
-import type { Op } from './ops.ts';
-import { MAX_PERSONS, type Person, type Union } from './schemas.ts';
+import type { Op, SingleOp } from './ops.ts';
+import { MAX_PERSONS, MAX_UNIONS_PER_PERSON, type Person, type Union } from './schemas.ts';
 import type { TreeState } from './state.ts';
 import { invariantViolations, makePerson, makeUnion, testId, treeOf } from './testing.ts';
 
@@ -331,6 +331,37 @@ describe('restorePerson', () => {
     expectOpError(restore(makePerson(D, { parentUnionId: V }), []), 'UNION_NOT_FOUND');
     expectOpError(restore(makePerson(D), [makeUnion(A, [D])]), 'DUPLICATE_ID');
   });
+
+  it('refuses a snapshot that reuses the person id or repeats a union', () => {
+    const restore = (unions: Union[]) => () =>
+      applyOp(family(), { type: 'restorePerson', payload: { person: makePerson(D), unions } });
+    expectOpError(restore([makeUnion(D, [D])]), 'DUPLICATE_ID');
+    expectOpError(restore([makeUnion(V, [D]), makeUnion(V, [D])]), 'DUPLICATE_ID');
+  });
+
+  it('does not mistake inherited keys for people or unions', () => {
+    const restore = (unions: Union[]) => () =>
+      applyOp(family(), { type: 'restorePerson', payload: { person: makePerson(D), unions } });
+    expectOpError(restore([makeUnion('constructor', [D])]), 'INVALID_ID');
+    expectOpError(restore([makeUnion(V, [D, 'toString'])]), 'PERSON_NOT_FOUND');
+  });
+
+  it('keeps later changes to a union that kept the other partner', () => {
+    const { tree: deleted, inverse } = applyOp(withInLaw(), {
+      type: 'deletePerson',
+      payload: { id: D },
+    });
+    const divorced = applyOp(deleted, {
+      type: 'updateUnion',
+      payload: { id: W, changes: { status: 'divorced', order: 2 } },
+    }).tree;
+    expect(applyOp(divorced, inverse).tree.unions[W]).toEqual({
+      id: W,
+      partnerIds: [C, D],
+      order: 2,
+      status: 'divorced',
+    });
+  });
 });
 
 describe('setProgenitor', () => {
@@ -343,6 +374,78 @@ describe('setProgenitor', () => {
     expect(roundTrip(family(), choose(null)).progenitorId).toBeNull();
     expect(applyOp(family(), choose(C)).inverse).toEqual(choose(A));
     expectOpError(() => applyOp(family(), choose(D)), 'PERSON_NOT_FOUND');
+  });
+});
+
+describe('inherited keys', () => {
+  it('are never people or unions', () => {
+    const tree = family();
+    expectOpError(
+      () => applyOp(tree, { type: 'deletePerson', payload: { id: 'constructor' } }),
+      'PERSON_NOT_FOUND',
+    );
+    expectOpError(
+      () =>
+        applyOp(tree, {
+          type: 'updateUnion',
+          payload: { id: 'toString', changes: { status: 'divorced' } },
+        }),
+      'UNION_NOT_FOUND',
+    );
+    expectOpError(
+      () =>
+        applyOp(tree, { type: 'setParents', payload: { personId: C, parentUnionId: 'valueOf' } }),
+      'UNION_NOT_FOUND',
+    );
+  });
+});
+
+describe('unions per person', () => {
+  /** A has the maximum number of marriages, each with a different spouse; D is single. */
+  function busy(): TreeState {
+    const spouses = Array.from({ length: MAX_UNIONS_PER_PERSON }, (_, index) =>
+      makePerson(testId(1000 + index), { gender: 'female' }),
+    );
+    const unions = spouses.map((spouse, index) => makeUnion(testId(2000 + index), [A, spouse.id]));
+    return treeOf([makePerson(A), makePerson(D), ...spouses], unions);
+  }
+
+  it('stops a new marriage past the limit', () => {
+    expectOpError(
+      () => applyOp(busy(), { type: 'addUnion', payload: makeUnion(V, [D, A]) }),
+      'TOO_MANY_UNIONS',
+    );
+    expectOpError(
+      () => applyOp(busy(), { type: 'addUnion', payload: makeUnion(V, [A]) }),
+      'TOO_MANY_UNIONS',
+    );
+    const single = applyOp(busy(), { type: 'addUnion', payload: makeUnion(V, [D]) });
+    expect(single.tree.unions[V]).toEqual(makeUnion(V, [D]));
+  });
+
+  it('counts a partner moved into a union, but not the union being changed', () => {
+    const tree = applyOp(busy(), { type: 'addUnion', payload: makeUnion(V, [D]) }).tree;
+    expectOpError(
+      () =>
+        applyOp(tree, { type: 'updateUnion', payload: { id: V, changes: { partnerIds: [D, A] } } }),
+      'TOO_MANY_UNIONS',
+    );
+    const first = testId(2000);
+    const moved = applyOp(tree, {
+      type: 'updateUnion',
+      payload: { id: first, changes: { partnerIds: [A, D] } },
+    });
+    expect(moved.tree.unions[first]?.partnerIds).toEqual([A, D]);
+  });
+
+  it('refuses a restore that would pass the limit', () => {
+    const restore = (tree: TreeState, unions: Union[]) => () =>
+      applyOp(tree, { type: 'restorePerson', payload: { person: makePerson(K), unions } });
+    expectOpError(restore(busy(), [makeUnion(W, [K, A])]), 'TOO_MANY_UNIONS');
+    const tooMany = Array.from({ length: MAX_UNIONS_PER_PERSON + 1 }, (_, index) =>
+      makeUnion(testId(3000 + index), [K]),
+    );
+    expectOpError(restore(family(), tooMany), 'TOO_MANY_UNIONS');
   });
 });
 
@@ -372,22 +475,15 @@ describe('batch', () => {
     roundTrip(family(), addSpouse);
   });
 
-  it('fails as a whole and leaves the tree untouched', () => {
+  it.each([0, 1, 2])('fails as a whole when op %i is refused', (position) => {
+    const ops: SingleOp[] = [
+      { type: 'addPerson', payload: makePerson(D) },
+      { type: 'addPerson', payload: makePerson(E) },
+    ];
+    ops.splice(position, 0, { type: 'deletePerson', payload: { id: A } });
     const tree = family();
     const before = structuredClone(tree);
-    expectOpError(
-      () =>
-        applyOp(tree, {
-          type: 'batch',
-          payload: {
-            ops: [
-              { type: 'addPerson', payload: makePerson(D) },
-              { type: 'deletePerson', payload: { id: A } },
-            ],
-          },
-        }),
-      'PROGENITOR_PROTECTED',
-    );
-    expect(tree).toEqual(before);
+    expectOpError(() => applyOp(tree, { type: 'batch', payload: { ops } }), 'PROGENITOR_PROTECTED');
+    expect(tree).toStrictEqual(before);
   });
 });

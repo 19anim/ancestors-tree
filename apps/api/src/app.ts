@@ -21,11 +21,12 @@ import {
 } from './http/routeRegistry.ts';
 import { buildOpenApiDocument, type OpenApiDocument } from './openapi/document.ts';
 import { registerAuthRoutes } from './routes/auth.ts';
-import { createRequireClanRole } from './clans/access.ts';
+import { createRequireClanRole, createRequireExpectedUser } from './clans/access.ts';
 import { registerClanRoutes } from './routes/clans.ts';
 import { registerMemberRoutes } from './routes/members.ts';
 import { registerInviteRoutes } from './routes/invites.ts';
 import { registerTreeRoutes } from './routes/tree.ts';
+import { registerHistoryRoutes } from './routes/history.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
 import { createPasswordResets } from './auth/passwordResets.ts';
@@ -84,7 +85,11 @@ export function createApp(options: AppOptions): CreatedApp {
   const signedIn = [createRequireAuth(tokens), createUserRateLimit(options.rateLimits.user)];
   const policies: AccessPolicies = {
     signedIn,
-    clanRole: (role) => [...signedIn, createRequireClanRole(role)],
+    clanRole: (role, { expectedUser }) => [
+      ...signedIn,
+      ...(expectedUser ? [createRequireExpectedUser()] : []),
+      createRequireClanRole(role),
+    ],
   };
 
   const api = createRouteRegistry({ policies });
@@ -109,6 +114,7 @@ export function createApp(options: AppOptions): CreatedApp {
   registerMemberRoutes(api);
   registerInviteRoutes(api);
   registerTreeRoutes(api);
+  registerHistoryRoutes(api);
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();

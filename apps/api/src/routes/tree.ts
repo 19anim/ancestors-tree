@@ -94,15 +94,19 @@ export function registerTreeRoutes(api: RouteRegistry): void {
     path: '/clans/:id/ops',
     summary: 'Apply one change (an op) made against baseVersion',
     tags: ['Tree'],
-    access: { clanRole: 'editor' },
+    access: { clanRole: 'editor', checksExpectedUser: true },
     request: { params: ClanParamsSchema, body: SubmitOpRequestSchema },
     responses: {
       200: { description: 'Saved; seq is the new version', schema: SubmitOpResponseSchema },
     },
     handler: async ({ params, body, membership, userId }) => {
-      const { op, baseVersion } = body;
-      if (needsOwner(op) && membership().role !== 'owner') {
+      const { op, baseVersion, revertsSeq, revertsToSeq } = body;
+      const isOwner = membership().role === 'owner';
+      if (needsOwner(op) && !isOwner) {
         throw new AppError('FORBIDDEN', 'Only the Manager can choose the progenitor');
+      }
+      if (revertsToSeq !== undefined && !isOwner) {
+        throw new AppError('FORBIDDEN', 'Only the Manager can revert the family tree to a point');
       }
       const seq = await mongoose.connection.transaction(async (session) => {
         const clan = await findClan(params.id, session);
@@ -111,6 +115,14 @@ export function registerTreeRoutes(api: RouteRegistry): void {
             'VERSION_CONFLICT',
             `The family tree is at version ${clan.version}, not ${baseVersion}`,
           );
+        }
+        // A revert names a change that exists: at most the current version, and a point
+        // strictly before it.
+        if (revertsSeq !== undefined && revertsSeq > clan.version) {
+          throw new AppError('VALIDATION_ERROR', `There is no change ${revertsSeq} to revert`);
+        }
+        if (revertsToSeq !== undefined && revertsToSeq >= clan.version) {
+          throw new AppError('VALIDATION_ERROR', `Nothing was changed after ${revertsToSeq}`);
         }
         const before = await loadTreeState(clan, session);
         const { tree: after, inverse } = applyOrReject(before, op);
@@ -137,6 +149,8 @@ export function registerTreeRoutes(api: RouteRegistry): void {
                 type: op.type,
                 payload: op.payload,
                 inverse,
+                revertsSeq,
+                revertsToSeq,
               },
             ],
             { session },

@@ -3,6 +3,7 @@ import { OpError } from './op-error.ts';
 import type { Op, SingleOp } from './ops.ts';
 import {
   MAX_PERSONS,
+  MAX_UNIONS_PER_PERSON,
   type Person,
   type PersonChanges,
   type Union,
@@ -35,16 +36,19 @@ function withoutEntry<T>(record: Readonly<Record<string, T>>, id: string): Recor
   return copy;
 }
 
+// Object.hasOwn: an id such as "constructor" must not find Object.prototype's members.
 function getPerson(tree: TreeState, id: string): Person {
-  const person = tree.persons[id];
-  if (!person) throw new OpError('PERSON_NOT_FOUND', `Person ${id} does not exist`);
-  return person;
+  if (!Object.hasOwn(tree.persons, id)) {
+    throw new OpError('PERSON_NOT_FOUND', `Person ${id} does not exist`);
+  }
+  return tree.persons[id] as Person;
 }
 
 function getUnion(tree: TreeState, id: string): Union {
-  const union = tree.unions[id];
-  if (!union) throw new OpError('UNION_NOT_FOUND', `Union ${id} does not exist`);
-  return union;
+  if (!Object.hasOwn(tree.unions, id)) {
+    throw new OpError('UNION_NOT_FOUND', `Union ${id} does not exist`);
+  }
+  return tree.unions[id] as Union;
 }
 
 /** Clients generate ids (spec §6.1), so they are checked like any other input. */
@@ -72,6 +76,30 @@ function assertDistinctPartners(partnerIds: readonly string[]): void {
 function assertPartners(tree: TreeState, partnerIds: readonly string[]): void {
   assertDistinctPartners(partnerIds);
   for (const partnerId of partnerIds) getPerson(tree, partnerId);
+}
+
+function unionCount(tree: TreeState, personId: string, except?: string): number {
+  let count = 0;
+  for (const union of Object.values(tree.unions)) {
+    if (union.id !== except && union.partnerIds.includes(personId)) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Keeps every person within MAX_UNIONS_PER_PERSON, so the restorePerson that undoes a delete
+ * always fits one op. `except` is a union being changed: it is not counted twice.
+ */
+function assertRoomForUnions(
+  tree: TreeState,
+  partnerIds: readonly string[],
+  except?: string,
+): void {
+  for (const partnerId of partnerIds) {
+    if (unionCount(tree, partnerId, except) >= MAX_UNIONS_PER_PERSON) {
+      throw new OpError('TOO_MANY_UNIONS', `Person ${partnerId} already has the most unions`);
+    }
+  }
 }
 
 /** True when someone was born into one of these unions. One pass over the people. */
@@ -163,6 +191,7 @@ function deletePerson(tree: TreeState, id: string): SingleResult {
 function addUnion(tree: TreeState, union: Union): SingleResult {
   assertNewId(tree, union.id);
   assertPartners(tree, union.partnerIds);
+  assertRoomForUnions(tree, union.partnerIds);
   return {
     tree: { ...tree, unions: withEntry(tree.unions, union.id, union) },
     inverse: { type: 'deleteUnion', payload: { id: union.id } },
@@ -175,6 +204,7 @@ function updateUnion(tree: TreeState, id: string, changes: UnionChanges): Single
   const previous: UnionChanges = {};
   if (changes.partnerIds !== undefined) {
     assertPartners(tree, changes.partnerIds);
+    assertRoomForUnions(tree, changes.partnerIds, id);
     previous.partnerIds = union.partnerIds;
     next.partnerIds = changes.partnerIds;
   }
@@ -216,6 +246,13 @@ function setParents(tree: TreeState, personId: string, parentUnionId: string | n
 function restorePerson(tree: TreeState, person: Person, snapshots: readonly Union[]): SingleResult {
   assertNewId(tree, person.id);
   assertRoomForPerson(tree);
+  if (snapshots.length > MAX_UNIONS_PER_PERSON) {
+    throw new OpError('TOO_MANY_UNIONS', `Person ${person.id} would have too many unions`);
+  }
+  const snapshotIds = new Set(snapshots.map((snapshot) => snapshot.id));
+  if (snapshotIds.size !== snapshots.length || snapshotIds.has(person.id)) {
+    throw new OpError('DUPLICATE_ID', 'A union in the snapshot repeats an id');
+  }
   const unions = { ...tree.unions };
   for (const snapshot of snapshots) {
     assertDistinctPartners(snapshot.partnerIds);
@@ -225,23 +262,30 @@ function restorePerson(tree: TreeState, person: Person, snapshots: readonly Unio
     for (const partnerId of snapshot.partnerIds) {
       if (partnerId !== person.id) getPerson(tree, partnerId);
     }
-    const current = tree.unions[snapshot.id];
-    if (current) {
+    if (Object.hasOwn(tree.unions, snapshot.id)) {
+      const current = tree.unions[snapshot.id] as Union;
       // The union kept the other partner when the person was deleted; it may not have gained
       // anyone else since.
       if (!current.partnerIds.every((partnerId) => snapshot.partnerIds.includes(partnerId))) {
         throw new OpError('RESTORE_CONFLICT', `Union ${snapshot.id} has changed partners`);
       }
+      // Only the person comes back: a later order or status edit of the union stays.
+      unions[snapshot.id] = { ...current, partnerIds: snapshot.partnerIds };
     } else {
       assertNewId(tree, snapshot.id);
+      unions[snapshot.id] = snapshot;
     }
-    unions[snapshot.id] = snapshot;
   }
   const nextTree: TreeState = {
     ...tree,
     persons: withEntry(tree.persons, person.id, person),
     unions,
   };
+  for (const partnerId of new Set(snapshots.flatMap((snapshot) => snapshot.partnerIds))) {
+    if (unionCount(nextTree, partnerId) > MAX_UNIONS_PER_PERSON) {
+      throw new OpError('TOO_MANY_UNIONS', `Person ${partnerId} would have too many unions`);
+    }
+  }
   if (person.parentUnionId !== undefined) getUnion(nextTree, person.parentUnionId);
   assertNoCycle(nextTree, [person.id]);
   return { tree: nextTree, inverse: { type: 'deletePerson', payload: { id: person.id } } };

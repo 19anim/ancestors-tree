@@ -35,6 +35,7 @@ describe('ClanLayout', () => {
     const tabs = within(screen.getByRole('navigation', { name: 'Mục của cây gia phả' }));
     expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Cây',
+      'Lịch sử',
       'Thành viên',
       'Cài đặt',
     ]);

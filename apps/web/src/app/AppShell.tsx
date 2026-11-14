@@ -1,14 +1,13 @@
-import { Suspense, useLayoutEffect, useRef } from 'react';
+import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet } from 'react-router';
 import { UserMenu, useCurrentUser } from '../features/auth';
 import { ServerStatus } from '../features/system';
 import {
-  discardTreeStateForAccountChange,
-  resetTreeStore,
+  signOutTreeStore,
   TreeNoticeBanner,
   UnsentChangesGuard,
-  useTreeStore,
+  useTreeAccount,
   useUnsentChangeCount,
 } from '../features/tree';
 import { useDocumentLanguage } from '../shared/i18n/useDocumentLanguage';
@@ -22,34 +21,14 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   );
 }
 
-/**
- * Unsent tree changes belong to the account that made them. When another account signs in (over
- * the previous one, or after a sign-out), they are dropped so they are never sent under it, and a
- * notice says how many. The same account signing in again after its session ended keeps them:
- * they are sent then.
- */
-function useResetTreeOnAccountChange(userId: string | undefined): void {
-  const lastUserId = useRef<string | undefined>(undefined);
-  // A layout effect runs before every passive effect of the same commit, so the queue is empty
-  // before a page (such as the tree page loading its tree) can resume sending.
-  useLayoutEffect(() => {
-    if (userId === undefined) return;
-    if (lastUserId.current !== undefined && lastUserId.current !== userId) {
-      discardTreeStateForAccountChange();
-    } else if (lastUserId.current === userId) {
-      // The same account is back after its session ended: send what was kept.
-      useTreeStore.getState().resumeAfterSignIn();
-    }
-    lastUserId.current = userId;
-  }, [userId]);
-}
-
 export function AppShell() {
   const { t } = useTranslation();
   useDocumentLanguage();
   const me = useCurrentUser();
   const unsentChanges = useUnsentChangeCount();
-  useResetTreeOnAccountChange(me.data?.id);
+  // Unsent tree changes belong to the account that made them (spec §7.3): the store drops them
+  // when another account signs in and resumes them when the same one signs in again.
+  useTreeAccount(me.data?.id, me.dataUpdatedAt);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -94,7 +73,7 @@ export function AppShell() {
             </ul>
           </nav>
           <div className="flex items-center gap-2">
-            <UserMenu unsentChanges={unsentChanges} onSignedOut={resetTreeStore} />
+            <UserMenu unsentChanges={unsentChanges} onSignedOut={signOutTreeStore} />
             <ThemeToggle />
           </div>
         </div>

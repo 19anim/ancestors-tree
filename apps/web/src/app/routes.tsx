@@ -14,6 +14,7 @@ import {
   ClansPage,
   JoinPage,
 } from '../features/clans';
+import { HistoryPage } from '../features/history';
 import { HomePage } from '../features/home';
 import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
@@ -49,6 +50,7 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, element: <Navigate to="tree" replace /> },
               { path: 'tree', element: <TreePage /> },
+              { path: 'history', element: <HistoryPage /> },
               { path: 'members', element: <ClanMembersPage /> },
               { path: 'settings', element: <ClanSettingsPage /> },
             ],

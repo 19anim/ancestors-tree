@@ -350,10 +350,15 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 
 `_id` của Person/Union do client tạo. ObjectId sai định dạng bị chặn khi kiểm tra request (`VALIDATION_ERROR`, 400); id đã được một người (hoặc một Union) khác dùng, ở bất kỳ dòng họ nào, trả `RULE_VIOLATION` với reason `DUPLICATE_ID`.
 
-**Giới hạn:** một `batch` có 1–500 thao tác và không chứa `batch` khác; một dòng họ có tối đa 5.000 người (`TREE_FULL`); `GET /api/clans/:id/ops?since=` trả tối đa 500 thao tác mỗi lần gọi.
+**Giới hạn:** một `batch` có 1–500 thao tác và không chứa `batch` khác; một dòng họ có tối đa 5.000 người (`TREE_FULL`); một người là partner của tối đa 100 Union (`TOO_MANY_UNIONS`), nên `restorePerson` của một lần xoá luôn vừa một thao tác; `GET /api/clans/:id/ops?since=` trả tối đa 500 thao tác mỗi lần gọi.
+
+**Các trường của request ngoài `op` và `baseVersion`** (P6a):
+- `expectedUserId` (bắt buộc): tài khoản sở hữu hàng đợi của client. Nếu khác người đang đăng nhập, server trả `IDENTITY_MISMATCH` (409) và không áp gì cả. Bước kiểm tra này chạy trước bước kiểm tra vai trò trong dòng họ, nên hàng đợi của tài khoản khác không bao giờ nhận 404 hay 403 khiến client bỏ nó đi. Việc này chặn một tab gửi thay đổi của tài khoản khác sau khi tab thứ hai đăng nhập.
+- `revertsSeq`: do thao tác hoàn tác và nút "Hoàn tác" ở trang Lịch sử đặt. Nó ghi seq của thay đổi bị hoàn tác, không được lớn hơn phiên bản của dòng họ, và được lưu vào Operation để lịch sử ghi được "Hoàn tác thay đổi #42". Server chỉ kiểm tra khoảng giá trị này, không kiểm tra thao tác có thật là thao tác ngược của thay đổi đó hay không, nên dòng ghi chú này chỉ để tham khảo. Làm lại không đặt trường này: đó là thay đổi vừa hoàn tác được làm lại.
+- `revertsToSeq`: do "Quay về thời điểm này" đặt. Cần quyền Quản lý (nếu không thì `FORBIDDEN`, 403), phải nhỏ hơn phiên bản của dòng họ, và được lưu vào Operation. Gửi cả hai trường, hoặc một giá trị ngoài khoảng, là `VALIDATION_ERROR` (400). Khoảng giá trị được kiểm tra trong transaction ghi, sau bước kiểm tra phiên bản.
 
 **Luật nghiệp vụ** (do `applyOp` kiểm tra, vi phạm thì ném `OpError`):
-- Không xoá được người còn con (phải gỡ hoặc chuyển con trước). Xoá một người thì các Union mà người đó là partner duy nhất cũng bị xoá theo.
+- Không xoá được người còn con (phải gỡ hoặc chuyển con trước). Xoá một người thì các Union mà người đó là partner duy nhất cũng bị xoá theo. Thao tác ngược `restorePerson` đưa người đó và các Union ấy trở lại; Union nào vẫn còn với partner kia thì giữ thay đổi `order` hoặc `status` làm sau đó.
 - Không xoá được Union còn con, để không đứa con nào trỏ tới một Union không còn tồn tại (`UNION_HAS_CHILDREN`).
 - `parentUnionId` phải trỏ tới một Union có thật trong cùng dòng họ.
 - Không có vòng lặp (không ai là tổ tiên của chính mình).
@@ -397,18 +402,35 @@ pending.shift(); version = 43
 5. gửi lại pending với baseVersion = 43
 ```
 
-Thử lại tối đa 3 lần; quá số đó thì tải lại toàn bộ cây và báo người dùng.
+Xung đột được đếm theo thao tác đang ở đầu hàng đợi: lần xung đột thứ nhất và thứ hai liên tiếp với cùng một thao tác thì rebase, lần thứ ba thì tải lại toàn bộ cây và báo người dùng (xem "Khi nào tải lại"). Khi một thao tác khác lên đầu hàng đợi, việc đếm bắt đầu lại.
 
-**Hành vi ở P5 (cho tới khi rebase xong ở P6).** Khi gặp 409, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng. Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác bỏ thao tác bị từ chối cùng các thao tác phụ thuộc vào nó, báo lý do và số lượng đã bỏ, rồi chạy lại phần còn lại.
+**Chi tiết (P6a).**
+- **Đọc nhiều trang.** Bước 1 đọc tiếp các trang sau cho tới khi gặp một trang có ít hơn 500 thao tác. Đọc thất bại thì chờ theo cùng thời gian chờ tăng dần như khi gửi.
+- **Chồng undo.** Thao tác bị bỏ ở bước 4 được báo trong thông báo `rejected` có sẵn (lý do và số lượng), và mục của nó rời khỏi chồng undo lẫn redo. Nhờ vậy hoàn tác không bao giờ hoàn tác một thứ chưa từng được lưu.
+- **Câu trả lời bị mất.** Nếu thao tác đầu tiên đọc ở bước 1 (ngay sau phiên bản đã xác nhận) là của chính tài khoản này và giống hệt thao tác ở đầu hàng đợi, thì thao tác đó đã được lưu trước khi câu trả lời bị mất. Nó được xác nhận với seq đó thay vì chạy lại. Khi một hàng đợi đã lưu được khôi phục lên một cây mới hơn (§7.3), cùng cách kiểm tra đó xác nhận các thao tác đầu hàng đợi khớp với nhật ký ngay sau phiên bản đã lưu.
+- **"Quay về thời điểm này" không bao giờ được rebase.** Nó được dựng từ nhật ký ở một phiên bản, nên khi bước 1 nhận được bất kỳ thao tác nào khác thì nó bị bỏ, kèm thông báo `rejected`.
+- **Khi nào tải lại.** Sau lần 409 thứ ba liên tiếp với cùng một thao tác, khi các thao tác đọc ở bước 1 thiếu một seq (nhật ký bị hụt) hoặc có thao tác không áp được lên cây đã xác nhận, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng (như hành vi ở P5). Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục.
+
+**Các lỗi khác.** `IDENTITY_MISMATCH` dừng hàng đợi và giữ mọi thao tác, rồi báo rằng tab này đang đăng nhập bằng tài khoản khác. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác bỏ thao tác bị từ chối cùng các thao tác phụ thuộc vào nó, báo lý do và số lượng đã bỏ, rồi chạy lại phần còn lại. Body vượt giới hạn JSON 1 MB của API nhận `VALIDATION_ERROR` (400), và lỗi 413 từ proxy cũng được xử lý như vậy: là từ chối, không bao giờ thử lại. Sau `IDENTITY_MISMATCH`, hàng đợi được giữ cho tới khi tab biết tài khoản nào đang đăng nhập: cùng tài khoản thì gửi tiếp, tài khoản khác thì bỏ, kèm thông báo `discarded` (§7.3).
 
 ### 6.4 Undo / redo / hoàn tác thay đổi cũ
 
-- **Nút trên thanh công cụ** (luôn hiện trên trang cây, cả máy tính và điện thoại): nút icon ↶ Hoàn tác và ↷ Làm lại, có tooltip kèm phím tắt ("Hoàn tác (Ctrl+Z)"), tự mờ khi không còn gì để hoàn tác, và có dòng mô tả thao tác sắp hoàn tác ("Hoàn tác: thêm Nguyễn Văn Bình"). Bên cạnh là trạng thái lưu: *Đã lưu* / *Đang lưu…* / *Chưa lưu (offline)*.
-- **Bàn phím**: Ctrl/⌘+Z hoàn tác; Ctrl/⌘+Shift+Z và Ctrl+Y làm lại. Phím tắt bị bỏ qua khi đang gõ trong ô nhập liệu.
+- **Nút trên thanh công cụ** (luôn hiện trên trang cây với người Biên tập và Quản lý, cả máy tính và điện thoại): nút icon ↶ Hoàn tác và ↷ Làm lại, có tooltip kèm phím tắt ("Hoàn tác (Ctrl+Z)"; Esc ẩn tooltip), tự mờ và được đánh dấu `aria-disabled` khi chồng tương ứng trống (không dùng `disabled`, để người dùng bàn phím vẫn tới được), và có dòng mô tả thao tác sắp hoàn tác ("Hoàn tác: thêm Nguyễn Văn Bình"). Bên cạnh là trạng thái lưu mà mọi thành viên đều thấy: *Đã lưu* / *Đang lưu…* / *Chưa lưu được, đang thử lại…* / *Chưa lưu: cần đăng nhập lại*.
+- **Bàn phím**: Ctrl/⌘+Z hoàn tác; Ctrl/⌘+Shift+Z và Ctrl+Y làm lại. Phím tắt bị bỏ qua khi đang gõ trong ô nhập liệu hoặc vùng soạn thảo (contenteditable), trong hộp thoại và trong menu. Khi không còn gì để hoàn tác hay làm lại, phím được để lại cho trình duyệt.
 - **Undo** lấy op gần nhất **của chính người dùng trong phiên này** và gửi `inverse` của nó như một **op mới** (có `revertsSeq`). Lịch sử không bao giờ bị xoá, nên nhật ký luôn đầy đủ và trung thực.
-- **Redo** gửi lại op vừa bị undo. Có thay đổi mới thì xoá stack redo.
-- Stack undo bị xoá khi tải lại trang.
-- **Trang Lịch sử**: bấm "Hoàn tác" ở một thay đổi cũ bất kỳ sẽ gửi `inverse` của nó. Nếu không còn áp được (VD người đó đã bị xoá sau đó), hiện lý do lỗi từ `applyOp`.
+- **Redo** gửi lại op vừa bị undo, như một thay đổi bình thường (không có `revertsSeq`). Có thay đổi mới thì xoá stack redo.
+- Stack undo giữ 100 bước gần nhất và bị xoá khi tải lại trang.
+- Hoàn tác được cả thao tác còn đang chờ lưu. Thao tác ngược xếp hàng ngay sau nó, và `revertsSeq` được điền khi thao tác gốc đã có seq. Nếu thao tác ngược không còn áp được trên máy thì không gửi gì: người dùng thấy "Không hoàn tác được: <lý do>" và mục đó rời khỏi chồng.
+- **Trang Lịch sử** (`/clans/:id/history`):
+  - **Ai xem được.** Mọi thành viên, kể cả người chỉ có quyền xem.
+  - **Danh sách.** Thay đổi mới nhất ở trên, có phân trang. Mỗi dòng ghi người sửa, thời gian và một câu tóm tắt dễ đọc ("Lan: thêm Nguyễn Văn Bình"); một lần hoàn tác còn ghi nó hoàn tác thay đổi nào ("Hoàn tác thay đổi #42"). Trang đọc `GET /api/clans/:id/history?before=&limit=` (mặc định 50 dòng mỗi trang, tối đa 100); server ghép kèm tên hiển thị của người sửa và trả `inverse`, `revertsSeq`, `revertsToSeq` đã lưu của từng thay đổi. Trang đọc lại danh sách mỗi lần mở và sau mỗi thay đổi mà tab này lưu được; nếu một lần đọc sau đó thất bại, danh sách vẫn ở trên màn hình, kèm một cảnh báo ngay trong trang và nút thử lại, và "Xem thêm" giữ focus bàn phím trong danh sách. Trang này tải cây vào store chỉnh sửa, nên "người gác" thay đổi chưa gửi hỏi trước khi mở trang Lịch sử của cây khác (§7.3).
+  - **"Hoàn tác" một thay đổi.** Người Biên tập trở lên dùng được. App áp `inverse` của đúng thay đổi đó như mọi chỉnh sửa (hiện ngay, xếp hàng, hoàn tác được) và gửi kèm `revertsSeq`. Nếu không còn áp được (VD người đó đã bị xoá sau đó), hiện lý do lỗi từ `applyOp`. Trong lúc lần hoàn tác đó chờ lưu, nút của dòng ấy bị vô hiệu và ghi "Đang hoàn tác…". Người Biên tập không thấy "Hoàn tác" ở thay đổi mà thao tác ngược của nó chọn thuỷ tổ, vì chỉ Quản lý được làm việc đó.
+- **"Quay về thời điểm này"** (chỉ người Quản lý, trên trang Lịch sử, ở mọi thay đổi trừ thay đổi mới nhất). Client gom `inverse` của mọi thay đổi sau seq đã chọn thành một thao tác, mới nhất trước, với các `batch` lồng nhau được làm phẳng (một `batch`, hoặc chính thao tác ngược đó khi chỉ có một bước), rồi gửi kèm `revertsToSeq`.
+  - **Hỏi trước.** Hộp xác nhận ghi rõ số thay đổi sẽ bị hoàn tác. Khi xác nhận, cây được tải lại rồi mới áp lần quay về; trong lúc kiểm tra thì không đóng được hộp thoại, và lần quay về nào mà hộp thoại đã mất thì không bao giờ được gửi.
+  - **Giới hạn.** Quá 500 bước thì báo "Chọn một mốc gần hơn".
+  - **Tất cả hoặc không gì cả.** Nếu có thao tác ngược không còn áp được, cả lần quay về bị từ chối kèm lý do, và cây giữ nguyên.
+  - **Dựng trên một phiên bản.** Lần quay về bị từ chối khi còn thay đổi đang chờ lưu ("Còn thay đổi chưa gửi…") hoặc khi cây đã đổi kể từ lúc hiện số lượng ("Cây gia phả vừa có thay đổi mới…"); lời báo hiện sau khi số lượng được đọc lại. Rebase sẽ bỏ nó (§6.3).
+  - **Một bước hoàn tác.** Lần quay về là một thao tác riêng, nên ↶ hoàn tác cả lần quay về trong một lần.
 - Undo một lần AI nhập liệu = gửi inverse của `batch`, gỡ toàn bộ lần nhập đó.
 
 ---
@@ -465,7 +487,14 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 
 Component đọc store qua **selector** (`useTreeStore(s => s.persons[id])`) để chỉ vẽ lại khi đúng phần đó đổi.
 
-**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác, trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại và báo người dùng đã bỏ bao nhiêu thay đổi. Các thông báo (tải lại, thay đổi bị từ chối, hết phiên, thay đổi bị bỏ) hiện ở mọi trang cho tới khi người dùng đóng, vì thay đổi có thể đã mất trong lúc đang ở trang khác. Sau khi hết phiên, đăng nhập bằng Google sẽ rời khỏi trang và bỏ các thay đổi đang giữ, nên trang đăng nhập cảnh báo và gợi ý dùng email và mật khẩu. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
+**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác (trang cây hoặc trang Lịch sử), trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại và báo người dùng đã bỏ bao nhiêu thay đổi, và có thay đổi nào đang được gửi hay không (thay đổi đó có thể đã được lưu). Các thông báo (tải lại, thay đổi bị từ chối, hết phiên, thay đổi bị bỏ) hiện ở mọi trang cho tới khi người dùng đóng, vì thay đổi có thể đã mất trong lúc đang ở trang khác. Hàng đợi còn được lưu vào `sessionStorage` (P6a), theo người dùng, cây và phiên bản đã xác nhận:
+- **Cùng người, cùng cây, cùng phiên bản:** hàng đợi được khôi phục sau khi tải lại trang, hoặc sau khi đăng nhập bằng Google lúc hết phiên.
+- **Cùng người và cây nhưng phiên bản mới hơn:** khôi phục qua rebase ở §6.3.
+- **Tài khoản khác:** bỏ bản lưu, kèm thông báo `discarded`.
+- **Dữ liệu không đọc được:** bỏ đi, kèm thông báo.
+- **Tải lại khi đang ở trang của cây khác:** hàng đợi đã lưu được khôi phục cho đúng cây của nó và bắt đầu gửi; mở cây khác sau đó sẽ bỏ phần còn lại, kèm thông báo `discarded` (lúc đang tải lại thì không thể hỏi). Nếu lúc đọc bản lưu, store đã tải sẵn một cây khác thì hàng đợi bị bỏ ngay, kèm thông báo `discarded`.
+
+P5 chỉ cảnh báo trước khi đăng nhập bằng Google; P6a bỏ cảnh báo đó. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
 
 **Xoá cây gia phả** (chỉ Quản lý, `DELETE /api/clans/:id`, 204) xoá dòng họ cùng mọi người, union, thao tác, lời mời, bản ghi bị gỡ và tư cách thành viên. Quản lý phải gõ tên cây để xác nhận; việc so khớp chuẩn hoá Unicode NFC.
 
@@ -506,7 +535,7 @@ Vì dâu/rể không bao giờ mở rộng ngược lên trên (§8), layout là
 
 ### 7.5 Thanh công cụ của cây
 
-Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (hoặc breadcrumb khi đang đi theo liên kết, §8.1) · **↶ Hoàn tác · ↷ Làm lại** · trạng thái lưu · tìm kiếm · menu xem (hiện/ẩn dâu/rể, số đời con cháu của con gái, thu gọn tất cả) · **Trang trí** (§13.4) · xuất file · vừa màn hình. Trên điện thoại thu thành thanh dưới cùng: Hoàn tác/Làm lại luôn hiện, phần còn lại trong menu "thêm". Mọi nút có nhãn cho trình đọc màn hình và trạng thái focus rõ ràng.
+Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (hoặc breadcrumb khi đang đi theo liên kết, §8.1) · **↶ Hoàn tác · ↷ Làm lại** · trạng thái lưu · tìm kiếm · menu xem (hiện/ẩn dâu/rể, số đời con cháu của con gái, thu gọn tất cả) · **Trang trí** (§13.4) · xuất file · vừa màn hình. Trên điện thoại thu thành thanh dưới cùng: Hoàn tác/Làm lại luôn hiện, phần còn lại trong menu "thêm", khi thanh công cụ có thêm nút ngoài Hoàn tác, Làm lại và trạng thái lưu; trước đó (P6a) thanh công cụ nằm trên khung cây ở mọi cỡ màn hình, để không che các nút của khung cây. Mọi nút có nhãn cho trình đọc màn hình và trạng thái focus rõ ràng.
 
 ### 7.6 Form & nhập liệu
 
@@ -553,7 +582,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 ### 7.8 Responsive & khả năng tiếp cận
 
 - Kéo/zoom bằng cảm ứng (React Flow có sẵn); panel thành bottom sheet trên màn hình nhỏ.
-- Bàn phím: Tab qua các thẻ, Enter mở hồ sơ, phím mũi tên di chuyển giữa cha/con/anh chị em. "Đổi quan hệ…" trong menu của thẻ là cách dùng bàn phím thay cho kéo thả (§7.6).
+- Bàn phím: Tab qua các thẻ, Enter mở hồ sơ, phím mũi tên di chuyển giữa cha/con/anh chị em. Bản thân khung cây là một điểm dừng Tab trước các thẻ: phím mũi tên di chuyển khung nhìn, + (hoặc =) và − phóng to, thu nhỏ, 0 xem cả cây, và ba nút thu phóng nằm sau các thẻ theo thứ tự Tab (P6a; phím mũi tên đi giữa người thân có ở P6b). Các nút thu phóng nằm ở góc dưới bên phải, dòng ghi công của React Flow ở góc dưới bên trái. Thẻ nào nhận focus khi đang ở ngoài màn hình thì được đưa vào giữa khung nhìn, giữ nguyên mức phóng; người vừa thêm được đưa vào tầm nhìn bằng lần dịch ngắn nhất, giữ nguyên mức phóng, để thẻ vừa thao tác vẫn còn trên màn hình (xoá người thì giữ nguyên khung nhìn). "Đổi quan hệ…" trong menu của thẻ là cách dùng bàn phím thay cho kéo thả (§7.6).
 - Độ tương phản đạt WCAG AA. Mỗi thẻ có `aria-label` gồm tên, năm sinh–mất, đời.
 
 ---
@@ -827,7 +856,7 @@ ancestors-tree/                      gốc trên Cloudinary
   ```json
   { "error": { "code": "VERSION_CONFLICT", "message": "The tree was updated by someone else" } }
   ```
-  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, từ `applyOp`, kèm `reason`: mã `OpError`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
+  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `IDENTITY_MISMATCH` (409, `expectedUserId` của thao tác không phải người đang đăng nhập), `RULE_VIOLATION` (422, từ `applyOp`, kèm `reason`: mã `OpError`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
 - **Client:** api client chuyển lỗi thành `ApiError { code, message }`, giao diện hiện câu tiếng Việt tương ứng với `code`. Mỗi feature được bọc trong một **Error Boundary**. Thao tác lỗi thì hiện toast. Mất mạng khi gửi op thì giữ trong `pending` và thử lại kiểu **exponential backoff** (1 s, 2 s, 4 s…); thanh công cụ hiện "Chưa lưu".
 - **Render cold start (~30–60 giây):** lần tải đầu hiện màn hình "Đang khởi động máy chủ…" thay vì trang trắng.
 - **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production.

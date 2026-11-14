@@ -16,7 +16,10 @@ export interface DialogContentProps extends Omit<
   /** Required so every dialog has an accessible name. */
   title: string;
   description?: string;
-  /** Disables the corner close button (the caller also blocks Escape and Cancel). */
+  /**
+   * Makes the corner close button do nothing (aria-disabled, so it stays focusable); the caller
+   * also blocks Escape and Cancel.
+   */
   closeDisabled?: boolean;
 }
 
@@ -48,13 +51,18 @@ export function DialogContent({
           </DialogPrimitive.Description>
         ) : null}
         <div className="mt-6">{children}</div>
-        <DialogPrimitive.Close asChild>
+        {/* Busy: aria-disabled, not disabled, so a focused button keeps focus; the click is
+            prevented, so Radix does not close. */}
+        <DialogPrimitive.Close
+          asChild
+          onClick={closeDisabled ? (event) => event.preventDefault() : undefined}
+        >
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-3 right-3 size-8"
+            className="absolute top-3 right-3 size-8 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
             aria-label={t('common.close')}
-            disabled={closeDisabled}
+            aria-disabled={closeDisabled ? 'true' : undefined}
           >
             <X aria-hidden="true" size={16} strokeWidth={1.75} />
           </Button>

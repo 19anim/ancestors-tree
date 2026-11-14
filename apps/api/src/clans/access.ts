@@ -26,3 +26,26 @@ export function createRequireClanRole(minimum: ClanRole): RequestHandler {
     next();
   };
 }
+
+/**
+ * For routes that act for the account the client expects (spec §6.1): a tab may still hold
+ * another account's unsent changes after a sign-in in another tab, under the shared cookie.
+ * Runs after requireAuth and before the clan role, so the mismatch is never hidden behind a
+ * 404 or 403 that would make the client drop those changes. A missing or malformed value is
+ * left to body validation (400).
+ */
+export function createRequireExpectedUser(): RequestHandler {
+  return (req, res, next) => {
+    const locals = getLocals(res);
+    if (!locals.userId) throw new Error('requireExpectedUser must run after requireAuth');
+    const body: unknown = req.body;
+    const expected =
+      typeof body === 'object' && body !== null
+        ? (body as { expectedUserId?: unknown }).expectedUserId
+        : undefined;
+    if (IdSchema.safeParse(expected).success && expected !== locals.userId) {
+      throw new AppError('IDENTITY_MISMATCH', 'These changes were made with another account');
+    }
+    next();
+  };
+}

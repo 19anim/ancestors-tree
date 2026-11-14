@@ -2,11 +2,17 @@ import { lazy } from 'react';
 
 export {
   discardTreeStateFor,
-  discardTreeStateForAccountChange,
   resetTreeStore,
+  signOutTreeStore,
   useTreeStore,
   useUnsentChangeCount,
 } from './store';
+export { describeAction, describeOp, lookupIn, lookupWith } from './describeOp';
+export type { NameLookup } from './describeOp';
+export { applyFailureMessage } from './format';
+export { SaveStatus } from './SaveStatus';
+export { useClanTree } from './useClanTree';
+export { useTreeAccount } from './useTreeAccount';
 export { TreeNoticeBanner } from './TreeNoticeBanner';
 export { TreeSkeleton } from './TreeSkeleton';
 export { UnsentChangesGuard } from './UnsentChangesGuard';

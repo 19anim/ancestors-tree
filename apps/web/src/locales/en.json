@@ -108,6 +108,7 @@
     "FORBIDDEN": "You do not have permission to do this.",
     "NOT_FOUND": "We could not find what you were looking for.",
     "VERSION_CONFLICT": "Someone else just updated the family tree.",
+    "IDENTITY_MISMATCH": "These changes belong to another account than the one signed in.",
     "RULE_VIOLATION": "This change is not valid for the family tree.",
     "RATE_LIMITED": "Too many attempts. Please try again later.",
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
@@ -140,8 +141,7 @@
       "forgot": "Forgot your password?",
       "noAccount": "No account yet?",
       "register": "Create an account",
-      "googleFailed": "Google sign-in did not work. Try again, or use your email and password.",
-      "googleDropsChanges": "Signing in with Google leaves this page and drops your unsaved changes ({{count}}). Sign in with email and password to keep them."
+      "googleFailed": "Google sign-in did not work. Try again, or use your email and password."
     },
     "register": {
       "title": "Create an account",
@@ -193,6 +193,7 @@
     "tabs": {
       "label": "Family tree sections",
       "tree": "Tree",
+      "history": "History",
       "members": "Members",
       "settings": "Settings"
     },
@@ -247,11 +248,44 @@
       "forbidden": "You cannot join this family tree with this link. Ask the manager for a new invitation."
     }
   },
+  "history": {
+    "title": "Change history",
+    "empty": "Nothing has changed yet.",
+    "more": "Show more",
+    "entry": {
+      "summary": "{{author}}: {{action}}",
+      "number": "#{{seq}}",
+      "reverts": "Reverts change #{{seq}}",
+      "revertsTo": "Goes back to after change #{{seq}}"
+    },
+    "revert": "Revert",
+    "revertLabel": "Revert change #{{seq}}",
+    "reverting": "Reverting…",
+    "revertingChange": "Reverting… (change #{{seq}})",
+    "revertFailed": "Could not revert change #{{seq}}: {{reason}}",
+    "revertTo": {
+      "button": "Revert to this point",
+      "label": "Revert to this point: after change #{{seq}}",
+      "title": "Go back to after change #{{seq}}?",
+      "count": "Changes to undo: {{count}}.",
+      "oneStep": "They are undone all together, and a single undo brings them all back.",
+      "tooMany": "Too many changes came after this point to undo at once. Choose a more recent point.",
+      "nothing": "Nothing has changed since this point.",
+      "unsent": "Some changes are not sent yet. Wait until they are saved, then try again.",
+      "confirm": "Go back",
+      "busy": "Reverting…",
+      "cancel": "Cancel"
+    }
+  },
   "tree": {
     "loading": "Loading the family tree…",
     "board": {
       "label": "Family tree: {{name}}",
-      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below."
+      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Show the whole tree",
+      "keyboardHint": "Use the arrow keys to move, + and − to zoom in and out, and 0 to show the whole tree."
     },
     "card": {
       "label": "{{name}}, {{years}}, generation {{generation}}",
@@ -269,10 +303,12 @@
       "CYCLE": "This change would make someone their own ancestor.",
       "INVALID_PARTNERS": "A marriage needs one or two different people.",
       "RESTORE_CONFLICT": "Cannot restore: this person's marriage has changed.",
-      "TREE_FULL": "The family tree already has 5,000 people; no more can be added."
+      "TREE_FULL": "The family tree already has 5,000 people; no more can be added.",
+      "TOO_MANY_UNIONS": "A person can be in at most 100 marriages."
     },
     "empty": "No one is in this family tree yet.",
     "retry": "Try again",
+    "outOfDate": "The family tree has just changed. Check again, then try again.",
     "actions": {
       "addFirst": "Add the first person",
       "description": "What would you like to do with this person?",
@@ -285,20 +321,58 @@
       "title": "Not yet linked",
       "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
     },
+    "toolbar": {
+      "label": "Tree tools"
+    },
+    "undo": {
+      "label": "Undo",
+      "tooltip": "Undo ({{shortcut}})",
+      "next": "Undo: {{action}}",
+      "failed": "Could not undo: {{reason}}"
+    },
+    "redo": {
+      "label": "Redo",
+      "tooltip": "Redo ({{shortcut}})",
+      "failed": "Could not redo: {{reason}}"
+    },
     "save": {
       "saved": "Saved",
       "saving": "Saving…",
-      "retrying": "Not saved yet, trying again…"
+      "retrying": "Not saved yet, trying again…",
+      "stopped": "Not saved: sign in again"
     },
     "notice": {
       "otherTree": "About the family tree you were editing: {{message}}",
       "reloaded": "The latest version of the family tree was reloaded from the server; your unsaved changes were dropped.",
       "rejected": "The change was not saved: {{reason}}",
-      "rejectedDependents": "Changes that depended on it were dropped too: {{count}}.",
+      "rejectedDependents": "Other unsaved changes were dropped too: {{count}}.",
       "dismiss": "Got it",
-      "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
+      "signedOut": "Your session has expired. Unsaved changes are kept in this tab: sign in again with the same account to save them.",
+      "savedUnreadable": "The unsaved changes kept in this tab could not be read, so they were dropped.",
+      "otherAccount": "Your changes were not sent: this tab is now signed in with another account. Sign in again with the account that made them to save them; signing in with another account drops them.",
       "signIn": "Sign in again",
-      "discarded": "Unsaved changes were dropped: {{count}}."
+      "discarded": "Unsaved changes were dropped: {{count}}.",
+      "discardedInFlight": "Unsaved changes were dropped: {{count}}. The one being sent at that moment may have been saved; check the family tree."
+    },
+    "change": {
+      "addPerson": "add {{name}}",
+      "addPeople": "add {{count}} people",
+      "updatePerson": "edit the details of {{name}}",
+      "deletePerson": "delete {{name}}",
+      "restorePerson": "restore {{name}}",
+      "addUnion": "add the marriage of {{names}}",
+      "updateUnion": "edit the marriage of {{names}}",
+      "deleteUnion": "delete the marriage of {{names}}",
+      "restoreUnion": "restore the marriage of {{names}}",
+      "setParents": "make {{name}} a child of {{parents}}",
+      "detachParents": "detach {{name}} from their parents",
+      "setProgenitor": "choose {{name}} as the progenitor",
+      "clearProgenitor": "clear the progenitor",
+      "changes": "a set of changes ({{count}})",
+      "someone": "someone",
+      "parents": "the parents",
+      "couple": "two people",
+      "pair": "{{first}} and {{second}}"
     },
     "form": {
       "firstTitle": "Add the first person",

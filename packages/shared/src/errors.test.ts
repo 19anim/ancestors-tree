@@ -12,6 +12,7 @@ describe('ERROR_CODES', () => {
       'NOT_FOUND',
       'EMAIL_TAKEN',
       'VERSION_CONFLICT',
+      'IDENTITY_MISMATCH',
       'RULE_VIOLATION',
       'RATE_LIMITED',
       'INTERNAL_ERROR',

@@ -1,14 +1,14 @@
 import { treeStateFromLists, type TreeState } from '@ancestors-tree/shared/tree';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
-import { CLAN_ID, FAMILY, GRANDMA, SON } from './fixtures';
+import { CLAN_ID, FAMILY, GRANDMA, ME, SON } from './fixtures';
 import { PersonCard } from './PersonCard';
-import { resetTreeStore, useTreeStore } from './store';
+import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
 
@@ -22,6 +22,16 @@ function showTree(tree: TreeState): void {
   });
 }
 
+/** React Flow writes the viewport as `translate(Xpx, Ypx) scale(Z)` on its viewport element. */
+function viewportOf(board: HTMLElement): { x: number; y: number; zoom: number } {
+  const element = board.querySelector<HTMLElement>('.react-flow__viewport');
+  const match = element?.style.transform.match(
+    /translate\((-?[\d.]+)px, ?(-?[\d.]+)px\) scale\(([\d.]+)\)/,
+  );
+  if (!match) throw new Error(`no viewport transform: ${element?.style.transform ?? 'none'}`);
+  return { x: Number(match[1]), y: Number(match[2]), zoom: Number(match[3]) };
+}
+
 // Spy on the real card to count renders (spec §7.4: an edit re-renders only that person's card).
 vi.mock('./PersonCard', async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
@@ -32,7 +42,8 @@ const family = treeStateFromLists(FAMILY.progenitorId, FAMILY.persons, FAMILY.un
 
 beforeEach(() => {
   mockReactFlow();
-  resetTreeStore();
+  signOutTreeStore();
+  useTreeStore.getState().setAccount(ME.id);
 });
 
 afterEach(() => {
@@ -46,10 +57,12 @@ describe('TreeBoard', () => {
     const { container } = renderWithProviders(<TreeBoard label="Cây gia phả: Họ Nguyễn" />);
     await screen.findByRole('figure', { name: /Nguyễn Văn Tư/ });
     // React Flow names every edge "Edge from <id> to <id>" (role="img"); the threads carry
-    // aria-hidden (flowElements.test.ts), so none is exposed. jsdom measures no handles, so the
-    // edges themselves are not drawn here; the union knots are.
+    // aria-hidden (flowElements.test.ts), so none is exposed. The board is rendered inside its own
+    // ReactFlowProvider, so jsdom draws the edges; the union knots are drawn too.
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/^Edge from/)).not.toBeInTheDocument();
+    const edges = container.querySelectorAll('.react-flow__edge');
+    expect(edges.length).toBeGreaterThan(0);
+    for (const edge of edges) expect(edge).toHaveAttribute('aria-hidden', 'true');
     const knots = container.querySelectorAll('.react-flow__node-union');
     expect(knots.length).toBeGreaterThan(0);
     for (const knot of knots) expect(knot).toHaveAttribute('aria-hidden', 'true');
@@ -135,7 +148,7 @@ describe('TreeBoard', () => {
     expect(renderedFor(GRANDMA)).toBe(before.grandma);
   });
 
-  it('tabs only through the actions buttons, never through unnamed node wrappers', async () => {
+  it('tabs to the board, then the actions buttons, then the zoom buttons', async () => {
     const user = userEvent.setup();
     showTree(family);
     renderWithProviders(
@@ -146,26 +159,80 @@ describe('TreeBoard', () => {
     );
     await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const stops: string[] = [];
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 9; i += 1) {
       await user.tab();
       const focused = document.activeElement as HTMLElement;
-      expect(focused.tagName).toBe('BUTTON');
       stops.push(focused.getAttribute('aria-label') ?? focused.textContent ?? '');
     }
     expect(stops).toEqual([
       'Before',
+      'Cây gia phả',
       'Thao tác với Nguyễn Văn Tư',
       'Thao tác với Lê Thị Hoa',
       'Thao tác với Nguyễn Văn Nam',
+      'React Flow attribution',
+      'Phóng to',
+      'Thu nhỏ',
+      'Xem cả cây',
     ]);
   });
 
-  it('gives a viewer’s board no keyboard stops', async () => {
+  it('gives a viewer’s board one stop and the zoom buttons, with the keys described', async () => {
     showTree(family);
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
     await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    expect(board).toHaveAttribute('tabindex', '0');
+    expect(board).toHaveAccessibleDescription(
+      'Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây.',
+    );
+    // No node or edge wrapper is a tab stop; the only buttons are the zoom buttons.
     expect(board.querySelectorAll('[tabindex]')).toHaveLength(0);
-    expect(board.querySelectorAll('button')).toHaveLength(0);
+    expect([...board.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Phóng to',
+      'Thu nhỏ',
+      'Xem cả cây',
+    ]);
+  });
+
+  it('pans with the arrow keys and zooms with +, only when the board itself has focus', async () => {
+    const user = userEvent.setup();
+    showTree(family);
+    renderWithProviders(
+      <TreeActionsContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" />
+      </TreeActionsContext>,
+    );
+    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    act(() => board.focus());
+    const start = viewportOf(board);
+
+    await user.keyboard('{ArrowLeft}');
+    await waitFor(() => expect(viewportOf(board).x).toBeCloseTo(start.x + 80));
+    await user.keyboard('{ArrowUp}');
+    await waitFor(() => expect(viewportOf(board).y).toBeCloseTo(start.y + 80));
+    await user.keyboard('+');
+    await waitFor(() => expect(viewportOf(board).zoom).toBeGreaterThan(start.zoom));
+
+    act(() => screen.getByRole('button', { name: 'Thao tác với Nguyễn Văn Nam' }).focus());
+    const onCard = viewportOf(board);
+    await user.keyboard('{ArrowLeft}');
+    expect(viewportOf(board).x).toBeCloseTo(onCard.x);
+  });
+
+  it('brings a card into view when its button gets focus', async () => {
+    showTree(family);
+    renderWithProviders(
+      <TreeActionsContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" />
+      </TreeActionsContext>,
+    );
+    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    // jsdom boards are 1×1 pixel (test/reactFlow.ts), so no card is ever fully in view.
+    const before = viewportOf(board);
+    act(() => screen.getByRole('button', { name: 'Thao tác với Nguyễn Văn Nam' }).focus());
+    await waitFor(() => expect(viewportOf(board)).not.toEqual(before));
   });
 });

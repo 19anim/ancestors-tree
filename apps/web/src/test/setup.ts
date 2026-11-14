@@ -12,5 +12,6 @@ configure({ asyncUtilTimeout: 5000 });
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
   delete document.documentElement.dataset.theme;
 });

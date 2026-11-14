@@ -1,21 +1,19 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { matchPath, useBlocker } from 'react-router';
+import { useBlocker } from 'react-router';
 import { Button, Dialog, DialogContent } from '../../shared/ui';
 import { resetTreeStore, selectUnsentCount, useTreeStore } from './store';
-
-/** The family tree a path opens: `/clans/:id/tree`, or `/clans/:id`, which redirects there. */
-function treeOpenedBy(pathname: string): string | null {
-  const match = matchPath('/clans/:id/tree', pathname) ?? matchPath('/clans/:id', pathname);
-  return match?.params.id ?? null;
-}
+import { treeOpenedBy } from './treePaths';
 
 /**
  * Mounted once by the app shell, so it works on every page while changes are unsent (the store
  * keeps sending them in the background, whatever page is open). They are lost only when another
- * family tree loads, the tab closes or reloads, or the user signs out (UserMenu asks for that
- * one). So: opening another tree's page asks first, and the tab asks the browser to confirm.
- * Other pages (members, settings, the list, sign-in) never ask: nothing is lost there.
+ * family tree loads, the tab closes, or the user signs out (UserMenu asks for that one). A reload
+ * of the same tab, or a full-page redirect such as Google sign-in, keeps them: the queue is saved
+ * in sessionStorage and restored (persist.ts). So: opening another tree's page (its tree or its
+ * history) asks first, and the tab asks the browser to confirm before it unloads. The browser
+ * cannot tell a reload or a redirect from a close, so the prompt shows for those too. Other pages
+ * (members, settings, the list, sign-in) never ask: nothing is lost there.
  */
 export function UnsentChangesGuard() {
   const { t } = useTranslation();

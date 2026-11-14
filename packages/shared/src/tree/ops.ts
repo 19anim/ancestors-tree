@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { IdSchema } from '../api/common.ts';
-import { PersonChangesSchema, PersonSchema, UnionChangesSchema, UnionSchema } from './schemas.ts';
+import {
+  MAX_UNIONS_PER_PERSON,
+  PersonChangesSchema,
+  PersonSchema,
+  UnionChangesSchema,
+  UnionSchema,
+} from './schemas.ts';
 
 /** Most ops in one batch. */
 export const MAX_BATCH_OPS = 500;
@@ -29,7 +35,10 @@ const SetParentsOpSchema = z.object({
 /** Undo of deletePerson: the person plus every union deleted or changed with them. */
 const RestorePersonOpSchema = z.object({
   type: z.literal('restorePerson'),
-  payload: z.object({ person: PersonSchema, unions: z.array(UnionSchema).max(100) }),
+  payload: z.object({
+    person: PersonSchema,
+    unions: z.array(UnionSchema).max(MAX_UNIONS_PER_PERSON),
+  }),
 });
 const RestoreUnionOpSchema = z.object({ type: z.literal('restoreUnion'), payload: UnionSchema });
 /** Owner only (spec §3). */
@@ -70,4 +79,21 @@ export type OpType = Op['type'];
 export function needsOwner(op: Op): boolean {
   if (op.type === 'batch') return op.payload.ops.some((child) => child.type === 'setProgenitor');
   return op.type === 'setProgenitor';
+}
+
+/** JSON text of a value with object keys sorted, so key order does not matter. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, inner: unknown) =>
+    inner !== null && typeof inner === 'object' && !Array.isArray(inner)
+      ? Object.fromEntries(Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : inner,
+  );
+}
+
+/**
+ * True when two ops are the same change as JSON values: what the server stored compared with
+ * what this tab sent. Key order and undefined fields do not matter; array order does.
+ */
+export function sameOp(a: Op, b: Op): boolean {
+  return canonical(a) === canonical(b);
 }

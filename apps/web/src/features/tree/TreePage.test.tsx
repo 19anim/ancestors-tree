@@ -5,14 +5,15 @@ import { ApiError } from '../../shared/lib/apiError';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, treeRoutes } from './fixtures';
-import { resetTreeStore, useTreeStore } from './store';
+import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, treeRoutes } from './fixtures';
+import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 
 const VIEWER = { ...CLAN, role: 'viewer' as const };
 
 beforeEach(() => {
   mockReactFlow();
-  resetTreeStore();
+  signOutTreeStore();
+  useTreeStore.getState().setAccount(ME.id);
 });
 
 afterEach(() => {
@@ -64,7 +65,11 @@ describe('TreePage', () => {
     });
     renderRoute(`/clans/${CLAN_ID}/tree`);
     await screen.findByRole('button', { name: 'Thử lại' });
-    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'discarded', count: 2 } }));
+    act(() =>
+      useTreeStore.setState({
+        notice: { clanId: CLAN_ID, kind: 'discarded', count: 2, inFlight: false },
+      }),
+    );
     expect(screen.getByText('2 thay đổi chưa lưu đã bị bỏ.')).toBeInTheDocument();
   });
 
@@ -87,6 +92,15 @@ describe('TreePage', () => {
     useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
     renderRoute(`/clans/${CLAN_ID}/members`);
     expect(await screen.findByRole('alert')).toHaveTextContent('Đã tải lại bản mới nhất');
+  });
+
+  it('shows the unreadable saved queue notice plainly, without naming a tree', async () => {
+    mockApi();
+    useTreeStore.setState({ notice: { kind: 'savedUnreadable', clanId: null } });
+    renderRoute('/login');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Không đọc được các thay đổi chưa lưu');
+    expect(alert).not.toHaveTextContent('Về cây gia phả bạn vừa sửa');
   });
 
   it('names the family tree a notice is about when another page is on screen', async () => {
@@ -159,7 +173,11 @@ describe('TreePage', () => {
     );
     act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'signedOut' } }));
     expect(screen.getByRole('alert')).toHaveTextContent('Phiên đăng nhập đã hết hạn.');
-    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'discarded', count: 3 } }));
+    act(() =>
+      useTreeStore.setState({
+        notice: { clanId: CLAN_ID, kind: 'discarded', count: 3, inFlight: false },
+      }),
+    );
     expect(screen.getByRole('alert')).toHaveTextContent('3 thay đổi chưa lưu đã bị bỏ.');
     await user.click(screen.getByRole('button', { name: 'Đã hiểu' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

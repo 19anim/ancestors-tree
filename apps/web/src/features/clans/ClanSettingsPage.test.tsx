@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createQueryClient } from '../../app/providers';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
 import { useTreeStore } from '../tree/store';
@@ -55,7 +56,10 @@ describe('ClanSettingsPage', () => {
       [`DELETE /clans/${CLAN_ID}`]: () => ({ status: 204 }),
       'GET /clans': () => ({ body: [] }),
     });
-    renderRoute(`/clans/${CLAN_ID}/settings`);
+    // The list was already cached with this tree in it: the delete must refresh it.
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(['clans'], [CLAN]);
+    renderRoute(`/clans/${CLAN_ID}/settings`, queryClient);
     await user.click(await screen.findByRole('button', { name: 'Xoá cây gia phả này' }));
     const dialog = screen.getByRole('dialog', { name: 'Xoá Họ Nguyễn?' });
     const confirm = within(dialog).getByRole('button', { name: 'Xoá vĩnh viễn' });
@@ -72,6 +76,9 @@ describe('ClanSettingsPage', () => {
     const order = api.calls.map((c) => `${c.method} ${c.path}`);
     expect(order.lastIndexOf('GET /clans')).toBeGreaterThan(
       order.indexOf(`DELETE /clans/${CLAN_ID}`),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: /Họ Nguyễn/ })).not.toBeInTheDocument(),
     );
   });
 
@@ -166,7 +173,10 @@ describe('ClanSettingsPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Xoá vĩnh viễn' }));
     expect(await within(dialog).findByRole('button', { name: 'Đang xoá…' })).toBeDisabled();
     expect(within(dialog).getByRole('button', { name: 'Huỷ' })).toBeDisabled();
-    expect(within(dialog).getByRole('button', { name: 'Đóng' })).toBeDisabled();
+    const close = within(dialog).getByRole('button', { name: 'Đóng' });
+    expect(close).toHaveAttribute('aria-disabled', 'true');
+    await user.click(close);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     release();
@@ -185,7 +195,9 @@ describe('ClanSettingsPage', () => {
     const dialog = screen.getByRole('dialog');
     await user.type(within(dialog).getByLabelText(/Nhập .* để xác nhận/), 'Họ Nguyễn');
     await user.click(within(dialog).getByRole('button', { name: 'Xoá vĩnh viễn' }));
-    expect(await within(dialog).findByRole('alert')).toBeInTheDocument();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Không tìm thấy nội dung bạn cần.',
+    );
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
