@@ -5,12 +5,12 @@ import { useOutletContext } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
 import { EmptyTree } from './EmptyTree';
-import { SaveStatus } from './SaveStatus';
 import { useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
 import { TreeDialogs, useTreeDialog } from './TreeDialogs';
 import { TreeSkeleton } from './TreeSkeleton';
+import { TreeToolbar } from './TreeToolbar';
 import { UnlinkedTray } from './UnlinkedTray';
 
 export function TreePage() {
@@ -54,7 +54,7 @@ export function TreePage() {
   return (
     <TreeActionsContext value={canEdit ? openActions : null}>
       <div className="flex flex-col gap-4">
-        <SaveStatus />
+        <TreeToolbar canEdit={canEdit} />
         {isEmpty ? (
           <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
         ) : (

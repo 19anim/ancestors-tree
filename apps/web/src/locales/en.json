@@ -286,6 +286,20 @@
       "title": "Not yet linked",
       "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
     },
+    "toolbar": {
+      "label": "Tree tools"
+    },
+    "undo": {
+      "label": "Undo",
+      "tooltip": "Undo ({{shortcut}})",
+      "next": "Undo: {{action}}",
+      "failed": "Could not undo: {{reason}}"
+    },
+    "redo": {
+      "label": "Redo",
+      "tooltip": "Redo ({{shortcut}})",
+      "failed": "Could not redo: {{reason}}"
+    },
     "save": {
       "saved": "Saved",
       "saving": "Saving…",

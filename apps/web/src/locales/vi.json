@@ -286,6 +286,20 @@
       "title": "Chưa nối vào cây",
       "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
     },
+    "toolbar": {
+      "label": "Công cụ của cây"
+    },
+    "undo": {
+      "label": "Hoàn tác",
+      "tooltip": "Hoàn tác ({{shortcut}})",
+      "next": "Hoàn tác: {{action}}",
+      "failed": "Không hoàn tác được: {{reason}}"
+    },
+    "redo": {
+      "label": "Làm lại",
+      "tooltip": "Làm lại ({{shortcut}})",
+      "failed": "Không làm lại được: {{reason}}"
+    },
     "save": {
       "saved": "Đã lưu",
       "saving": "Đang lưu…",
