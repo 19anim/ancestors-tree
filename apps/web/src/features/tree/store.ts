@@ -223,13 +223,13 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     });
   }
 
-  function scheduleRetry(mine: number): void {
+  function scheduleRetry(mine: number, again: () => void = () => void flush()): void {
     const delay = RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
     attempt += 1;
     set({ retrying: true });
     retryTimer = setTimeout(() => {
       retryTimer = undefined;
-      if (mine === session) void flush();
+      if (mine === session) again();
     }, delay);
   }
 
@@ -412,7 +412,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
   /**
    * load() of a tree whose queue came from sessionStorage: reads the tree, the log since the
    * saved version when the tree moved on, and replays the queue (restoreQueue). A failure keeps
-   * the queue and `restoredFrom`, so the next load() tries again.
+   * the queue and `restoredFrom`, so the next load() tries again; a network failure or a busy
+   * server also schedules that again with the usual backoff.
    */
   function restoreSession(clanId: string): Promise<void> {
     session += 1;
@@ -431,6 +432,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         const remote =
           response.version > savedVersion ? await fetchOpsSince(clanId, savedVersion) : [];
         if (mine !== session) return;
+        attempt = 0;
         const state = get();
         const fetched = treeStateFromLists(
           response.progenitorId,
@@ -467,7 +469,9 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         });
         void flush();
       } catch (error) {
-        if (mine === session) set({ status: 'error', loadError: error });
+        if (mine !== session) return;
+        set({ status: 'error', loadError: error });
+        if (isRetryable(error)) scheduleRetry(mine, () => void restoreSession(clanId));
       } finally {
         if (mine === session) loading = undefined;
       }

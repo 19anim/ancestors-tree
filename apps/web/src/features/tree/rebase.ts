@@ -100,7 +100,8 @@ export type RestoreResult =
   | { ok: false }
   | {
       ok: true;
-      saved: SavedEntry | null;
+      /** The queue's leading entries found already saved, oldest first. */
+      saved: SavedEntry[];
       tree: TreeState;
       pending: PendingEntry[];
       dropped: DroppedEntry[];
@@ -108,9 +109,16 @@ export type RestoreResult =
     };
 
 /**
- * A queue saved before a reload meets the server's tree as it is now. Like rebase(), it finds
- * the first entry already saved by this account and replays the rest; `ok: false` when the log
+ * A queue saved before a reload meets the server's tree as it is now; `ok: false` when the log
  * between the two versions has a gap.
+ *
+ * It confirms a prefix of the queue: walking the log from savedVersion + 1, entry i is saved
+ * while the log's seq is savedVersion + 1 + i, the author is this account and the op is the same.
+ * That is sound only here, not in rebase(): one tab sends its queue in order and rewrites the
+ * mirror after every answer, so a run of this account's identical ops right after savedVersion
+ * can only come from another copy of this very queue (a duplicated tab, or an answer lost
+ * before the reload). During a live 409 the same run could be a coincidence, so rebase() keeps
+ * to the head.
  */
 export function restoreQueue(input: RestoreInput): RestoreResult {
   const missed = input.remote.filter((remote) => remote.seq <= input.version);
@@ -119,27 +127,17 @@ export function restoreQueue(input: RestoreInput): RestoreResult {
     missed.length === input.version - input.savedVersion &&
     missed.every((remote, index) => remote.seq === input.savedVersion + index + 1);
   if (!contiguous) return { ok: false };
-  const head = input.pending[0];
-  let saved: SavedEntry | null = null;
-  let othersSaved = false;
-  for (const remote of missed) {
-    // As in rebase(): a lost answer was saved as the very first missed entry.
-    if (
-      saved === null &&
-      head &&
-      remote.seq === input.savedVersion + 1 &&
-      remote.userId === input.userId &&
-      sameOp(remote.op, head.op)
-    ) {
-      saved = { entry: head, seq: remote.seq };
-    } else {
-      othersSaved = true;
+  const saved: SavedEntry[] = [];
+  for (const [index, remote] of missed.entries()) {
+    const entry = input.pending[index];
+    if (entry === undefined || remote.userId !== input.userId || !sameOp(remote.op, entry.op)) {
+      break;
     }
+    saved.push({ entry, seq: remote.seq });
   }
-  const rest = saved
-    ? resolveRefs(input.pending.slice(1), saved.entry.id, saved.seq)
-    : [...input.pending];
-  const replayed = replayPending(input.tree, rest, { othersSaved });
+  let rest = input.pending.slice(saved.length);
+  for (const { entry, seq } of saved) rest = resolveRefs(rest, entry.id, seq);
+  const replayed = replayPending(input.tree, rest, { othersSaved: missed.length > saved.length });
   return {
     ok: true,
     saved,

@@ -1310,6 +1310,7 @@ describe('keeping the queue across a reload of the tab', () => {
       count: 1,
       inFlight: false,
     });
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
   });
 
   it('says so when the saved queue cannot be read', () => {
@@ -1318,6 +1319,86 @@ describe('keeping the queue across a reload of the tab', () => {
     store().setAccount(ME.id);
     expect(store().notice).toEqual({ kind: 'savedUnreadable', clanId: null });
     expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
+  });
+
+  it('moves the next entry id past the restored ones', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    reloadTab();
+    // Far above any id an earlier test handed out, so only the restore can lift the counter.
+    saved({
+      entries: [
+        { id: 1000, op: bio('Con trưởng') },
+        { id: 1001, op: bio('Con cả') },
+      ],
+    });
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().status).toBe('ready'));
+    expect(store().apply(addPerson(NEW_ID))).toEqual({ ok: true });
+    const ids = store().pending.map((entry) => entry.id);
+    expect(ids.slice(0, 2)).toEqual([1000, 1001]);
+    expect(ids[2]).toBeGreaterThan(1001);
+  });
+
+  it('reads the tree again and says so when the log does not fit the saved queue', async () => {
+    mockApi({
+      ...treeRoutes({ ...FAMILY, version: 9 }),
+      // Seq 4 is missing.
+      [OPS_LOG]: () => ({ body: [remoteEntry(5, addPerson(OTHER_ID, 'Nguyễn Văn Sáu'))] }),
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().status).toBe('ready'));
+    expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID });
+    expect(store().pending).toEqual([]);
+    expect(store().confirmedVersion).toBe(9);
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
+  });
+
+  it('says so when a restored change no longer applies', async () => {
+    // Someone else took the id this change would add.
+    const taken = addPerson(NEW_ID, 'Người khác');
+    mockApi({
+      ...treeRoutes({
+        ...FAMILY,
+        version: 4,
+        persons: [...FAMILY.persons, taken.payload as Person],
+      }),
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, taken)] }),
+    });
+    reloadTab();
+    saved({ entries: [{ id: 1, op: addPerson(NEW_ID) }] });
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().status).toBe('ready'));
+    expect(store().notice).toMatchObject({
+      kind: 'rejected',
+      clanId: CLAN_ID,
+      error: { code: 'DUPLICATE_ID' },
+      dropped: 0,
+    });
+    expect(store().pending).toEqual([]);
+  });
+
+  it('tries the restore again by itself after a network failure', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let up = false;
+    mockApi({
+      ...treeRoutes(),
+      [TREE]: () => (up ? { body: FAMILY } : { status: 503, body: {} }),
+      [OPS]: () => ({ body: { seq: 4 } }),
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    await retryScheduled();
+    expect(store().pending).toHaveLength(1);
+    expect(savedQueue()?.entries).toHaveLength(1);
+
+    up = true;
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
+    await until(() => store().confirmedVersion === 4);
+    expect(store().status).toBe('ready');
+    expect(store().pending).toEqual([]);
   });
 
   it('forgets the saved queue on sign-out', async () => {

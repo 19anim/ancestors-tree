@@ -51,7 +51,9 @@ export function writeSavedQueue(queue: SavedQueue): void {
   try {
     sessionStorage.setItem(SAVED_QUEUE_KEY, JSON.stringify(queue));
   } catch {
-    // Storage is full or disabled: the queue still lives in memory, as in P5.
+    // Storage is full or disabled: the queue still lives in memory, as in P5. The old snapshot
+    // is older than the queue now, so a restore from it would lose edits: remove it.
+    clearSavedQueue();
   }
 }
 

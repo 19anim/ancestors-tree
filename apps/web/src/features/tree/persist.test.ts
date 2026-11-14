@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CLAN_ID, ME, SON } from './fixtures';
 import {
   clearSavedQueue,
@@ -42,5 +42,18 @@ describe('the saved queue', () => {
       JSON.stringify({ ...QUEUE, entries: [{ id: 1, op: { type: 'nope' } }] }),
     );
     expect(readSavedQueue()).toEqual({ kind: 'unreadable' });
+  });
+
+  it('removes the old snapshot when a write fails, so none is left stale', () => {
+    writeSavedQueue(QUEUE);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError');
+    });
+    try {
+      writeSavedQueue({ ...QUEUE, version: 4 });
+    } finally {
+      setItem.mockRestore();
+    }
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
   });
 });

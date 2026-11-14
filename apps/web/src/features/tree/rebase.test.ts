@@ -145,7 +145,7 @@ describe('restoreQueue', () => {
       tree: tree.confirmedTree,
     });
     if (!result.ok) throw new Error('expected a restore');
-    expect(result.saved?.seq).toBe(4);
+    expect(result.saved.map((entry) => entry.seq)).toEqual([4]);
     expect(result.pending).toEqual([]);
   });
 
@@ -154,5 +154,53 @@ describe('restoreQueue', () => {
     expect(restoreQueue(restoring([], later)).ok).toBe(true);
     expect(restoreQueue(restoring([], [])).ok).toBe(false);
     expect(restoreQueue({ ...restoring([]), savedVersion: 5 }).ok).toBe(false);
+  });
+
+  describe('a copy of a queue another tab already sent', () => {
+    const e1 = bio('A');
+    const e2 = bio('B');
+    const queue: PendingEntry[] = [
+      { id: 1, op: e1 },
+      { id: 2, op: e2, reverts: { pendingId: 1 } },
+    ];
+    const restoreWith = (remote: ReturnType<typeof remoteEntry>[]) => {
+      const tree = rebase(input([], remote));
+      if (!tree.ok) throw new Error('expected a rebase');
+      const result = restoreQueue({
+        tree: tree.confirmedTree,
+        version: 3 + remote.length,
+        savedVersion: 3,
+        pending: queue,
+        remote,
+        userId: ME.id,
+      });
+      if (!result.ok) throw new Error('expected a restore');
+      return result;
+    };
+
+    it('confirms every entry of the run, so none is sent twice', () => {
+      const result = restoreWith([remoteEntry(4, e1, ME.id), remoteEntry(5, e2, ME.id)]);
+      expect(result.saved.map((entry) => entry.seq)).toEqual([4, 5]);
+      expect(result.pending).toEqual([]);
+    });
+
+    it('replays what the run did not reach', () => {
+      const result = restoreWith([
+        remoteEntry(4, e1, ME.id),
+        remoteEntry(5, looseChild, OTHER_USER_ID),
+      ]);
+      expect(result.saved.map((entry) => entry.seq)).toEqual([4]);
+      expect(result.pending).toEqual([{ id: 2, op: e2, reverts: { seq: 4 } }]);
+      expect(result.tree.persons[SON]?.bio).toBe('B');
+    });
+
+    it('does not confirm an own op that follows someone else', () => {
+      const result = restoreWith([
+        remoteEntry(4, looseChild, OTHER_USER_ID),
+        remoteEntry(5, e1, ME.id),
+      ]);
+      expect(result.saved).toEqual([]);
+      expect(result.pending.map((entry) => entry.id)).toEqual([1, 2]);
+    });
   });
 });
