@@ -251,7 +251,11 @@
     "loading": "Loading the family tree…",
     "board": {
       "label": "Family tree: {{name}}",
-      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below."
+      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Show the whole tree",
+      "keyboardHint": "Use the arrow keys to move, + and − to zoom in and out, and 0 to show the whole tree."
     },
     "card": {
       "label": "{{name}}, {{years}}, generation {{generation}}",

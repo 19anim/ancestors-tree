@@ -251,7 +251,11 @@
     "loading": "Đang tải cây gia phả…",
     "board": {
       "label": "Cây gia phả: {{name}}",
-      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới."
+      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới.",
+      "zoomIn": "Phóng to",
+      "zoomOut": "Thu nhỏ",
+      "fitView": "Xem cả cây",
+      "keyboardHint": "Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây."
     },
     "card": {
       "label": "{{name}}, {{years}}, đời thứ {{generation}}",
