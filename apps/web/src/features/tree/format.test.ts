@@ -1,6 +1,9 @@
+import { OpError } from '@ancestors-tree/shared/tree';
 import { describe, expect, it } from 'vitest';
+import i18n from '../../shared/i18n';
+import { ApiError } from '../../shared/lib/apiError';
 import { fixturePerson } from './fixtures';
-import { lifeYears, yearOf } from './format';
+import { lifeYears, rejectionMessage, yearOf } from './format';
 
 const ID = '64b7f0c2a1b2c3d4e5f6a0aa';
 
@@ -28,5 +31,20 @@ describe('life years', () => {
       '?–2004',
     );
     expect(lifeYears(fixturePerson(ID, 'A'))).toBeUndefined();
+  });
+});
+
+describe('rejectionMessage', () => {
+  it('names the rule an OpError or a RULE_VIOLATION broke, else the error', () => {
+    expect(rejectionMessage(i18n.t, new OpError('PERSON_HAS_CHILDREN'))).toBe(
+      'Không xoá được người còn con. Hãy gỡ hoặc chuyển các con trước.',
+    );
+    const refused = new ApiError('RULE_VIOLATION', 'No', 422, undefined, 'CYCLE');
+    expect(rejectionMessage(i18n.t, refused)).toBe(
+      'Thay đổi này sẽ khiến một người thành tổ tiên của chính mình.',
+    );
+    expect(rejectionMessage(i18n.t, new ApiError('VERSION_CONFLICT', 'x', 409))).toBe(
+      'Cây gia phả vừa được người khác cập nhật.',
+    );
   });
 });

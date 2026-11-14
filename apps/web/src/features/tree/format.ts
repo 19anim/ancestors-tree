@@ -1,4 +1,4 @@
-import type { DateInfo, OpErrorCode, Person } from '@ancestors-tree/shared/tree';
+import { OpError, type DateInfo, type OpErrorCode, type Person } from '@ancestors-tree/shared/tree';
 import type { TFunction } from 'i18next';
 import { ApiError, errorMessageKey } from '../../shared/lib/apiError';
 import type { ApplyFailure } from './store';
@@ -46,8 +46,12 @@ export function applyFailureMessage(t: TFunction, reason: ApplyFailure): string 
   return reason === 'NOT_LOADED' ? t('tree.form.notLoaded') : t(ruleKey(reason));
 }
 
-/** Why the server refused a change: the broken rule when it says which, else the error code. */
+/**
+ * Why a change was not saved: the broken rule (found by the server, or by the rebase on this
+ * device), else the error code.
+ */
 export function rejectionMessage(t: TFunction, error: unknown): string {
+  if (error instanceof OpError) return t(ruleKey(error.code));
   if (error instanceof ApiError && error.reason !== undefined) return t(ruleKey(error.reason));
   return t(errorMessageKey(error));
 }

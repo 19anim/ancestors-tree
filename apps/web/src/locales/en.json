@@ -297,7 +297,7 @@
       "otherTree": "About the family tree you were editing: {{message}}",
       "reloaded": "The latest version of the family tree was reloaded from the server; your unsaved changes were dropped.",
       "rejected": "The change was not saved: {{reason}}",
-      "rejectedDependents": "Changes that depended on it were dropped too: {{count}}.",
+      "rejectedDependents": "Other unsaved changes were dropped too: {{count}}.",
       "dismiss": "Got it",
       "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
       "otherAccount": "Your changes were not sent: this tab is now signed in with another account. Sign in again with the account that made them to save them; signing in with another account drops them.",

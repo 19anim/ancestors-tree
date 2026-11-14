@@ -9,7 +9,9 @@ import {
 } from '@ancestors-tree/shared/tree';
 import { create } from 'zustand';
 import { ApiError } from '../../shared/lib/apiError';
-import { fetchTree, submitOp } from './api';
+import { fetchOpsSince, fetchTree, submitOp } from './api';
+import { replayPending, resolveRefs, revertFieldsOf, type PendingEntry } from './pending';
+import { rebase } from './rebase';
 
 export type TreeStatus = 'idle' | 'loading' | 'ready' | 'error';
 /**
@@ -17,10 +19,13 @@ export type TreeStatus = 'idle' | 'loading' | 'ready' | 'error';
  * notice is shown app-wide and stays until dismissed, whatever tree is on screen.
  */
 export type TreeNotice = { clanId: string } &
-  /** A 409 (or an unreadable answer) reloaded the tree; unsent ops were dropped. */
+  /** The whole tree was read again (a third conflict in a row, or an answer it cannot read). */
   (
     | { kind: 'reloaded' }
-    /** The server refused an op; it was rolled back, and `dropped` ops that depended on it too. */
+    /**
+     * A change was refused (by the server, or because the rebase found it no longer applies):
+     * rolled back, and `dropped` other unsent changes with it.
+     */
     | { kind: 'rejected'; error: unknown; dropped: number }
     /** The session expired: sending stopped, every unsent op is kept until the user signs in. */
     | { kind: 'signedOut' }
@@ -39,8 +44,10 @@ export type TreeNotice = { clanId: string } &
 export type ApplyFailure = OpErrorCode | 'NOT_LOADED';
 export type ApplyResult = { ok: true } | { ok: false; reason: ApplyFailure };
 
-/** Waits between retries of an op the server could not take (network, 429, 5xx). */
+/** Waits between retries of a request the server could not take (network, 429, 5xx). */
 export const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000] as const;
+/** The conflict that makes the store read the whole tree again instead of rebasing (§6.3). */
+export const MAX_CONFLICTS_IN_A_ROW = 3;
 
 export interface TreeStoreState {
   /** The signed-in account (from the app shell); null until known and after sign-out. */
@@ -48,31 +55,31 @@ export interface TreeStoreState {
   clanId: string | null;
   status: TreeStatus;
   loadError: unknown;
-  /** What the user sees: the confirmed tree plus every pending op. */
+  /** What the user sees: the confirmed tree plus every pending entry. */
   tree: TreeState;
   /** What the server has accepted, at confirmedVersion. */
   confirmedTree: TreeState;
   confirmedVersion: number;
-  /** Ops not yet accepted, oldest first; pending[0] is the one being sent. */
-  pending: Op[];
-  /** True while a failed send (or reload) waits for its retry. */
+  /** Changes not yet accepted, oldest first; pending[0] is the one being sent. */
+  pending: PendingEntry[];
+  /** True while a failed request waits for its retry. */
   retrying: boolean;
   /**
-   * True after a 401 the refresh cookie could not fix: nothing is sent until the next apply()
-   * or load() of the same family tree, which try again (the user signed in meanwhile).
+   * True after a 401 the refresh cookie could not fix: nothing is sent until the next apply(),
+   * load() or sign-in of the same account.
    */
   signedOut: boolean;
   /** True after IDENTITY_MISMATCH: nothing is sent until the right account is back. */
   otherAccount: boolean;
   notice: TreeNotice | null;
   load: (clanId: string) => Promise<void>;
-  apply: (op: Op) => ApplyResult;
-  dismissNotice: () => void;
   /**
-   * The app shell says who is signed in. The same account again resumes a queue stopped by a
-   * lost session; another account drops what the previous one left unsent (spec §7.3).
+   * The app shell says who is signed in. The same account again resumes a stopped queue;
+   * another account drops what the previous one left unsent (spec §7.3).
    */
   setAccount: (userId: string) => void;
+  apply: (op: Op) => ApplyResult;
+  dismissNotice: () => void;
 }
 
 /** For the unsent-changes guard: primitives, so they are stable selectors. */
@@ -102,12 +109,18 @@ const INITIAL: TreeData = {
 
 /** A new session per load(): answers that belong to an older one are ignored. */
 let session = 0;
-/** A request of the queue (POST of pending[0], or the reload) is on its way. */
+/** A request of the queue (a POST, the rebase's reads, or the reload) is on its way. */
 let sending = false;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let attempt = 0;
-/** The queue must read the whole tree again (after a 409 or an answer it cannot trust). */
+/** The queue must read the whole tree again (third conflict, or an answer it cannot trust). */
 let needsReload = false;
+/** The queue must catch up with the log and replay its entries (after a 409). */
+let needsRebase = false;
+/** 409s since the server last accepted one of this tab's changes. */
+let conflictsInARow = 0;
+/** The local id of the next pending entry. */
+let nextPendingId = 1;
 /** The load() in progress, so a second load() of the same tree (StrictMode) shares it. */
 let loading: Promise<void> | undefined;
 
@@ -115,6 +128,12 @@ function clearRetry(): void {
   if (retryTimer !== undefined) clearTimeout(retryTimer);
   retryTimer = undefined;
   attempt = 0;
+}
+
+function newEntry(op: Op): PendingEntry {
+  const id = nextPendingId;
+  nextPendingId += 1;
+  return { id, op };
 }
 
 function isRetryable(error: unknown): boolean {
@@ -127,43 +146,29 @@ function isUnauthenticated(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
 }
 
-function isConflict(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409;
-}
-
 /** The cookie belongs to another account than the one that made the queue. */
 function isOtherAccount(error: unknown): boolean {
   return error instanceof ApiError && error.code === 'IDENTITY_MISMATCH';
 }
 
-/** A 4xx answer (check 401 and 429 before this one). */
+/** A 409 (check IDENTITY_MISMATCH before this one). */
+function isConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409;
+}
+
+/** A 4xx answer (check 401, 409 and 429 before this one). */
 function isRefusal(error: unknown): boolean {
   return error instanceof ApiError && error.status >= 400 && error.status < 500;
 }
 
-/** Applies ops in order, dropping any that no longer fit (they depended on a rejected op). */
-function replay(start: TreeState, ops: readonly Op[]): { tree: TreeState; kept: Op[] } {
-  let tree = start;
-  const kept: Op[] = [];
-  for (const op of ops) {
-    try {
-      tree = applyOp(tree, op).tree;
-      kept.push(op);
-    } catch (error) {
-      if (!(error instanceof OpError)) throw error;
-    }
-  }
-  return { tree, kept };
-}
-
 export const useTreeStore = create<TreeStoreState>()((set, get) => {
-  /** Stops the queue after a 401; every pending op stays. */
+  /** Stops the queue after a 401; every pending entry stays. */
   function stopSignedOut(clanId: string): void {
     attempt = 0;
     set({ signedOut: true, retrying: false, notice: { kind: 'signedOut', clanId } });
   }
 
-  /** Stops the queue after IDENTITY_MISMATCH; every pending op stays for its account. */
+  /** Stops the queue after IDENTITY_MISMATCH; every pending entry stays for its account. */
   function stopOtherAccount(clanId: string): void {
     attempt = 0;
     set({ otherAccount: true, retrying: false, notice: { kind: 'otherAccount', clanId } });
@@ -179,15 +184,17 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     void flush();
   }
 
+  /** The server refused pending[0]: roll it back, with the entries that depended on it. */
   function reject(clanId: string, error: unknown): void {
     const { confirmedTree, pending } = get();
-    const { tree, kept } = replay(confirmedTree, pending.slice(1));
-    const dropped = pending.length - 1 - kept.length;
+    const [refused, ...rest] = pending;
+    if (refused === undefined) return;
+    const replayed = replayPending(confirmedTree, rest, { alreadyDropped: [refused.id] });
     set({
-      tree,
-      pending: kept,
+      tree: replayed.tree,
+      pending: replayed.kept,
       retrying: false,
-      notice: { kind: 'rejected', clanId, error, dropped },
+      notice: { kind: 'rejected', clanId, error, dropped: replayed.dropped.length },
     });
   }
 
@@ -201,10 +208,30 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     }, delay);
   }
 
+  /** A read of the queue (the reload or the rebase) failed: retry, stop, or show the error. */
+  function readFailed(clanId: string, error: unknown, mine: number): void {
+    if (isUnauthenticated(error)) {
+      stopSignedOut(clanId);
+    } else if (isRetryable(error)) {
+      scheduleRetry(mine);
+    } else if (isRefusal(error)) {
+      // The tree is gone or no longer ours (404, 403). The pending entries stay in the store:
+      // the app-level UnsentChangesGuard still counts them, and the next load() reports them
+      // as discarded.
+      needsReload = false;
+      needsRebase = false;
+      attempt = 0;
+      set({ status: 'error', loadError: error, retrying: false });
+    } else {
+      // An answer we cannot read: try again later rather than at once.
+      scheduleRetry(mine);
+    }
+  }
+
   /**
-   * Reads the tree again and drops every pending op (spec: a 409 reloads), including ops
-   * applied while this request was on its way; the `reloaded` notice tells the user. When the
-   * reload fails, the pending ops are kept and the reload is retried with backoff.
+   * Reads the tree again and drops every pending entry, including entries applied while this
+   * request was on its way; the `reloaded` notice tells the user. When the reload fails, the
+   * entries are kept and the reload is retried with backoff.
    */
   async function reload(clanId: string, mine: number): Promise<void> {
     try {
@@ -212,6 +239,8 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       if (mine !== session) return;
       const tree = treeStateFromLists(response.progenitorId, response.persons, response.unions);
       needsReload = false;
+      needsRebase = false;
+      conflictsInARow = 0;
       attempt = 0;
       set({
         tree,
@@ -223,40 +252,73 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       });
     } catch (error) {
       if (mine !== session) return;
-      if (isUnauthenticated(error)) {
-        stopSignedOut(clanId);
-      } else if (isRetryable(error)) {
-        scheduleRetry(mine);
-      } else if (isRefusal(error)) {
-        // The tree is gone or no longer ours (404, 403). The pending ops stay in the store: the
-        // app-level UnsentChangesGuard (dialog and beforeunload) still counts them, and the next
-        // load() reports them as discarded.
-        needsReload = false;
-        attempt = 0;
-        set({ status: 'error', loadError: error, retrying: false });
-      } else {
-        // An answer we cannot read: try again later rather than at once.
-        scheduleRetry(mine);
+      readFailed(clanId, error, mine);
+    }
+  }
+
+  /**
+   * Spec §6.3: reads what others saved since confirmedVersion and replays the queue on top.
+   * Entries that no longer apply are dropped with the `rejected` notice (the first one's reason).
+   */
+  async function rebaseQueue(clanId: string, userId: string, mine: number): Promise<void> {
+    try {
+      const remote = await fetchOpsSince(clanId, get().confirmedVersion);
+      if (mine !== session) return;
+      // Read again after the await: entries applied meanwhile are replayed too.
+      const state = get();
+      const result = rebase({
+        confirmedTree: state.confirmedTree,
+        confirmedVersion: state.confirmedVersion,
+        pending: state.pending,
+        remote,
+        userId,
+      });
+      needsRebase = false;
+      attempt = 0;
+      if (!result.ok) {
+        needsReload = true;
+        return;
       }
+      if (result.saved) conflictsInARow = 0;
+      const [first, ...others] = result.dropped;
+      set({
+        confirmedTree: result.confirmedTree,
+        confirmedVersion: result.confirmedVersion,
+        tree: result.tree,
+        pending: result.pending,
+        retrying: false,
+        notice: first
+          ? { kind: 'rejected', clanId, error: first.error, dropped: others.length }
+          : state.notice,
+      });
+    } catch (error) {
+      if (mine !== session) return;
+      readFailed(clanId, error, mine);
     }
   }
 
   async function send(
     clanId: string,
     userId: string,
-    op: Op,
+    entry: PendingEntry,
     baseVersion: number,
     mine: number,
   ): Promise<void> {
     try {
-      const { seq } = await submitOp(clanId, { op, baseVersion, expectedUserId: userId });
+      const { seq } = await submitOp(clanId, {
+        op: entry.op,
+        baseVersion,
+        expectedUserId: userId,
+        ...revertFieldsOf(entry),
+      });
       if (mine !== session) return;
       attempt = 0;
+      conflictsInARow = 0;
       const state = get();
       set({
-        confirmedTree: applyOp(state.confirmedTree, op).tree,
+        confirmedTree: applyOp(state.confirmedTree, entry.op).tree,
         confirmedVersion: seq,
-        pending: state.pending.slice(1),
+        pending: resolveRefs(state.pending.slice(1), entry.id, seq),
         retrying: false,
       });
     } catch (error) {
@@ -267,12 +329,18 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         stopSignedOut(clanId);
       } else if (isOtherAccount(error)) {
         stopOtherAccount(clanId);
-      } else if (isRefusal(error) && !isConflict(error)) {
+      } else if (isConflict(error)) {
+        attempt = 0;
+        conflictsInARow += 1;
+        // Someone keeps saving first: stop rebasing and read the whole tree.
+        if (conflictsInARow >= MAX_CONFLICTS_IN_A_ROW) needsReload = true;
+        else needsRebase = true;
+      } else if (isRefusal(error)) {
         attempt = 0;
         reject(clanId, error);
       } else {
-        // 409, or no answer we can trust: a 2xx with an unreadable body (INVALID_RESPONSE; the
-        // op may well be saved) or a non-API error. Start again from the server's tree.
+        // No answer we can trust: a 2xx with an unreadable body (INVALID_RESPONSE; the op may
+        // well be saved) or a non-API error. Start again from the server's tree.
         attempt = 0;
         needsReload = true;
       }
@@ -285,13 +353,14 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     if (userId === null || clanId === null || status !== 'ready' || signedOut || otherAccount) {
       return;
     }
-    const op = pending[0];
-    if (!needsReload && op === undefined) return;
+    const entry = pending[0];
+    if (!needsReload && !needsRebase && entry === undefined) return;
     const mine = session;
     sending = true;
     try {
       if (needsReload) await reload(clanId, mine);
-      else if (op !== undefined) await send(clanId, userId, op, confirmedVersion, mine);
+      else if (needsRebase) await rebaseQueue(clanId, userId, mine);
+      else if (entry !== undefined) await send(clanId, userId, entry, confirmedVersion, mine);
     } finally {
       if (mine === session) sending = false;
     }
@@ -304,7 +373,9 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     try {
       const response = await fetchTree(clanId);
       const state = get();
-      if (mine !== session || sending || needsReload || state.pending.length > 0) return;
+      if (mine !== session || sending || needsReload || needsRebase || state.pending.length > 0) {
+        return;
+      }
       if (response.version <= state.confirmedVersion) return;
       const tree = treeStateFromLists(response.progenitorId, response.persons, response.unions);
       set({ tree, confirmedTree: tree, confirmedVersion: response.version });
@@ -323,7 +394,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         if (current.status === 'ready') {
           // Coming back while changes are still being saved (or waiting for a sign-in): keep
           // them and send again.
-          if (current.pending.length > 0 || needsReload) {
+          if (current.pending.length > 0 || needsReload || needsRebase) {
             resume();
             return Promise.resolve();
           }
@@ -331,18 +402,20 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         }
       }
 
-      // A new session. Unsent ops of the previous one are dropped: say how many (UnsentChangesGuard
-      // asks before another tree opens and empties the queue itself when the user agrees, so
-      // this notice only shows when something else got here). A notice the user has not
-      // dismissed yet (a 409, a refused op, a lost session) stays: it may be the only word they
-      // get about edits that were dropped while another page was on screen.
+      // A new session. Unsent entries of the previous one are dropped: say how many
+      // (UnsentChangesGuard asks before another tree opens and empties the queue itself when
+      // the user agrees, so this notice only shows when something else got here). A notice the
+      // user has not dismissed yet stays: it may be the only word they get about edits that
+      // were dropped while another page was on screen.
       const discarded = current.pending.length;
-      const inFlight = sending && !needsReload;
+      const inFlight = sending && !needsReload && !needsRebase;
       const unseen = current.notice;
       session += 1;
       const mine = session;
       sending = false;
       needsReload = false;
+      needsRebase = false;
+      conflictsInARow = 0;
       clearRetry();
       set({
         ...INITIAL,
@@ -375,16 +448,26 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       return run;
     },
 
+    setAccount(userId) {
+      const state = get();
+      if (state.userId === userId) {
+        if (state.signedOut || state.otherAccount) resume();
+        return;
+      }
+      if (state.userId !== null) discardForAccountChange();
+      set({ userId });
+    },
+
     apply(op) {
       const state = get();
-      // While a reload is pending (after a 409) it would drop every new op: refuse instead. No
-      // account yet: an op could not be tied to the person who made it.
+      // While a reload is pending it would drop every new entry: refuse instead. No account
+      // yet: an op could not be tied to the person who made it.
       if (state.status !== 'ready' || needsReload || state.userId === null) {
         return { ok: false, reason: 'NOT_LOADED' };
       }
       try {
         const { tree } = applyOp(state.tree, op);
-        set({ tree, pending: [...state.pending, op] });
+        set({ tree, pending: [...state.pending, newEntry(op)] });
       } catch (error) {
         if (error instanceof OpError) return { ok: false, reason: error.code };
         throw error;
@@ -396,16 +479,6 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     dismissNotice() {
       set({ notice: null });
     },
-
-    setAccount(userId) {
-      const state = get();
-      if (state.userId === userId) {
-        if (state.signedOut || state.otherAccount) resume();
-        return;
-      }
-      if (state.userId !== null) discardForAccountChange();
-      set({ userId });
-    },
   };
 });
 
@@ -414,6 +487,8 @@ function stopSending(): void {
   session += 1;
   sending = false;
   needsReload = false;
+  needsRebase = false;
+  conflictsInARow = 0;
   loading = undefined;
   clearRetry();
 }
@@ -438,7 +513,7 @@ export function signOutTreeStore(): void {
 /** Another account signed in: what the previous one left unsent is dropped, with a notice. */
 function discardForAccountChange(): void {
   const { pending, clanId } = useTreeStore.getState();
-  const inFlight = sending && !needsReload;
+  const inFlight = sending && !needsReload && !needsRebase;
   signOutTreeStore();
   if (pending.length > 0 && clanId !== null) {
     useTreeStore.setState({

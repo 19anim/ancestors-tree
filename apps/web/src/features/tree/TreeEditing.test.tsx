@@ -661,7 +661,7 @@ describe('unsent changes', () => {
   it('keeps guarding changes after the tree became unavailable', async () => {
     const user = userEvent.setup();
     let reads = 0;
-    unsentApp(() => apiErrorReply('VERSION_CONFLICT', 409), {
+    unsentApp(() => ({ body: { saved: true } }), {
       [`GET /clans/${CLAN_ID}/tree`]: () => {
         reads += 1;
         return reads === 1 ? { body: EMPTY_TREE_RESPONSE } : apiErrorReply('FORBIDDEN', 403);
@@ -670,7 +670,7 @@ describe('unsent changes', () => {
     renderRoute(`/clans/${CLAN_ID}/tree`);
     await addFirstPerson(user);
 
-    // The 409 reloads the tree, and the reload is refused: the change is kept, unsent.
+    // An answer that cannot be read reloads the tree, and the reload is refused: the change is kept, unsent.
     expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
     expect(pendingCount()).toBe(1);
     expect(beforeUnloadPrevented()).toBe(true);

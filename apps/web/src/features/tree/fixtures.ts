@@ -1,5 +1,5 @@
-import type { Clan, TreeResponse } from '@ancestors-tree/shared';
-import type { Person } from '@ancestors-tree/shared/tree';
+import type { Clan, OperationEntry, TreeResponse } from '@ancestors-tree/shared';
+import type { Op, Person } from '@ancestors-tree/shared/tree';
 import type { MockRoutes } from '../../test/api';
 
 export const CLAN_ID = '64b7f0c2a1b2c3d4e5f60001';
@@ -11,6 +11,8 @@ export const ME = {
   hasPassword: true,
   hasGoogle: false,
 };
+/** Someone else editing the same family tree. */
+export const OTHER_USER_ID = '64b7f0c2a1b2c3d4e5f60719';
 export const CLAN: Clan = {
   id: CLAN_ID,
   name: 'Họ Nguyễn',
@@ -66,11 +68,18 @@ export const EMPTY_TREE_RESPONSE: TreeResponse = {
   unions: [],
 };
 
+/** One entry of GET /ops: a change someone saved at `seq`. */
+export function remoteEntry(seq: number, op: Op, userId: string = OTHER_USER_ID): OperationEntry {
+  return { seq, userId, createdAt: '2026-11-14T08:00:00.000Z', op };
+}
+
 /** Routes for a signed-in owner looking at one family tree. */
 export function treeRoutes(tree: TreeResponse = FAMILY, clan: Clan = CLAN): MockRoutes {
   return {
     'GET /me': () => ({ body: ME }),
     [`GET /clans/${CLAN_ID}`]: () => ({ body: clan }),
     [`GET /clans/${CLAN_ID}/tree`]: () => ({ body: tree }),
+    // Nothing was saved by anyone else: a rebase after a 409 only resends.
+    [`GET /clans/${CLAN_ID}/ops`]: () => ({ body: [] }),
   };
 }

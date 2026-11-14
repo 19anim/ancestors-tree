@@ -1,6 +1,9 @@
 import {
+  OPS_PAGE_SIZE,
+  OperationListSchema,
   SubmitOpResponseSchema,
   TreeResponseSchema,
+  type OperationEntry,
   type SubmitOpRequest,
   type SubmitOpResponse,
   type TreeResponse,
@@ -16,4 +19,17 @@ export function submitOp(clanId: string, request: SubmitOpRequest): Promise<Subm
     method: 'POST',
     json: request,
   });
+}
+
+/** Every operation saved after version `since`, oldest first, page after page. */
+export async function fetchOpsSince(clanId: string, since: number): Promise<OperationEntry[]> {
+  const entries: OperationEntry[] = [];
+  let after = since;
+  for (;;) {
+    const page = await apiRequest(`/clans/${clanId}/ops?since=${after}`, OperationListSchema);
+    entries.push(...page);
+    const last = page.at(-1);
+    if (page.length < OPS_PAGE_SIZE || last === undefined) return entries;
+    after = last.seq;
+  }
 }

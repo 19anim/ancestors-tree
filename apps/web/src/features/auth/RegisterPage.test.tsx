@@ -52,7 +52,11 @@ describe('RegisterPage', () => {
     await screen.findByRole('link', { name: 'Tiếp tục với Google' });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
-    act(() => useTreeStore.setState({ pending: [{ type: 'deletePerson', payload: { id: ID } }] }));
+    act(() =>
+      useTreeStore.setState({
+        pending: [{ id: 1, op: { type: 'deletePerson', payload: { id: ID } } }],
+      }),
+    );
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ 1 thay đổi chưa lưu.',
     );

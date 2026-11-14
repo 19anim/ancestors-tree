@@ -9,10 +9,13 @@ import {
   GRANDPA,
   LOOSE,
   ME,
+  OTHER_USER_ID,
+  remoteEntry,
   SON,
   treeRoutes,
 } from './fixtures';
 import {
+  MAX_CONFLICTS_IN_A_ROW,
   RETRY_DELAYS_MS,
   resetTreeStore,
   selectHasUnsentChanges,
@@ -30,8 +33,8 @@ const addPerson = (id: string, fullName = 'Nguyễn Văn Út'): Op => ({
 
 const store = () => useTreeStore.getState();
 const TREE = `GET /clans/${CLAN_ID}/tree`;
+const OPS_LOG = `GET /clans/${CLAN_ID}/ops`;
 const OTHER_CLAN = '64b7f0c2a1b2c3d4e5f60002';
-const OTHER_USER_ID = '64b7f0c2a1b2c3d4e5f60719';
 const bio = (text: string): Op => ({
   type: 'updatePerson',
   payload: { id: SON, changes: { bio: text } },
@@ -157,24 +160,137 @@ describe('applying ops', () => {
 });
 
 describe('when the server says no', () => {
-  it('reloads the whole tree after a version conflict', async () => {
-    let loads = 0;
+  it('rebases after a version conflict: the missed change and the edit both stay', async () => {
+    const bodies: unknown[] = [];
+    let treeReads = 0;
+    const someoneElse = addPerson(OTHER_ID, 'Nguyễn Văn Sáu');
     mockApi({
       ...treeRoutes(),
-      [`GET /clans/${CLAN_ID}/tree`]: () => {
-        loads += 1;
-        return { body: loads === 1 ? FAMILY : { ...FAMILY, version: 7 } };
+      [TREE]: () => {
+        treeReads += 1;
+        return { body: FAMILY };
       },
-      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [OPS_LOG]: ({ url }) => ({
+        body: url.searchParams.get('since') === '3' ? [remoteEntry(4, someoneElse)] : [],
+      }),
+      [OPS]: ({ body }) => {
+        bodies.push(body);
+        return bodies.length === 1 ? apiErrorReply('VERSION_CONFLICT', 409) : { body: { seq: 5 } };
+      },
     });
     await store().load(CLAN_ID);
     store().apply(addPerson(NEW_ID));
 
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
-    expect(loads).toBe(2);
-    expect(store().confirmedVersion).toBe(7);
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(bodies).toEqual([
+      { op: addPerson(NEW_ID), baseVersion: 3, expectedUserId: ME.id },
+      { op: addPerson(NEW_ID), baseVersion: 4, expectedUserId: ME.id },
+    ]);
+    expect(store().confirmedVersion).toBe(5);
+    expect(store().tree.persons[OTHER_ID]).toBeDefined();
+    expect(store().tree.persons[NEW_ID]).toBeDefined();
+    expect(store().notice).toBeNull();
+    expect(treeReads).toBe(1);
+  });
+
+  it('drops an edit the missed changes made impossible, and says why', async () => {
+    const unionId = '64b7f0c2a1b2c3d4e5f6b0f1';
+    const looseChild: Op = {
+      type: 'batch',
+      payload: {
+        ops: [
+          {
+            type: 'addUnion',
+            payload: { id: unionId, partnerIds: [LOOSE], order: 1, status: 'married' },
+          },
+          {
+            type: 'addPerson',
+            payload: fixturePerson(OTHER_ID, 'Trần Văn Cường', { parentUnionId: unionId }),
+          },
+        ],
+      },
+    };
+    const api = mockApi({
+      ...treeRoutes(),
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, looseChild)] }),
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+    });
+    await store().load(CLAN_ID);
+    store().apply({ type: 'deletePerson', payload: { id: LOOSE } });
+
+    await vi.waitFor(() => expect(store().notice?.kind).toBe('rejected'));
+    expect(store().notice).toMatchObject({
+      kind: 'rejected',
+      clanId: CLAN_ID,
+      error: { code: 'PERSON_HAS_CHILDREN' },
+      dropped: 0,
+    });
     expect(store().pending).toEqual([]);
-    expect(store().tree.persons[NEW_ID]).toBeUndefined();
+    expect(store().tree.persons[LOOSE]).toBeDefined();
+    expect(store().confirmedVersion).toBe(4);
+    expect(api.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  });
+
+  it(`reloads the whole tree on the ${MAX_CONFLICTS_IN_A_ROW}rd conflict in a row`, async () => {
+    let treeReads = 0;
+    const api = mockApi({
+      ...treeRoutes(),
+      [TREE]: () => {
+        treeReads += 1;
+        return { body: { ...FAMILY, version: treeReads === 1 ? 3 : 8 } };
+      },
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
+    expect(api.calls.filter((call) => call.method === 'POST')).toHaveLength(MAX_CONFLICTS_IN_A_ROW);
+    expect(
+      api.calls.filter((call) => call.path.endsWith('/ops') && call.method === 'GET'),
+    ).toHaveLength(MAX_CONFLICTS_IN_A_ROW - 1);
+    expect(treeReads).toBe(2);
+    expect(store().confirmedVersion).toBe(8);
+    expect(store().pending).toEqual([]);
+  });
+
+  it('confirms an op that was saved although its answer was lost', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let posts = 0;
+    mockApi({
+      ...treeRoutes(),
+      // The first answer is lost on the way back; the server did save the op as seq 4.
+      [OPS]: () => {
+        posts += 1;
+        return posts === 1 ? { status: 503, body: {} } : apiErrorReply('VERSION_CONFLICT', 409);
+      },
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, bio('Con trưởng'), ME.id)] }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await retryScheduled();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await until(() => store().pending.length === 0);
+    expect(posts).toBe(2);
+    expect(store().confirmedVersion).toBe(4);
+    expect(store().confirmedTree.persons[SON]?.bio).toBe('Con trưởng');
+    expect(store().notice).toBeNull();
+  });
+
+  it('rolls back an op refused with a reason this version does not know', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => ({
+        status: 422,
+        body: { error: { code: 'RULE_VIOLATION', message: 'No', reason: 'A_FUTURE_RULE' } },
+      }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await vi.waitFor(() => expect(store().notice?.kind).toBe('rejected'));
+    expect(store().notice).toMatchObject({ error: { code: 'RULE_VIOLATION' } });
+    expect(store().tree.persons[SON]?.bio).toBeUndefined();
   });
 
   it('rolls back a rejected op, keeps the independent ones and drops the dependent ones', async () => {
@@ -346,7 +462,7 @@ describe('retrying', () => {
   });
 });
 
-describe('when the reload after a conflict fails', () => {
+describe('when the reload after an unreadable answer fails', () => {
   it('retries the reload with backoff, without posting the op again', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     let loads = 0;
@@ -358,7 +474,7 @@ describe('when the reload after a conflict fails', () => {
         if (loads === 1) return { body: FAMILY };
         return treeUp ? { body: { ...FAMILY, version: 9 } } : { status: 503, body: {} };
       },
-      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [OPS]: () => ({ body: { saved: true } }),
     });
     await store().load(CLAN_ID);
     store().apply(bio('Con trưởng'));
@@ -410,7 +526,7 @@ describe('when the reload after a conflict fails', () => {
         loads += 1;
         return loads === 1 ? { body: FAMILY } : apiErrorReply('NOT_FOUND', 404);
       },
-      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [OPS]: () => ({ body: { saved: true } }),
     });
     await store().load(CLAN_ID);
     store().apply(bio('Con trưởng'));
@@ -431,7 +547,7 @@ describe('when the reload after a conflict fails', () => {
         if (loads === 2) await held.wait;
         return { body: { ...FAMILY, version: loads === 1 ? 3 : 5 } };
       },
-      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [OPS]: () => ({ body: { saved: true } }),
     });
     await store().load(CLAN_ID);
     store().apply(bio('Con trưởng'));
@@ -452,7 +568,7 @@ describe('a notice nobody has seen yet', () => {
   it('survives opening another family tree', async () => {
     mockApi({
       ...treeRoutes(),
-      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [OPS]: () => ({ body: { saved: true } }),
       [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
     });
     await store().load(CLAN_ID);
@@ -803,7 +919,7 @@ describe('opening the tree again', () => {
         loads += 1;
         return loads === 2 ? apiErrorReply('FORBIDDEN', 403) : { body: FAMILY };
       },
-      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [OPS]: () => ({ body: { saved: true } }),
     });
     await store().load(CLAN_ID);
     store().apply(bio('Con trưởng'));
