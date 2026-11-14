@@ -71,3 +71,13 @@ export {
   type SubmitOpResponse,
   type TreeResponse,
 } from './api/tree.ts';
+export {
+  HISTORY_PAGE_MAX,
+  HISTORY_PAGE_SIZE,
+  HistoryEntrySchema,
+  HistoryPageSchema,
+  HistoryQuerySchema,
+  type HistoryEntry,
+  type HistoryPage,
+  type HistoryQuery,
+} from './api/history.ts';

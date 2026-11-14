@@ -17,7 +17,7 @@ import { Clan } from '../models/Clan.ts';
 import { ClanRemoval } from '../models/ClanRemoval.ts';
 import { Invite } from '../models/Invite.ts';
 import { Membership } from '../models/Membership.ts';
-import { User } from '../models/User.ts';
+import { namesOf } from '../users/names.ts';
 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const DUPLICATE_KEY = 11000;
@@ -31,11 +31,6 @@ interface InviteRecord {
   createdBy: { toString(): string };
   createdAt: Date;
   expiresAt: Date;
-}
-
-async function namesOf(userIds: string[]): Promise<Map<string, string>> {
-  const users = await User.find({ _id: { $in: userIds } });
-  return new Map(users.map((user) => [user.id as string, user.name]));
 }
 
 function toInvite(invite: InviteRecord, names: Map<string, string>) {

@@ -26,6 +26,7 @@ import { registerClanRoutes } from './routes/clans.ts';
 import { registerMemberRoutes } from './routes/members.ts';
 import { registerInviteRoutes } from './routes/invites.ts';
 import { registerTreeRoutes } from './routes/tree.ts';
+import { registerHistoryRoutes } from './routes/history.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
 import { createPasswordResets } from './auth/passwordResets.ts';
@@ -113,6 +114,7 @@ export function createApp(options: AppOptions): CreatedApp {
   registerMemberRoutes(api);
   registerInviteRoutes(api);
   registerTreeRoutes(api);
+  registerHistoryRoutes(api);
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();
