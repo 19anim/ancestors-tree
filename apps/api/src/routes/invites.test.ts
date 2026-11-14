@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { Clan } from '../models/Clan.ts';
 import { ClanRemoval } from '../models/ClanRemoval.ts';
 import { Invite } from '../models/Invite.ts';
 import { Membership } from '../models/Membership.ts';
@@ -156,6 +157,31 @@ describe('invites', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('INVALID_TOKEN');
     expect(await Membership.countDocuments({ clanId: clan.id, userId: joiner.user.id })).toBe(0);
+  });
+
+  it('adds nobody when the family tree was deleted after the link was opened', async () => {
+    const { owner, clan, path } = await ownerWithClan();
+    const { token } = (await owner.agent.post(path).send({ role: 'editor' })).body;
+    const joiner = await signUp(app);
+    // The delete removed the clan between reading the invite and creating the membership.
+    await Clan.deleteOne({ _id: clan.id });
+    const response = await joiner.agent.post(`/api/invites/${token}/accept`);
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_TOKEN');
+    expect(await Membership.countDocuments({ clanId: clan.id, userId: joiner.user.id })).toBe(0);
+  });
+
+  it('leaves no membership when accepting and deleting the tree happen at once', async () => {
+    const { owner, clan, path } = await ownerWithClan();
+    const { token } = (await owner.agent.post(path).send({ role: 'editor' })).body;
+    const joiner = await signUp(app);
+    const [accepted, deleted] = await Promise.all([
+      joiner.agent.post(`/api/invites/${token}/accept`),
+      owner.agent.delete(`/api/clans/${clan.id}`),
+    ]);
+    expect(deleted.status).toBe(204);
+    expect([200, 400]).toContain(accepted.status);
+    expect(await Membership.countDocuments({ clanId: clan.id })).toBe(0);
   });
 
   it('does not let an invite grant the owner role', async () => {

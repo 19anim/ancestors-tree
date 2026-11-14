@@ -8,6 +8,7 @@ import {
   InviteRoleSchema,
   InviteSchema,
 } from '@ancestors-tree/shared';
+import mongoose from 'mongoose';
 import { z } from 'zod';
 import { randomToken } from '../auth/tokens.ts';
 import { AppError } from '../http/AppError.ts';
@@ -150,26 +151,44 @@ export function registerInviteRoutes(api: RouteRegistry): void {
     handler: async ({ params, userId }) => {
       const invite = await findUsableInvite(params.token);
       const clanId = invite.clanId.toString();
-      const existing = await Membership.findOne({ clanId, userId: userId() });
-      if (existing) {
-        // Never change an existing member's role through a link.
-        return {
-          status: 200,
-          body: { clanId, role: ClanRoleSchema.parse(existing.role), alreadyMember: true },
-        };
-      }
-      // Removed by the owner after this link was made: only a newer link lets them back in.
-      const removal = await ClanRemoval.findOne({ clanId, userId: userId() });
-      if (removal && removal.removedAt >= invite.createdAt) {
-        throw new AppError(
-          'FORBIDDEN',
-          'You were removed from this clan. Ask the owner for a new link',
-        );
-      }
       try {
-        await Membership.create({ clanId, userId: userId(), role: invite.role });
+        const body = await mongoose.connection.transaction(async (session) => {
+          const existing = await Membership.findOne({ clanId, userId: userId() }, null, {
+            session,
+          });
+          if (existing) {
+            // Never change an existing member's role through a link.
+            return { clanId, role: ClanRoleSchema.parse(existing.role), alreadyMember: true };
+          }
+          // Removed by the owner after this link was made: only a newer link lets them back in.
+          const removal = await ClanRemoval.findOne({ clanId, userId: userId() }, null, {
+            session,
+          });
+          if (removal && removal.removedAt >= invite.createdAt) {
+            throw new AppError(
+              'FORBIDDEN',
+              'You were removed from this clan. Ask the owner for a new link',
+            );
+          }
+          // Writing the clan document makes this transaction conflict with a delete of the same
+          // clan: one of them retries and then sees the other's result, so a membership is
+          // never left behind for a deleted clan.
+          const touched = await Clan.updateOne(
+            { _id: clanId },
+            { $currentDate: { updatedAt: true } },
+            { session, timestamps: false },
+          );
+          if (touched.matchedCount === 0) {
+            throw new AppError('INVALID_TOKEN', 'This invite link is wrong, expired or revoked');
+          }
+          await Membership.create([{ clanId, userId: userId(), role: invite.role }], { session });
+          if (removal) await ClanRemoval.deleteOne({ _id: removal._id }, { session });
+          return { clanId, role: InviteRoleSchema.parse(invite.role), alreadyMember: false };
+        });
+        return { status: 200, body };
       } catch (error) {
-        // The same person accepted twice at the same moment: the unique index keeps one.
+        // The same person accepted twice at the same moment: the unique index keeps one. A
+        // duplicate key aborts the transaction, so the stored row is read outside it.
         if ((error as { code?: unknown }).code !== DUPLICATE_KEY) throw error;
         const stored = await Membership.findOne({ clanId, userId: userId() });
         if (!stored) throw error;
@@ -178,11 +197,6 @@ export function registerInviteRoutes(api: RouteRegistry): void {
           body: { clanId, role: ClanRoleSchema.parse(stored.role), alreadyMember: true },
         };
       }
-      if (removal) await ClanRemoval.deleteOne({ _id: removal._id });
-      return {
-        status: 200,
-        body: { clanId, role: InviteRoleSchema.parse(invite.role), alreadyMember: false },
-      };
     },
   });
 }
