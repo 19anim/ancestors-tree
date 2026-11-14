@@ -513,6 +513,10 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
 - `DualDateInput`: toggle **Lunar / Solar / Year only**. Entering one side shows the converted other side and the Can Chi year. A "leap month" checkbox appears in Lunar mode.
 - Context menu (and card buttons on touch devices): Add child · Add spouse · Add parent (if missing) · Change relationship… · Link to another family tree · Decorate this card… (§13.4) · Delete.
 - People are created through forms and AI import (§10), never by dragging. Dragging only **changes relationships**.
+- **Add several people** (editors only), from the board's toolbar and from the **Loose photos** tray. It is for families who know names before they know who belongs where.
+  - The form has one row per person: full name, gender, living/deceased. A new row appears when the last one is filled, and an empty row is ignored.
+  - Saving sends one `batch` of `addPerson` ops with no relationships (at most 500 rows, and the tree's limit of 5,000 people still applies), so it is one undo step.
+  - The new people go to the **Loose photos** tray. From there, they are dragged onto the tree, or placed with "Change relationship…" from the keyboard.
 
 **Drag to relate (editors only).** Positions always come from the layout (§7.4); a drag never stores a free position.
 
@@ -531,7 +535,7 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
   - Cutting a parent → child thread is `setParents(null)`.
   - Cutting a marriage with shared children asks who the children stay with. The other partner is removed from that Union with `updateUnion`.
   - A divorce where both stay parents is recorded as Union status `divorced` (shown as a broken stitch), not by cutting.
-- **Loose photos.** Anyone left unconnected moves to the **Loose photos** tray instead of being deleted. A detached branch moves as one stack and can be dropped back onto the tree.
+- **Loose photos.** Anyone left unconnected moves to the **Loose photos** tray instead of being deleted. People added with **Add several people** start here too. A detached branch moves as one stack and can be dropped back onto the tree.
 - **Nudge.** Dropping a card within about one card width of its place keeps a small display offset, so short threads stay easy to reach. Offsets are per device (localStorage), are not ops and are not shared. **Tidy up** clears them.
 - **Touch.** A long press (about 400 ms) picks a card up; a normal swipe still pans the tree.
 - **Keyboard and screen reader.** The card menu item **Change relationship…** lists each relationship with a **Remove** button and offers the same add and replace choices.

@@ -515,6 +515,10 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 - `DualDateInput`: nút chuyển **Âm / Dương / Chỉ biết năm**. Nhập một bên thì hiện bên kia và năm Can Chi. Ô "tháng nhuận" hiện khi chọn Âm.
 - Menu chuột phải (và nút trên thẻ ở thiết bị cảm ứng): Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… · Nối với cây gia phả khác · Trang trí thẻ này… (§13.4) · Xoá.
 - Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
+- **Thêm nhiều người** (chỉ người có quyền sửa), mở từ thanh công cụ của cây và từ cột **Ảnh chưa dán**. Dành cho gia đình biết tên trước khi biết ai ở đâu trong cây.
+  - Form có mỗi người một dòng: họ tên, giới tính, còn sống/đã mất. Điền xong dòng cuối thì hiện thêm một dòng mới; dòng để trống bị bỏ qua.
+  - Lưu thì gửi một op `batch` gồm các op `addPerson` không kèm quan hệ (tối đa 500 dòng, và vẫn tính giới hạn 5.000 người của cây), nên chỉ là một bước hoàn tác.
+  - Người mới vào cột **Ảnh chưa dán**. Từ đó kéo họ lên cây, hoặc dùng "Đổi quan hệ…" bằng bàn phím để đặt vào chỗ.
 
 **Kéo thả để đổi quan hệ (chỉ người có quyền sửa).** Vị trí luôn do layout tính (§7.4); kéo thả không bao giờ lưu một vị trí tự do.
 
@@ -533,7 +537,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
   - Cắt sợi chỉ cha mẹ → con là `setParents(null)`.
   - Cắt quan hệ vợ chồng có con chung sẽ hỏi các con ở lại với ai; người còn lại được gỡ khỏi Union đó bằng `updateUnion`.
   - Ly hôn mà cả hai vẫn là cha mẹ thì ghi trạng thái Union `divorced` (đường khâu đứt quãng), không cắt chỉ.
-- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào cột **Ảnh chưa dán** chứ không bị xoá. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây.
+- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào cột **Ảnh chưa dán** chứ không bị xoá. Người thêm bằng **Thêm nhiều người** cũng bắt đầu ở đây. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây.
 - **Xê dịch.** Thả thẻ cách vị trí cũ chưa tới khoảng một tấm ảnh thì thẻ giữ một độ lệch hiển thị nhỏ, giúp sợi chỉ ngắn vẫn dễ bấm. Độ lệch lưu theo từng máy (localStorage), không phải op và không chia sẻ cho người khác. Nút **Xếp lại gọn** xoá hết độ lệch.
 - **Cảm ứng.** Nhấn giữ khoảng 400 ms để nhấc thẻ lên; vuốt bình thường vẫn là di chuyển cây.
 - **Bàn phím và trình đọc màn hình.** Mục **Đổi quan hệ…** trong menu của thẻ liệt kê từng quan hệ kèm nút **Gỡ**, và có các lựa chọn thêm hoặc thay như trên.
