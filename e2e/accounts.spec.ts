@@ -1,20 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-
-const PASSWORD = 'correct horse 1';
-
-function uniqueEmail(name: string): string {
-  return `${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
-}
-
-async function register(page: Page, name: string, slug: string): Promise<string> {
-  const email = uniqueEmail(slug);
-  await page.getByLabel('Tên hiển thị').fill(name);
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Mật khẩu', { exact: true }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
-  return email;
-}
+import { expect, test } from '@playwright/test';
+import { PASSWORD, register } from './support.ts';
 
 test('sign up, create a clan, invite a relative and see them join', async ({ page, browser }) => {
   await page.goto('/register');
