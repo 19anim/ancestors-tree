@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IdSchema } from '../api/common.ts';
 import { LunarDateSchema, MAX_YEAR, MIN_YEAR, SolarDateSchema } from '../lunar/dates.ts';
+import { hasWrongDerivedSide } from './date-info.ts';
 
 /** The design limit of one family tree (spec §5). */
 export const MAX_PERSONS = 5000;
@@ -37,7 +38,11 @@ export const DateInfoSchema = z
           ? date.lunar
           : date.approxYear) !== undefined,
     { message: 'The side the user entered must be present', path: ['source'] },
-  );
+  )
+  .refine((date) => !hasWrongDerivedSide(date), {
+    message: 'The other calendar must be the conversion of the date entered',
+    path: ['source'],
+  });
 
 export const DeathSchema = z
   .object({ isDeceased: z.boolean(), date: DateInfoSchema.optional() })
@@ -76,16 +81,6 @@ export const PersonSchema = z.object({
   burialPlace: BurialPlaceSchema.optional(),
 });
 
-/** Optional Person fields that `updatePerson` may clear by sending `null`. */
-export const CLEARABLE_PERSON_FIELDS = [
-  'birth',
-  'siblingOrder',
-  'branch',
-  'birthFamily',
-  'bio',
-  'burialPlace',
-] as const;
-
 /** Changed fields only (spec §6.1). `id` and `parentUnionId` belong to other ops. */
 export const PersonChangesSchema = z
   .strictObject({
@@ -104,6 +99,17 @@ export const PersonChangesSchema = z
   .refine((changes) => Object.values(changes).some((value) => value !== undefined), {
     message: 'Send at least one field to change',
   });
+
+/** Person fields that `updatePerson` may clear: the ones PersonChangesSchema accepts as null. */
+export type ClearablePersonField = {
+  [Key in keyof PersonChanges]-?: null extends PersonChanges[Key] ? Key : never;
+}[keyof PersonChanges];
+
+export const CLEARABLE_PERSON_FIELDS = (
+  Object.keys(PersonChangesSchema.shape) as (keyof PersonChanges)[]
+).filter(
+  (field) => PersonChangesSchema.shape[field].safeParse(null).success,
+) as readonly ClearablePersonField[];
 
 export const UnionStatusSchema = z.enum(['married', 'divorced', 'widowed']);
 
