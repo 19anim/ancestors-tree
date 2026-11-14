@@ -261,7 +261,19 @@
     "revert": "Hoàn tác",
     "revertLabel": "Hoàn tác thay đổi #{{seq}}",
     "reverting": "Đang hoàn tác…",
-    "revertFailed": "Không hoàn tác được thay đổi #{{seq}}: {{reason}}"
+    "revertFailed": "Không hoàn tác được thay đổi #{{seq}}: {{reason}}",
+    "revertTo": {
+      "button": "Quay về thời điểm này",
+      "label": "Quay về thời điểm này: sau thay đổi #{{seq}}",
+      "title": "Quay về sau thay đổi #{{seq}}?",
+      "count": "Số thay đổi sẽ hoàn tác: {{count}}.",
+      "oneStep": "Tất cả được hoàn tác cùng lúc, và có thể hoàn tác lại trong một bước.",
+      "tooMany": "Có quá nhiều thay đổi sau mốc này để hoàn tác cùng lúc. Hãy chọn một mốc gần hơn.",
+      "nothing": "Không có thay đổi nào sau mốc này.",
+      "unsent": "Còn thay đổi chưa gửi. Hãy đợi lưu xong rồi thử lại.",
+      "confirm": "Quay về",
+      "cancel": "Huỷ"
+    }
   },
   "tree": {
     "loading": "Đang tải cây gia phả…",
@@ -294,6 +306,7 @@
     },
     "empty": "Chưa có ai trong cây gia phả này.",
     "retry": "Thử lại",
+    "outOfDate": "Cây gia phả vừa có thay đổi mới. Hãy xem lại rồi thử lại.",
     "actions": {
       "addFirst": "Thêm người đầu tiên",
       "description": "Bạn muốn làm gì với người này?",

@@ -9,6 +9,7 @@ import { Button } from '../../shared/ui';
 import { applyFailureMessage, lookupIn, SaveStatus, useClanTree, useTreeStore } from '../tree';
 import { historyKeys, useHistory } from './api';
 import { HistoryEntryItem } from './HistoryEntryItem';
+import { RevertToPointButton } from './RevertToPoint';
 
 /** Refetches the history when a change to this tree is saved (by this tab). */
 function useRefreshOnSave(clanId: string) {
@@ -159,7 +160,7 @@ export function HistoryPage() {
         <p className="text-ink-muted">{t('history.empty')}</p>
       ) : (
         <ol ref={listRef} aria-labelledby={titleId} className="flex flex-col">
-          {entries.map((entry) => (
+          {entries.map((entry, index) => (
             <HistoryEntryItem key={entry.seq} entry={entry} lookup={lookup} formatTime={formatTime}>
               {canEdit && (isOwner || !needsOwner(entry.inverse)) ? (
                 reverting.has(entry.seq) ? (
@@ -182,6 +183,8 @@ export function HistoryPage() {
                   </Button>
                 )
               ) : null}
+              {/* Going back to after the newest change would change nothing. */}
+              {isOwner && index > 0 ? <RevertToPointButton clanId={clan.id} entry={entry} /> : null}
             </HistoryEntryItem>
           ))}
         </ol>

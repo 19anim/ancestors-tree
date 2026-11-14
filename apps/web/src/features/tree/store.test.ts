@@ -1709,4 +1709,31 @@ describe('undo and redo', () => {
     expect(store().undo()).toEqual({ ok: true });
     expect(store().tree.persons[SON]?.bio).toBeUndefined();
   });
+
+  it('reverts to a point only from the version it was built on, with nothing pending', async () => {
+    const held = gate();
+    const bodies: unknown[] = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: async ({ body }) => {
+        bodies.push(body);
+        if (bodies.length === 1) await held.wait;
+        return { body: { seq: 3 + bodies.length } };
+      },
+    });
+    await store().load(CLAN_ID);
+    const back: Op = { type: 'updatePerson', payload: { id: SON, changes: { bio: 'Cũ' } } };
+    expect(store().revertTo(back, 2, 2)).toEqual({ ok: false, reason: 'OUT_OF_DATE' });
+
+    store().apply(addPerson(NEW_ID));
+    expect(store().revertTo(back, 2, 3)).toEqual({ ok: false, reason: 'OUT_OF_DATE' });
+    held.open();
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+
+    expect(store().revertTo(back, 2, 4)).toEqual({ ok: true });
+    expect(store().pending[0]).toMatchObject({ op: back, revertsToSeq: 2 });
+    expect(store().undoStack.at(-1)).toMatchObject({ op: back });
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(bodies[1]).toEqual({ op: back, baseVersion: 4, expectedUserId: ME.id, revertsToSeq: 2 });
+  });
 });

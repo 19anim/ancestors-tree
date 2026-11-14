@@ -41,9 +41,11 @@ export function ruleKey(reason: OpErrorCode): `tree.rules.${OpErrorCode}` {
   return `tree.rules.${reason}`;
 }
 
-/** Why apply() did nothing: the broken rule, or that the tree is not loaded. */
+/** Why apply() did nothing: the broken rule, the tree is not loaded, or it changed meanwhile. */
 export function applyFailureMessage(t: TFunction, reason: ApplyFailure): string {
-  return reason === 'NOT_LOADED' ? t('tree.form.notLoaded') : t(ruleKey(reason));
+  if (reason === 'NOT_LOADED') return t('tree.form.notLoaded');
+  if (reason === 'OUT_OF_DATE') return t('tree.outOfDate');
+  return t(ruleKey(reason));
 }
 
 /**

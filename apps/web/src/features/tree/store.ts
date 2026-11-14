@@ -58,7 +58,11 @@ export type TreeNotice =
   /** The queue saved in this tab could not be read after a reload: it was dropped. */
   | { kind: 'savedUnreadable'; clanId: null };
 /** Why apply() did nothing: a broken rule, or no tree to edit (loading or failed to load). */
-export type ApplyFailure = OpErrorCode | 'NOT_LOADED';
+/**
+ * Why apply() did nothing: a broken rule, the tree is not loaded, or (revertTo) the revert was
+ * built on another version of the tree.
+ */
+export type ApplyFailure = OpErrorCode | 'NOT_LOADED' | 'OUT_OF_DATE';
 export type ApplyResult = { ok: true } | { ok: false; reason: ApplyFailure };
 
 /** Waits between retries of a request the server could not take (network, 429, 5xx). */
@@ -111,6 +115,12 @@ export interface TreeStoreState {
   redo: () => ApplyResult | null;
   /** Reverts saved change `revertsSeq` by applying its inverse `op` (spec §6.4). */
   revertChange: (op: Op, revertsSeq: number) => ApplyResult;
+  /**
+   * "Revert to this point" (Owner): `op` undoes every change after `revertsToSeq` and was built
+   * from the log at `atVersion`. Never rebased, so it is refused while anything is pending or
+   * when the tree is at another version.
+   */
+  revertTo: (op: Op, revertsToSeq: number, atVersion: number) => ApplyResult;
   dismissNotice: () => void;
 }
 
@@ -746,6 +756,22 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       return toApplyResult(
         applyChange(op, { reverts: { seq: revertsSeq } }, (entry, inverse, state) => ({
           undoStack: pushCapped(state.undoStack, { op, inverse, ref: { pendingId: entry.id } }),
+          redoStack: [],
+        })),
+      );
+    },
+
+    revertTo(op, revertsToSeq, atVersion) {
+      const state = get();
+      if (
+        state.status === 'ready' &&
+        (state.pending.length > 0 || needsRebase || state.confirmedVersion !== atVersion)
+      ) {
+        return { ok: false, reason: 'OUT_OF_DATE' };
+      }
+      return toApplyResult(
+        applyChange(op, { revertsToSeq }, (entry, inverse, current) => ({
+          undoStack: pushCapped(current.undoStack, { op, inverse, ref: { pendingId: entry.id } }),
           redoStack: [],
         })),
       );

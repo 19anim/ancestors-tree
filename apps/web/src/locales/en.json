@@ -261,7 +261,19 @@
     "revert": "Revert",
     "revertLabel": "Revert change #{{seq}}",
     "reverting": "Reverting…",
-    "revertFailed": "Could not revert change #{{seq}}: {{reason}}"
+    "revertFailed": "Could not revert change #{{seq}}: {{reason}}",
+    "revertTo": {
+      "button": "Revert to this point",
+      "label": "Revert to this point: after change #{{seq}}",
+      "title": "Go back to after change #{{seq}}?",
+      "count": "Changes to undo: {{count}}.",
+      "oneStep": "They are undone all together, and one undo brings them back.",
+      "tooMany": "Too many changes came after this point to undo at once. Choose a more recent point.",
+      "nothing": "Nothing has changed since this point.",
+      "unsent": "Some changes are not sent yet. Wait until they are saved, then try again.",
+      "confirm": "Go back",
+      "cancel": "Cancel"
+    }
   },
   "tree": {
     "loading": "Loading the family tree…",
@@ -294,6 +306,7 @@
     },
     "empty": "No one is in this family tree yet.",
     "retry": "Try again",
+    "outOfDate": "The family tree has just changed. Check again, then try again.",
     "actions": {
       "addFirst": "Add the first person",
       "description": "What would you like to do with this person?",
