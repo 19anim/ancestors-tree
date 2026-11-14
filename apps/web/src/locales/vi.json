@@ -226,6 +226,15 @@
       "save": "Lưu thay đổi",
       "saved": "Đã lưu thay đổi"
     },
+    "delete": {
+      "title": "Xoá cây gia phả",
+      "body": "Mọi người trong cây, các mối quan hệ, lịch sử thay đổi, thành viên và link mời sẽ bị xoá vĩnh viễn. Không thể khôi phục.",
+      "open": "Xoá cây gia phả này",
+      "confirmTitle": "Xoá {{name}}?",
+      "confirmLabel": "Nhập \"{{name}}\" để xác nhận",
+      "confirm": "Xoá vĩnh viễn",
+      "cancel": "Huỷ"
+    },
     "join": {
       "title": "Lời mời vào cây gia phả",
       "offer": "{{inviter}} mời bạn vào {{clan}} với vai trò {{role}}.",

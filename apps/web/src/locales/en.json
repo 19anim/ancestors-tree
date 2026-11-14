@@ -226,6 +226,15 @@
       "save": "Save changes",
       "saved": "Changes saved"
     },
+    "delete": {
+      "title": "Delete the family tree",
+      "body": "Everyone in the tree, their relationships, the change history, the members and the invite links will be deleted for good. This cannot be undone.",
+      "open": "Delete this family tree",
+      "confirmTitle": "Delete {{name}}?",
+      "confirmLabel": "Type \"{{name}}\" to confirm",
+      "confirm": "Delete for good",
+      "cancel": "Cancel"
+    },
     "join": {
       "title": "Family tree invitation",
       "offer": "{{inviter}} invites you to {{clan}} as {{role}}.",
