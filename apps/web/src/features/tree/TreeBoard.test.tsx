@@ -23,6 +23,14 @@ function showTree(tree: TreeState): void {
   });
 }
 
+/** The family with grandma Hoa's birth family filled in: her card is an in-law card. */
+function withHoaBirthFamily(): TreeState {
+  const persons = FAMILY.persons.map((person) =>
+    person.id === GRANDMA ? { ...person, birthFamily: { fatherName: 'Lê Văn Ba' } } : person,
+  );
+  return treeStateFromLists(FAMILY.progenitorId, persons, FAMILY.unions);
+}
+
 /** React Flow writes the viewport as `translate(Xpx, Ypx) scale(Z)` on its viewport element. */
 function viewportOf(board: HTMLElement): { x: number; y: number; zoom: number } {
   const element = board.querySelector<HTMLElement>('.react-flow__viewport');
@@ -111,6 +119,52 @@ describe('TreeBoard', () => {
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
     expect(await screen.findByText('Ngày giỗ 15/10 âm lịch')).toBeInTheDocument();
     expect(screen.getByText('Sinh nhật 21/11')).toBeInTheDocument();
+  });
+
+  it('names an in-law card’s birth family and shows it as the actions button’s tooltip', async () => {
+    showTree(withHoaBirthFamily());
+    renderWithProviders(
+      <TreeActionsContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" />
+      </TreeActionsContext>,
+    );
+    expect(
+      await screen.findByRole('figure', { name: 'Lê Thị Hoa, đời thứ 1, Con gái ông Lê Văn Ba' }),
+    ).toBeInTheDocument();
+    const tooltip = screen.getByRole('tooltip', { hidden: true });
+    expect(tooltip).toHaveTextContent('Con gái ông Lê Văn Ba');
+    const actions = screen.getByRole('button', { name: 'Thao tác với Lê Thị Hoa' });
+    expect(actions).toHaveAttribute('aria-describedby', tooltip.id);
+    expect(actions).toHaveAccessibleDescription('Con gái ông Lê Văn Ba');
+  });
+
+  it('hides the in-law tooltip on Escape until the pointer or focus leaves', async () => {
+    const user = userEvent.setup();
+    showTree(withHoaBirthFamily());
+    renderWithProviders(
+      <TreeActionsContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" />
+      </TreeActionsContext>,
+    );
+    const actions = await screen.findByRole('button', { name: 'Thao tác với Lê Thị Hoa' });
+    // jsdom has no CSS: the hover and focus rules are the classes that show the tooltip.
+    const tooltip = () => screen.getByRole('tooltip', { hidden: true });
+    // Hoverable (WCAG 1.4.13): the pointer can move onto the tooltip without it vanishing.
+    expect(tooltip()).not.toHaveClass('pointer-events-none');
+    act(() => actions.focus());
+    expect(tooltip()).toHaveClass('group-focus-within:block', 'group-hover:block');
+    await user.keyboard('{Escape}');
+    expect(tooltip()).not.toHaveClass('group-focus-within:block');
+    expect(tooltip()).not.toHaveClass('group-hover:block');
+    expect(actions).toHaveFocus();
+    act(() => actions.blur());
+    expect(tooltip()).toHaveClass('group-focus-within:block');
+
+    await user.hover(actions);
+    await user.keyboard('{Escape}');
+    expect(tooltip()).not.toHaveClass('group-hover:block');
+    await user.unhover(actions);
+    expect(tooltip()).toHaveClass('group-hover:block');
   });
 
   it('shows an edit at once', async () => {

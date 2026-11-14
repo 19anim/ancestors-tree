@@ -1,6 +1,6 @@
 import type { Person } from '@ancestors-tree/shared/tree';
 import { Ellipsis } from 'lucide-react';
-import { useContext, useId, type CSSProperties } from 'react';
+import { useContext, useEffect, useId, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, DateMark, Polaroid, tiltFor, type TapeKind } from '../../shared/ui';
 import {
@@ -33,8 +33,34 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
   const anniversary = deathAnniversaryOf(person);
   const birthday = birthdayOf(person);
   const family = inLaw ? birthFamilySubtitle(t, person) : undefined;
+  // Esc hides the tooltip until the pointer or focus leaves the card (WCAG 1.4.13).
+  const [dismissed, setDismissed] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    // Hovered without focus, the card gets no keydown: listen on the window meanwhile.
+    if (!hovered || family === undefined) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDismissed(true);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [hovered, family]);
   return (
-    <div className="group relative" style={POINTER_EVENTS}>
+    <div
+      className="group relative"
+      style={POINTER_EVENTS}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setDismissed(true);
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => {
+        setHovered(false);
+        setDismissed(false);
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDismissed(false);
+      }}
+    >
       <Polaroid
         name={person.fullName}
         label={cardLabel(t, person, generation, inLaw)}
@@ -60,12 +86,16 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
         }
       />
       {family !== undefined ? (
+        // Padding, not a margin, above the bubble: the pointer can move onto it without leaving
+        // the card's hover area (WCAG 1.4.13).
         <span
           id={tooltipId}
           role="tooltip"
-          className="pointer-events-none absolute top-full left-1/2 z-10 mt-1 hidden -translate-x-1/2 rounded-control bg-ink px-2 py-1 text-xs whitespace-nowrap text-paper group-focus-within:block group-hover:block"
+          className={`absolute top-full left-1/2 z-10 hidden -translate-x-1/2 pt-1 ${dismissed ? '' : 'group-focus-within:block group-hover:block'}`}
         >
-          {family}
+          <span className="block rounded-control bg-ink px-2 py-1 text-xs whitespace-nowrap text-paper">
+            {family}
+          </span>
         </span>
       ) : null}
       {openActions ? (
