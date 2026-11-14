@@ -37,6 +37,8 @@ export async function fetchRevertPlan(
   let before: number | null = null;
   for (;;) {
     const page = await fetchHistoryPage(clanId, before, signal, HISTORY_PAGE_MAX);
+    // The dialog closed meanwhile: read no further page.
+    signal?.throwIfAborted();
     for (const entry of page.entries) {
       if (entry.seq <= seq) return buildRevertPlan(entries);
       entries.push(entry);

@@ -267,11 +267,12 @@
       "label": "Revert to this point: after change #{{seq}}",
       "title": "Go back to after change #{{seq}}?",
       "count": "Changes to undo: {{count}}.",
-      "oneStep": "They are undone all together, and one undo brings them back.",
+      "oneStep": "They are undone all together, and a single undo brings them all back.",
       "tooMany": "Too many changes came after this point to undo at once. Choose a more recent point.",
       "nothing": "Nothing has changed since this point.",
       "unsent": "Some changes are not sent yet. Wait until they are saved, then try again.",
       "confirm": "Go back",
+      "busy": "Reverting…",
       "cancel": "Cancel"
     }
   },

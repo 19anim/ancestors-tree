@@ -1,6 +1,6 @@
 import type { HistoryEntry } from '@ancestors-tree/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button, Dialog, DialogClose, DialogContent, DialogTrigger } from '../../shared/ui';
@@ -13,24 +13,51 @@ interface RevertToPointProps {
   entry: HistoryEntry;
 }
 
+interface DialogState {
+  busy: boolean;
+  setBusy: (busy: boolean) => void;
+  onDone: () => void;
+}
+
+/** A refusal, shown while the plan it was about is the one on screen. */
+interface Failure {
+  message: string;
+  planAt: number;
+}
+
 function RevertToPointDialog({
   clanId,
   entry,
+  busy,
+  setBusy,
   onDone,
-}: RevertToPointProps & { onDone: () => void }) {
+}: RevertToPointProps & DialogState) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const load = useTreeStore((state) => state.load);
   const revertTo = useTreeStore((state) => state.revertTo);
-  const [failure, setFailure] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const bodyId = useId();
+  const [failure, setFailure] = useState<Failure | null>(null);
+  // False once the dialog is gone: a revert it started must not go out after that.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // Under the history key, so a refresh of the history plans again.
+  const planKey = [...historyKeys.list(clanId), 'revertTo', entry.seq];
   const plan = useQuery({
-    queryKey: [...historyKeys.list(clanId), 'revertTo', entry.seq],
+    queryKey: planKey,
     queryFn: ({ signal }) => fetchRevertPlan(clanId, entry.seq, signal),
     staleTime: 0,
     gcTime: 0,
   });
+
+  const fail = (message: string) => {
+    setFailure({ message, planAt: queryClient.getQueryState(planKey)?.dataUpdatedAt ?? 0 });
+  };
 
   const confirm = async (ready: Extract<RevertPlan, { kind: 'ready' }>) => {
     if (busy) return;
@@ -39,21 +66,33 @@ function RevertToPointDialog({
     // Takes a version someone else saved meanwhile, so the check below sees it. Unsent edits
     // are kept by load, and make the revert refuse.
     await load(clanId);
+    // Closed meanwhile (closing is blocked while busy, but the page may go away): the user
+    // never confirmed what is left on screen, so nothing is sent.
+    if (!mounted.current) {
+      setBusy(false);
+      return;
+    }
     const unsent = useTreeStore.getState().pending.length > 0;
     const result = revertTo(ready.op, entry.seq, ready.atVersion);
-    setBusy(false);
     if (result.ok) {
+      setBusy(false);
       onDone();
       return;
     }
-    setFailure(
+    const message =
       result.reason === 'OUT_OF_DATE' && unsent
         ? t('history.revertTo.unsent')
-        : applyFailureMessage(t, result.reason),
-    );
+        : applyFailureMessage(t, result.reason);
     if (result.reason === 'OUT_OF_DATE') {
-      void queryClient.invalidateQueries({ queryKey: historyKeys.list(clanId) });
+      // Plan again first, so the refusal stays with the new plan it asks the user to review.
+      await queryClient.invalidateQueries({ queryKey: historyKeys.list(clanId) });
+      if (!mounted.current) {
+        setBusy(false);
+        return;
+      }
     }
+    setBusy(false);
+    fail(message);
   };
 
   let body: string;
@@ -63,21 +102,40 @@ function RevertToPointDialog({
   else if (plan.data.kind === 'nothing') body = t('history.revertTo.nothing');
   else body = t('history.revertTo.count', { count: plan.data.changes });
   const ready = plan.data?.kind === 'ready' ? plan.data : null;
+  // A plan read again after the refusal (a save, someone else's change) makes it stale.
+  const shownFailure = failure?.planAt === plan.dataUpdatedAt ? failure.message : null;
 
   return (
-    <DialogContent title={t('history.revertTo.title', { seq: entry.seq })}>
-      <p className="text-ink">{body}</p>
+    <DialogContent
+      title={t('history.revertTo.title', { seq: entry.seq })}
+      aria-describedby={bodyId}
+      closeDisabled={busy}
+    >
+      {/* Read with the dialog, and again when the count arrives. */}
+      <p id={bodyId} aria-live="polite" className="text-ink">
+        {body}
+      </p>
       {ready !== null ? (
         <p className="mt-2 text-sm text-ink-muted">{t('history.revertTo.oneStep')}</p>
       ) : null}
-      {failure !== null ? (
+      {shownFailure !== null ? (
         <p role="alert" className="mt-3 text-sm font-medium text-stamp">
-          {failure}
+          {shownFailure}
         </p>
       ) : null}
       <div className="mt-6 flex justify-end gap-2">
         <DialogClose asChild>
-          <Button variant="ghost">{t('history.revertTo.cancel')}</Button>
+          <Button
+            variant="ghost"
+            aria-disabled={busy}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            onClick={(event) => {
+              // Radix skips the close when the click was prevented.
+              if (busy) event.preventDefault();
+            }}
+          >
+            {t('history.revertTo.cancel')}
+          </Button>
         </DialogClose>
         {ready !== null ? (
           <Button
@@ -86,7 +144,7 @@ function RevertToPointDialog({
             className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
             onClick={() => void confirm(ready)}
           >
-            {t('history.revertTo.confirm')}
+            {busy ? t('history.revertTo.busy') : t('history.revertTo.confirm')}
           </Button>
         ) : null}
       </div>
@@ -98,8 +156,16 @@ function RevertToPointDialog({
 export function RevertToPointButton({ clanId, entry }: RevertToPointProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Escape, the corner button and a click outside wait until the check is done.
+        if (!next && busy) return;
+        setOpen(next);
+      }}
+    >
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -110,7 +176,13 @@ export function RevertToPointButton({ clanId, entry }: RevertToPointProps) {
         </Button>
       </DialogTrigger>
       {open ? (
-        <RevertToPointDialog clanId={clanId} entry={entry} onDone={() => setOpen(false)} />
+        <RevertToPointDialog
+          clanId={clanId}
+          entry={entry}
+          busy={busy}
+          setBusy={setBusy}
+          onDone={() => setOpen(false)}
+        />
       ) : null}
     </Dialog>
   );

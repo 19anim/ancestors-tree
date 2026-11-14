@@ -1736,4 +1736,43 @@ describe('undo and redo', () => {
     await vi.waitFor(() => expect(store().pending).toHaveLength(0));
     expect(bodies[1]).toEqual({ op: back, baseVersion: 4, expectedUserId: ME.id, revertsToSeq: 2 });
   });
+
+  it('undoes a whole revert to a point in one step, naming the revert it undoes', async () => {
+    const held = gate();
+    const bodies: Array<Record<string, unknown>> = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: async ({ body }) => {
+        bodies.push(body as Record<string, unknown>);
+        if (bodies.length === 1) await held.wait;
+        return { body: { seq: 3 + bodies.length } };
+      },
+    });
+    await store().load(CLAN_ID);
+    const before = store().tree;
+    const back: Op = {
+      type: 'batch',
+      payload: {
+        ops: [
+          { type: 'updatePerson', payload: { id: SON, changes: { fullName: 'Nguyễn Văn Năm' } } },
+          { type: 'setProgenitor', payload: { personId: null } },
+        ],
+      },
+    };
+    expect(store().revertTo(back, 1, 3)).toEqual({ ok: true });
+    expect(store().tree).not.toEqual(before);
+
+    // Undone before the revert is saved: the undo names it by its place in the queue.
+    expect(store().undo()).toEqual({ ok: true });
+    expect(store().tree).toEqual(before);
+    expect(store().pending[1]?.reverts).toEqual({ pendingId: store().pending[0]?.id });
+
+    held.open();
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(bodies[0]).toMatchObject({ op: back, revertsToSeq: 1 });
+    // Once the revert is saved (seq 4), the undo's POST names that seq.
+    expect(bodies[1]).toMatchObject({ baseVersion: 4, revertsSeq: 4 });
+    expect(bodies[1]).not.toHaveProperty('revertsToSeq');
+    expect(store().tree).toEqual(before);
+  });
 });

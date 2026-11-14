@@ -267,11 +267,12 @@
       "label": "Quay về thời điểm này: sau thay đổi #{{seq}}",
       "title": "Quay về sau thay đổi #{{seq}}?",
       "count": "Số thay đổi sẽ hoàn tác: {{count}}.",
-      "oneStep": "Tất cả được hoàn tác cùng lúc, và có thể hoàn tác lại trong một bước.",
+      "oneStep": "Tất cả được hoàn tác cùng lúc, và chỉ cần một lần hoàn tác để lấy lại tất cả.",
       "tooMany": "Có quá nhiều thay đổi sau mốc này để hoàn tác cùng lúc. Hãy chọn một mốc gần hơn.",
       "nothing": "Không có thay đổi nào sau mốc này.",
       "unsent": "Còn thay đổi chưa gửi. Hãy đợi lưu xong rồi thử lại.",
       "confirm": "Quay về",
+      "busy": "Đang quay về…",
       "cancel": "Huỷ"
     }
   },

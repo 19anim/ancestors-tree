@@ -66,4 +66,36 @@ describe('fetchRevertPlan', () => {
     const urls = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
     expect(urls.every((url) => url.includes('limit=100'))).toBe(true);
   });
+
+  it('stops after the first page when it already holds more than 500 steps', async () => {
+    const many = batchOf(Array.from({ length: 300 }, (_, i) => bio(String(i))));
+    const api = mockApi({
+      [`GET /clans/${CLAN_ID}/history`]: ({ url }) =>
+        url.searchParams.get('before') === '8'
+          ? { body: { entries: [historyEntry(7, many, many)], nextBefore: null } }
+          : {
+              body: {
+                entries: [historyEntry(9, many, many), historyEntry(8, many, many)],
+                nextBefore: 8,
+              },
+            },
+    });
+    expect(await fetchRevertPlan(CLAN_ID, 1)).toEqual({ kind: 'tooMany' });
+    expect(api.calls).toHaveLength(1);
+  });
+
+  it('rejects once aborted, and reads no further page', async () => {
+    const controller = new AbortController();
+    const api = mockApi({
+      // The answer arrives, then the dialog closes (the query aborts).
+      [`GET /clans/${CLAN_ID}/history`]: () => {
+        controller.abort();
+        return { body: { entries: [FAMILY_HISTORY[0]], nextBefore: 3 } };
+      },
+    });
+    await expect(fetchRevertPlan(CLAN_ID, 1, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(api.calls).toHaveLength(1);
+  });
 });
