@@ -60,9 +60,9 @@ describe('TreeBoard', () => {
     // aria-hidden (flowElements.test.ts), so none is exposed. The board is rendered inside its own
     // ReactFlowProvider, so jsdom draws the edges; the union knots are drawn too.
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    for (const edge of container.querySelectorAll('.react-flow__edge')) {
-      expect(edge).toHaveAttribute('aria-hidden', 'true');
-    }
+    const edges = container.querySelectorAll('.react-flow__edge');
+    expect(edges.length).toBeGreaterThan(0);
+    for (const edge of edges) expect(edge).toHaveAttribute('aria-hidden', 'true');
     const knots = container.querySelectorAll('.react-flow__node-union');
     expect(knots.length).toBeGreaterThan(0);
     for (const knot of knots) expect(knot).toHaveAttribute('aria-hidden', 'true');

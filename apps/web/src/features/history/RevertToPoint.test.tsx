@@ -232,7 +232,10 @@ describe('Revert to this point', () => {
     expect(cancel).toHaveAttribute('aria-disabled', 'true');
     await user.click(cancel);
     expect(screen.getByRole('dialog')).toBe(dialog);
-    expect(within(dialog).getByRole('button', { name: 'Đóng' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Đóng' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(posted).toHaveLength(0);
 
     reread.open();

@@ -35,6 +35,5 @@ export const HistoryPageSchema = z.object({
   nextBefore: z.number().int().min(1).nullable(),
 });
 
-export type HistoryQuery = z.infer<typeof HistoryQuerySchema>;
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 export type HistoryPage = z.infer<typeof HistoryPageSchema>;

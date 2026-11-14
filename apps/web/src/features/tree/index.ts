@@ -8,7 +8,7 @@ export {
   useUnsentChangeCount,
 } from './store';
 export { describeAction, describeOp, lookupIn, lookupWith } from './describeOp';
-export type { NameLookup, OpDescription } from './describeOp';
+export type { NameLookup } from './describeOp';
 export { applyFailureMessage } from './format';
 export { SaveStatus } from './SaveStatus';
 export { useClanTree } from './useClanTree';

@@ -118,4 +118,26 @@ describe('GET /api/clans/:id/history', () => {
     expect((await viewer.agent.get(`${path}?limit=${HISTORY_PAGE_MAX + 1}`)).status).toBe(400);
     expect((await viewer.agent.get(`${path}?before=0`)).status).toBe(400);
   });
+
+  it("lists only this family tree's changes, and hides another tree's", async () => {
+    const a = await setup();
+    const b = await setup();
+    const inA = [person('Nguyễn Văn Tư'), person('Lê Thị Hoa')];
+    const inB = [person('Trần Văn Bình'), person('Phạm Văn Lộc'), person('Đỗ Thị Mai')];
+    for (const [version, payload] of inA.entries()) {
+      await submit(a.owner, a.clanId, { type: 'addPerson', payload }, version);
+    }
+    for (const [version, payload] of inB.entries()) {
+      await submit(b.owner, b.clanId, { type: 'addPerson', payload }, version);
+    }
+
+    const response = await a.viewer.agent.get(a.path);
+    expect(response.status).toBe(200);
+    expect(response.body.entries.map((entry: Entry) => entry.seq)).toEqual([2, 1]);
+    expect(
+      response.body.entries.map((entry: { op: { payload: Person } }) => entry.op.payload.id),
+    ).toEqual([inA[1]?.id, inA[0]?.id]);
+    expect((await a.viewer.agent.get(b.path)).status).toBe(404);
+    expect((await a.owner.agent.get(b.path)).status).toBe(404);
+  });
 });

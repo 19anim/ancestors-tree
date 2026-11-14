@@ -1,6 +1,6 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/render';
 import { Button } from './Button';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from './Dialog';
@@ -44,6 +44,26 @@ describe('Dialog', () => {
     const user = await openExample();
     await user.click(screen.getByRole('button', { name: 'Giữ lại' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('keeps a busy corner close button focusable, and ignores it', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    renderWithProviders(
+      <Dialog open onOpenChange={onOpenChange}>
+        <DialogContent title="Đang xoá" closeDisabled>
+          <p>Đang xoá cây gia phả…</p>
+        </DialogContent>
+      </Dialog>,
+    );
+    const close = screen.getByRole('button', { name: 'Đóng' });
+    expect(close).toBeEnabled();
+    expect(close).toHaveAttribute('aria-disabled', 'true');
+    act(() => close.focus());
+    await user.click(close);
+    await user.keyboard('{Enter}');
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(close).toHaveFocus();
   });
 
   it('closes with Escape and returns focus to the trigger', async () => {

@@ -57,7 +57,6 @@ export type TreeNotice =
       ))
   /** The queue saved in this tab could not be read after a reload: it was dropped. */
   | { kind: 'savedUnreadable'; clanId: null };
-/** Why apply() did nothing: a broken rule, or no tree to edit (loading or failed to load). */
 /**
  * Why apply() did nothing: a broken rule, the tree is not loaded, or (revertTo) the revert was
  * built on another version of the tree.
@@ -275,12 +274,19 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     set({ otherAccount: true, retrying: false, notice: { kind: 'otherAccount', clanId } });
   }
 
-  /** The user is back (apply, load, or a sign-in after a stop): send again. */
+  /**
+   * The user is back (apply, load, or a sign-in after a stop): send again, or first finish the
+   * restore of a saved queue that a 401 stopped.
+   */
   function resume(): void {
-    const { signedOut, otherAccount, notice } = get();
+    const { signedOut, otherAccount, notice, clanId, status, restoredFrom } = get();
     if (signedOut || otherAccount) {
       const stopNotice = notice?.kind === 'signedOut' || notice?.kind === 'otherAccount';
       set({ signedOut: false, otherAccount: false, notice: stopNotice ? null : notice });
+    }
+    if (clanId !== null && restoredFrom !== null && status === 'loading' && loading === undefined) {
+      void restoreSession(clanId);
+      return;
     }
     void flush();
   }
@@ -575,6 +581,11 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         void flush();
       } catch (error) {
         if (mine !== session) return;
+        if (isUnauthenticated(error)) {
+          // Not an error page: the signedOut notice asks to sign in, and resume() restores.
+          stopSignedOut(clanId);
+          return;
+        }
         set({ status: 'error', loadError: error });
         if (isRetryable(error)) scheduleRetry(mine, () => void restoreSession(clanId));
       } finally {

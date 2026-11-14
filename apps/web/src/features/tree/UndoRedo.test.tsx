@@ -7,11 +7,13 @@ import { Dialog, DialogContent } from '../../shared/ui';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, FAMILY, GRANDPA, ME, SON, treeRoutes } from './fixtures';
+import { CLAN, CLAN_ID, FAMILY, fixturePerson, GRANDPA, ME, SON, treeRoutes } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 
 const EDITOR = { ...CLAN, role: 'editor' as const };
 const bio: Op = { type: 'updatePerson', payload: { id: SON, changes: { bio: 'Con trưởng' } } };
+const NEWCOMER = '64b7f0c2a1b2c3d4e5f6a00a';
+const newcomer = fixturePerson(NEWCOMER, 'Phạm Văn Lộc');
 
 function editable(clan: Clan = EDITOR) {
   let seq = FAMILY.version;
@@ -22,6 +24,11 @@ function editable(clan: Clan = EDITOR) {
       return { body: { seq } };
     },
   });
+}
+
+/** The refocus after a removing undo runs in the next frame, once React has committed. */
+async function nextFrame() {
+  await act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
 }
 
 async function openTree() {
@@ -210,6 +217,34 @@ describe('the undo and redo buttons', () => {
     await user.keyboard('{Escape}');
     expect(tooltip()).not.toHaveClass('group-focus-within:block');
     expect(undo).toHaveAccessibleDescription('Hoàn tác (Ctrl+Z)');
+  });
+
+  it('keep focus when the shortcut removes the focused card', async () => {
+    const user = userEvent.setup();
+    editable();
+    await openTree();
+    act(() => void useTreeStore.getState().apply({ type: 'addPerson', payload: newcomer }));
+    const undo = screen.getByRole('button', { name: 'Hoàn tác' });
+    const actions = await screen.findByRole('button', { name: 'Thao tác với Phạm Văn Lộc' });
+    act(() => actions.focus());
+    await user.keyboard('{Control>}z{/Control}');
+    expect(useTreeStore.getState().tree.persons[NEWCOMER]).toBeUndefined();
+    expect(actions).not.toBeInTheDocument();
+    await nextFrame();
+    expect(document.activeElement).toBe(undo);
+  });
+
+  it('keep focus where it is when the shortcut leaves it in place', async () => {
+    const user = userEvent.setup();
+    editable();
+    await openTree();
+    act(() => void useTreeStore.getState().apply(bio));
+    const actions = screen.getByRole('button', { name: 'Thao tác với Trần Văn Bình' });
+    act(() => actions.focus());
+    await user.keyboard('{Control>}z{/Control}');
+    expect(useTreeStore.getState().tree.persons[SON]?.bio).toBeUndefined();
+    await nextFrame();
+    expect(document.activeElement).toBe(actions);
   });
 
   it('are not shown to a viewer, who still sees the save status', async () => {

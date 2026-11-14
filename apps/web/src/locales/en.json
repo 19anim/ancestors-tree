@@ -261,6 +261,7 @@
     "revert": "Revert",
     "revertLabel": "Revert change #{{seq}}",
     "reverting": "Reverting…",
+    "revertingChange": "Reverting… (change #{{seq}})",
     "revertFailed": "Could not revert change #{{seq}}: {{reason}}",
     "revertTo": {
       "button": "Revert to this point",

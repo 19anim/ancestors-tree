@@ -492,7 +492,7 @@ Component đọc store qua **selector** (`useTreeStore(s => s.persons[id])`) đ�
 - **Cùng người và cây nhưng phiên bản mới hơn:** khôi phục qua rebase ở §6.3.
 - **Tài khoản khác:** bỏ bản lưu, kèm thông báo `discarded`.
 - **Dữ liệu không đọc được:** bỏ đi, kèm thông báo.
-- **Tải lại khi đang ở trang của cây khác:** hàng đợi đã lưu được khôi phục cho đúng cây của nó và bắt đầu gửi; mở cây khác sau đó sẽ bỏ phần còn lại, kèm thông báo `discarded` (lúc đang tải lại thì không thể hỏi).
+- **Tải lại khi đang ở trang của cây khác:** hàng đợi đã lưu được khôi phục cho đúng cây của nó và bắt đầu gửi; mở cây khác sau đó sẽ bỏ phần còn lại, kèm thông báo `discarded` (lúc đang tải lại thì không thể hỏi). Nếu lúc đọc bản lưu, store đã tải sẵn một cây khác thì hàng đợi bị bỏ ngay, kèm thông báo `discarded`.
 
 P5 chỉ cảnh báo trước khi đăng nhập bằng Google; P6a bỏ cảnh báo đó. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
 

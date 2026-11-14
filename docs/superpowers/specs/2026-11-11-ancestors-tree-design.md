@@ -490,7 +490,7 @@ Components read the store through **selectors** (`useTreeStore(s => s.persons[id
 - **Same user and clan, newer version:** it is restored through the rebase of §6.3.
 - **Another account:** the saved queue is dropped, with the `discarded` notice.
 - **Unreadable data:** it is dropped, with a notice.
-- **Reloaded on another tree's page:** the saved queue is restored for the tree it belongs to and starts sending; opening another tree then drops what is left, with the `discarded` notice (nothing can ask during a reload).
+- **Reloaded on another tree's page:** the saved queue is restored for the tree it belongs to and starts sending; opening another tree then drops what is left, with the `discarded` notice (nothing can ask during a reload). If another tree is already loaded in the store when the saved queue is read, the queue is dropped at once, with the `discarded` notice.
 
 P5 only warned before signing in with Google; P6a removes that warning. `apply()` returns `{ ok: false, reason }` instead of throwing, where `reason` is an `OpError` code or `NOT_LOADED`. The tree page is loaded lazily, so React Flow stays out of the main bundle.
 

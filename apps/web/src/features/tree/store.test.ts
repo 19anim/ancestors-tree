@@ -1281,6 +1281,32 @@ describe('keeping the queue across a reload of the tab', () => {
     expect(store().pending).toEqual([]);
   });
 
+  it('asks to sign in again when the session expired during the restore, and keeps it', async () => {
+    let signedIn = false;
+    mockApi({
+      ...treeRoutes(),
+      [TREE]: () => (signedIn ? { body: FAMILY } : UNAUTHENTICATED_REPLY),
+      [OPS]: () => ({ body: { seq: 4 } }),
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'signedOut', clanId: CLAN_ID }));
+    expect(store().signedOut).toBe(true);
+    expect(store().status).not.toBe('error');
+    expect(store().pending).toHaveLength(1);
+    expect(savedQueue()?.entries).toHaveLength(1);
+
+    // Signed in again with the same account: the restore runs again and sends the queue.
+    signedIn = true;
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().confirmedVersion).toBe(4));
+    expect(store().status).toBe('ready');
+    expect(store().pending).toEqual([]);
+    expect(store().signedOut).toBe(false);
+    expect(store().notice).toBeNull();
+  });
+
   it('drops a queue another account saved, and says so', () => {
     reloadTab();
     saved({ userId: OTHER_USER_ID });

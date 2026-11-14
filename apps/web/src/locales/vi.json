@@ -261,6 +261,7 @@
     "revert": "Hoàn tác",
     "revertLabel": "Hoàn tác thay đổi #{{seq}}",
     "reverting": "Đang hoàn tác…",
+    "revertingChange": "Đang hoàn tác… (thay đổi #{{seq}})",
     "revertFailed": "Không hoàn tác được thay đổi #{{seq}}: {{reason}}",
     "revertTo": {
       "button": "Quay về thời điểm này",

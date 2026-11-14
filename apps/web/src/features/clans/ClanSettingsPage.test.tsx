@@ -173,7 +173,10 @@ describe('ClanSettingsPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Xoá vĩnh viễn' }));
     expect(await within(dialog).findByRole('button', { name: 'Đang xoá…' })).toBeDisabled();
     expect(within(dialog).getByRole('button', { name: 'Huỷ' })).toBeDisabled();
-    expect(within(dialog).getByRole('button', { name: 'Đóng' })).toBeDisabled();
+    const close = within(dialog).getByRole('button', { name: 'Đóng' });
+    expect(close).toHaveAttribute('aria-disabled', 'true');
+    await user.click(close);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     release();

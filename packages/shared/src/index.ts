@@ -79,5 +79,4 @@ export {
   HistoryQuerySchema,
   type HistoryEntry,
   type HistoryPage,
-  type HistoryQuery,
 } from './api/history.ts';

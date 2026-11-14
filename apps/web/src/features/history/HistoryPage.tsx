@@ -65,6 +65,12 @@ export function HistoryPage() {
   const entries = history.data?.pages.flatMap((page) => page.entries) ?? [];
   const entryCount = entries.length;
   const hasNextPage = history.hasNextPage;
+  const nextPageFailed = history.isFetchNextPageError;
+
+  // Show more failed: a later growth of the list (a refetch) must not move focus unasked.
+  useEffect(() => {
+    if (nextPageFailed) focusFrom.current = null;
+  }, [nextPageFailed]);
 
   // When the last page arrives the button goes away and takes keyboard focus with it.
   useEffect(() => {
@@ -168,6 +174,7 @@ export function HistoryPage() {
                     variant="secondary"
                     size="sm"
                     aria-disabled="true"
+                    aria-label={t('history.revertingChange', { seq: entry.seq })}
                     className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                   >
                     {t('history.reverting')}

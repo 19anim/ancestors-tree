@@ -205,6 +205,34 @@ describe('HistoryPage', () => {
     expect(api.calls.filter((call) => call.path.endsWith('/history'))).toHaveLength(3);
   });
 
+  it('does not move focus later when Show more failed', async () => {
+    const user = userEvent.setup();
+    const client = testClient();
+    const [newest, ...older] = FAMILY_HISTORY;
+    let grown = false;
+    historyApp(
+      'viewer',
+      {
+        [`GET /clans/${CLAN_ID}/history`]: ({ url }) => {
+          if (url.searchParams.get('before') !== null) return apiErrorReply('INTERNAL', 500);
+          return grown
+            ? { body: { entries: FAMILY_HISTORY, nextBefore: null } }
+            : { body: { entries: [newest], nextBefore: 3 } };
+        },
+      },
+      client,
+    );
+    expect(await entries()).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Xem thêm' }));
+    await screen.findByRole('alert');
+
+    // A refetch (a save made elsewhere, say) grows the list: nobody asked for focus to move.
+    grown = true;
+    await act(() => client.invalidateQueries({ queryKey: historyKeys.list(CLAN_ID) }));
+    await waitFor(async () => expect(await entries()).toHaveLength(1 + older.length));
+    for (const item of await entries()) expect(item).not.toHaveFocus();
+  });
+
   it('keeps the list when a refetch fails after loading', async () => {
     const user = userEvent.setup();
     const client = testClient();
@@ -287,9 +315,11 @@ describe('HistoryPage', () => {
     });
     await entries();
     await user.click(screen.getByRole('button', { name: 'Hoàn tác thay đổi #3' }));
-    const busy = screen.getByRole('button', { name: /Đang hoàn tác/ });
+    // The name keeps the change number and starts with the visible text (WCAG 2.5.3).
+    const busy = screen.getByRole('button', { name: 'Đang hoàn tác… (thay đổi #3)' });
     expect(busy).toHaveAttribute('aria-disabled', 'true');
     expect(busy).toHaveTextContent('Đang hoàn tác…');
+    expect(busy.getAttribute('aria-label')?.startsWith(busy.textContent ?? '-')).toBe(true);
     await user.click(busy);
     expect(useTreeStore.getState().pending).toHaveLength(1);
   });

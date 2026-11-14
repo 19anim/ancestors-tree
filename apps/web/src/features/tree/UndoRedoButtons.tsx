@@ -1,5 +1,5 @@
 import { Redo2, Undo2, type LucideIcon } from 'lucide-react';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../shared/ui';
 import { describeAction, describeOp, lookupIn, lookupWith } from './describeOp';
@@ -21,6 +21,7 @@ interface ToolbarButtonProps {
   keyShortcuts: string;
   disabled: boolean;
   onClick: () => void;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 const DISABLED_LOOK = 'aria-disabled:cursor-default aria-disabled:opacity-50';
@@ -33,6 +34,7 @@ function ToolbarButton({
   keyShortcuts,
   disabled,
   onClick,
+  ref,
 }: ToolbarButtonProps) {
   const tooltipId = useId();
   // Esc hides the tooltip until focus leaves or comes back (WCAG 1.4.13).
@@ -40,6 +42,7 @@ function ToolbarButton({
   return (
     <span className="group relative inline-flex">
       <Button
+        ref={ref}
         variant="ghost"
         size="icon"
         className={DISABLED_LOOK}
@@ -91,11 +94,19 @@ export function UndoRedoButtons() {
       ? raised.message
       : null;
   const mac = useMemo(isMacPlatform, []);
+  const undoButton = useRef<HTMLButtonElement>(null);
 
   const run = useCallback(
     (action: ShortcutAction) => {
+      const focused = document.activeElement;
       const result = action === 'undo' ? undo() : redo();
       if (result === null) return;
+      // A shortcut can remove the focused card (undo an add, redo a delete): once React has
+      // committed, focus ↶ instead of letting it fall to <body> (WCAG 2.4.3). ↶ stays
+      // focusable when aria-disabled.
+      requestAnimationFrame(() => {
+        if (focused instanceof HTMLElement && !focused.isConnected) undoButton.current?.focus();
+      });
       const after = useTreeStore.getState();
       setRaised(
         result.ok
@@ -132,6 +143,7 @@ export function UndoRedoButtons() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ToolbarButton
+        ref={undoButton}
         label={t('tree.undo.label')}
         tooltip={t('tree.undo.tooltip', { shortcut: shortcutLabel('undo', mac) })}
         icon={Undo2}
