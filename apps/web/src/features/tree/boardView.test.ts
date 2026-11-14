@@ -76,6 +76,16 @@ describe('pannedToShow', () => {
       zoom: 1,
     });
   });
+
+  it('stops at the margin when bringing in the far edge would push the start out', () => {
+    // Past the right edge: left just enough. Taller than the board: up only until its top
+    // reaches the margin, not until its bottom fits.
+    expect(pannedToShow({ x: 350, y: 100, width: 100, height: 400 }, origin, size)).toEqual({
+      x: 400 - REVEAL_MARGIN - 450,
+      y: REVEAL_MARGIN - 100,
+      zoom: 1,
+    });
+  });
 });
 
 describe('personRect and firstNewPerson', () => {

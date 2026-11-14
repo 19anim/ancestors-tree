@@ -44,7 +44,8 @@ test('two tabs edit at once: the second one rebases and keeps its change', async
     .poll(() => serverCounts(page, clanId))
     .toEqual({ status: 200, persons: 2, unions: 1 });
 
-  // The same account in a second browser: it opens the tree as it is now.
+  // The same account in a second browser: it opens the tree as it is now. Only its timing
+  // matters here, so it runs with the default (desktop) device on both projects.
   const second = await browser.newContext({ baseURL });
   const other = await second.newPage();
   await other.goto(`/login?returnTo=${encodeURIComponent(`/clans/${clanId}/tree`)}`);
@@ -181,21 +182,29 @@ test('arrow keys on the focused board pan the view', async ({ page }, testInfo) 
   test.skip(testInfo.project.name !== 'desktop', 'A keyboard check');
   await treeWithProgenitor(page, 'pan');
   const board = page.getByRole('group', { name: 'Cây gia phả: Họ Phạm' });
-  const transform = () =>
-    page.locator('.react-flow__viewport').evaluate((element) => element.style.transform);
-  // Wait for the first fit and any reveal animation to settle.
-  let before = '';
+  // The viewport's x offset, from React Flow's `translate(Xpx, Ypx) scale(Z)`.
+  const offsetX = () =>
+    page.locator('.react-flow__viewport').evaluate((element) => {
+      const match = /translate\((-?[\d.]+)px/.exec(element.style.transform);
+      return match === null ? null : Number(match[1]);
+    });
+  // Wait for the first fit and any reveal animation to settle: two polls in a row agree.
+  let before: number | null = null;
   await expect
-    .poll(async () => {
-      const first = await transform();
-      await page.waitForTimeout(250);
-      before = await transform();
-      return first === before && before !== '';
-    })
+    .poll(
+      async () => {
+        const now = await offsetX();
+        const settled = now !== null && now === before;
+        before = now;
+        return settled;
+      },
+      { intervals: [250] },
+    )
     .toBe(true);
 
   await board.focus();
   await page.keyboard.press('ArrowLeft');
   await expect(board).toBeFocused();
-  await expect.poll(transform).not.toBe(before);
+  // ArrowLeft shows what is to the left: the content moves right by one pan step (80 px).
+  await expect.poll(offsetX).toBeCloseTo((before ?? 0) + 80, 0);
 });
