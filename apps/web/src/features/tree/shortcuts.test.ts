@@ -41,6 +41,27 @@ describe('isTypingTarget', () => {
     expect(isTypingTarget(document.getElementById('plain'))).toBe(false);
     expect(isTypingTarget(null)).toBe(false);
   });
+
+  it('is true for text-like roles and inside open menus and listboxes', () => {
+    document.body.innerHTML = `
+      <div role="textbox" id="tb"></div><div role="combobox" id="cb"></div>
+      <div role="searchbox" id="sb"></div><div role="spinbutton" id="sp"></div>
+      <div role="menu"><button id="inMenu">m</button></div>
+      <div role="listbox"><div role="option" id="inList">l</div></div>
+      <button id="plain">y</button>`;
+    for (const id of ['tb', 'cb', 'sb', 'sp', 'inMenu', 'inList']) {
+      expect(isTypingTarget(document.getElementById(id)), id).toBe(true);
+    }
+    expect(isTypingTarget(document.getElementById('plain'))).toBe(false);
+  });
+
+  it('trusts isContentEditable, which also covers inherited editing', () => {
+    document.body.innerHTML = '<div id="host"><span id="inner">x</span></div>';
+    const inner = document.getElementById('inner');
+    expect(isTypingTarget(inner)).toBe(false);
+    Object.defineProperty(inner, 'isContentEditable', { value: true });
+    expect(isTypingTarget(inner)).toBe(true);
+  });
 });
 
 describe('shortcutLabel', () => {

@@ -17,9 +17,12 @@ export function shortcutAction(event: KeyInfo): ShortcutAction | null {
  */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
+  // isContentEditable also covers editing inherited from an ancestor. jsdom does not implement
+  // it (it is undefined there), so the attribute selectors below stay as the fallback.
+  if (target instanceof HTMLElement && target.isContentEditable === true) return true;
   return (
     target.closest(
-      'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="alertdialog"]',
+      'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="alertdialog"], [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], [role="menu"], [role="listbox"]',
     ) !== null
   );
 }
