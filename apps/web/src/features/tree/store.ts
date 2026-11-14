@@ -540,6 +540,9 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
           return;
         }
         const [first, ...others] = result.dropped;
+        // restoreSaved reset the store to INITIAL, so both stacks are empty here and these four
+        // lines change nothing today. They keep the stacks consistent with the queue should a
+        // restore ever start from a store that has steps (same handling as rebaseQueue).
         // Every confirmed entry of the prefix names its steps by its seq.
         let { undoStack, redoStack } = state;
         for (const { entry, seq } of result.saved) {

@@ -319,8 +319,10 @@
       "detachParents": "detach {{name}} from their parents",
       "setProgenitor": "choose {{name}} as the progenitor",
       "clearProgenitor": "clear the progenitor",
-      "changes": "changes: {{count}}",
+      "changes": "a set of changes ({{count}})",
       "someone": "someone",
+      "parents": "the parents",
+      "couple": "two people",
       "pair": "{{first}} and {{second}}"
     },
     "form": {

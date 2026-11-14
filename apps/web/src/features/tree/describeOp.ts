@@ -118,7 +118,13 @@ function nameOf(t: TFunction, name: string | null): string {
   return name ?? t('tree.change.someone');
 }
 
-function namesOf(t: TFunction, names: readonly (string | null)[]): string {
+/** Partners joined with "and"; the fallback phrase stands in when the union is unknown. */
+function namesOf(
+  t: TFunction,
+  names: readonly (string | null)[],
+  fallback: 'tree.change.parents' | 'tree.change.couple',
+): string {
+  if (names.length === 0) return t(fallback);
   const [first, second] = names;
   if (names.length >= 2) {
     return t('tree.change.pair', {
@@ -129,7 +135,7 @@ function namesOf(t: TFunction, names: readonly (string | null)[]): string {
   return nameOf(t, first ?? null);
 }
 
-/** The change as a lower-case phrase: "thêm Nguyễn Văn Út", "xoá hôn nhân của A và B". */
+/** The change as a lower-case phrase: "thêm Nguyễn Văn Út", "xoá cuộc hôn nhân của A và B". */
 export function describeAction(t: TFunction, description: OpDescription): string {
   switch (description.kind) {
     case 'addPerson':
@@ -146,11 +152,13 @@ export function describeAction(t: TFunction, description: OpDescription): string
     case 'updateUnion':
     case 'deleteUnion':
     case 'restoreUnion':
-      return t(`tree.change.${description.kind}`, { names: namesOf(t, description.names) });
+      return t(`tree.change.${description.kind}`, {
+        names: namesOf(t, description.names, 'tree.change.couple'),
+      });
     case 'setParents':
       return t('tree.change.setParents', {
         name: nameOf(t, description.name),
-        parents: namesOf(t, description.parents),
+        parents: namesOf(t, description.parents, 'tree.change.parents'),
       });
     case 'clearProgenitor':
       return t('tree.change.clearProgenitor');

@@ -7,6 +7,8 @@ export {
   useTreeStore,
   useUnsentChangeCount,
 } from './store';
+export { describeAction, describeOp, lookupIn, lookupWith } from './describeOp';
+export type { NameLookup, OpDescription } from './describeOp';
 export { useTreeAccount } from './useTreeAccount';
 export { TreeNoticeBanner } from './TreeNoticeBanner';
 export { TreeSkeleton } from './TreeSkeleton';

@@ -29,7 +29,7 @@ describe('describeOp', () => {
       'gỡ Nguyễn Văn Nam khỏi cha mẹ',
     );
     expect(say({ type: 'deleteUnion', payload: { id: PARENTS_UNION } })).toBe(
-      'xoá hôn nhân của Nguyễn Văn Tư và Lê Thị Hoa',
+      'xoá cuộc hôn nhân của Nguyễn Văn Tư và Lê Thị Hoa',
     );
   });
 
@@ -80,5 +80,32 @@ describe('describeOp', () => {
       'xoá Đỗ Văn Khoa',
     );
     expect(say(remove)).toBe('xoá một người');
+  });
+
+  it('reads naturally when the union is unknown, in both languages', () => {
+    const MISSING = '64b7f0c2a1b2c3d4e5f6b0ff';
+    const en = i18n.getFixedT('en');
+    const sayEn = (op: Op) => describeAction(en, describeOp(op, lookup));
+    const orphan: Op = { type: 'setParents', payload: { personId: LOOSE, parentUnionId: MISSING } };
+    const divorce: Op = { type: 'deleteUnion', payload: { id: MISSING } };
+    expect(say(orphan)).toBe('đặt Trần Văn Bình làm con của cha mẹ');
+    expect(sayEn(orphan)).toBe('make Trần Văn Bình a child of the parents');
+    expect(say(divorce)).toBe('xoá cuộc hôn nhân của hai người');
+    expect(sayEn(divorce)).toBe('delete the marriage of two people');
+  });
+
+  it('says "a set of changes" in English', () => {
+    const mixed: Op = {
+      type: 'batch',
+      payload: {
+        ops: [
+          { type: 'updatePerson', payload: { id: SON, changes: { bio: 'x' } } },
+          { type: 'setProgenitor', payload: { personId: GRANDMA } },
+        ],
+      },
+    };
+    expect(describeAction(i18n.getFixedT('en'), describeOp(mixed, lookup))).toBe(
+      'a set of changes (2)',
+    );
   });
 });

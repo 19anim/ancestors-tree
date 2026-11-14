@@ -1511,6 +1511,169 @@ describe('undo and redo', () => {
     ]);
   });
 
+  it('names a change by its seq when its lost answer is found in the log', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const bodies: Array<Record<string, unknown>> = [];
+    let inverse: Op = bio('');
+    mockApi({
+      ...treeRoutes(),
+      // The answers to the edit and then to its undo are lost: both were saved all the same.
+      [OPS]: ({ body }) => {
+        bodies.push(body as Record<string, unknown>);
+        return bodies.length % 2 === 1
+          ? { status: 503, body: {} }
+          : apiErrorReply('VERSION_CONFLICT', 409);
+      },
+      [OPS_LOG]: ({ url }) => ({
+        body:
+          url.searchParams.get('since') === '3'
+            ? [remoteEntry(4, bio('Con trưởng'), ME.id)]
+            : [remoteEntry(5, inverse, ME.id)],
+      }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await retryScheduled();
+    await vi.advanceTimersByTimeAsync(1000);
+    await until(() => store().pending.length === 0 && store().confirmedVersion === 4);
+    expect(store().undoStack.map((step) => step.ref)).toEqual([{ seq: 4 }]);
+
+    inverse = store().undoStack[0]?.inverse ?? inverse;
+    expect(store().undo()).toEqual({ ok: true });
+    await retryScheduled();
+    await vi.advanceTimersByTimeAsync(1000);
+    await until(() => store().pending.length === 0 && store().confirmedVersion === 5);
+    expect(bodies[2]).toMatchObject({ revertsSeq: 4 });
+    expect(store().redoStack.map((step) => step.ref)).toEqual([{ seq: 5 }]);
+  });
+
+  it('forgets the steps of unsent changes when the whole tree is read again, and keeps saved ones', async () => {
+    let posts = 0;
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => {
+        posts += 1;
+        return posts === 1 ? { body: { seq: 4 } } : apiErrorReply('VERSION_CONFLICT', 409);
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Một'));
+    store().apply(bio('Hai'));
+    store().apply(bio('Tư'));
+    store().undo();
+    expect(store().undoStack).toHaveLength(2);
+    expect(store().redoStack).toHaveLength(1);
+
+    await vi.waitFor(() => expect(store().notice?.kind).toBe('reloaded'));
+    expect(store().undoStack.map((step) => step.ref)).toEqual([{ seq: 4 }]);
+    expect(store().redoStack).toEqual([]);
+  });
+
+  it('names the redo step by the seq of the undo once it is saved', async () => {
+    let posts = 0;
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => {
+        posts += 1;
+        return { body: { seq: 3 + posts } };
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    store().undo();
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(store().redoStack.map((step) => step.ref)).toEqual([{ seq: 5 }]);
+  });
+
+  it('refreshes the inverses of kept steps and forgets the redo of a dropped undo', async () => {
+    let posts = 0;
+    const FIRST = '64b7f0c2a1b2c3d4e5f6a0f3';
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => {
+        posts += 1;
+        return posts === 1 ? apiErrorReply('FORBIDDEN', 403) : new Promise(() => undefined);
+      },
+    });
+    await store().load(CLAN_ID);
+    // The first edit adds a person and sets a bio; the third builds on the person it adds.
+    store().apply({
+      type: 'batch',
+      payload: {
+        ops: [
+          { type: 'addPerson', payload: fixturePerson(FIRST, 'Nguyễn Văn Út') },
+          { type: 'updatePerson', payload: { id: SON, changes: { bio: 'Một' } } },
+        ],
+      },
+    });
+    store().apply(bio('Hai'));
+    store().apply({ type: 'updatePerson', payload: { id: FIRST, changes: { bio: 'Phụ' } } });
+    store().undo();
+    expect(store().undoStack).toHaveLength(2);
+    expect(store().redoStack).toHaveLength(1);
+    expect(store().undoStack[1]?.inverse).toEqual(bio('Một'));
+
+    await vi.waitFor(() => expect(store().notice?.kind).toBe('rejected'));
+    // The first edit is gone with the third and the undo of the third.
+    expect(store().pending.map((entry) => entry.op)).toEqual([bio('Hai')]);
+    expect(store().redoStack).toEqual([]);
+    expect(store().undoStack).toHaveLength(1);
+    expect(store().undoStack[0]?.op).toEqual(bio('Hai'));
+    expect(store().undoStack[0]?.inverse).not.toEqual(bio('Một'));
+  });
+
+  it('forgets every step when another family tree is opened or the user signs out', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => new Promise(() => undefined),
+      [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Một'));
+    store().apply(bio('Hai'));
+    store().undo();
+    expect(store().undoStack).toHaveLength(1);
+    expect(store().redoStack).toHaveLength(1);
+
+    await store().load(OTHER_CLAN);
+    expect(store().undoStack).toEqual([]);
+    expect(store().redoStack).toEqual([]);
+
+    useTreeStore.setState({
+      undoStack: [{ op: bio('x'), inverse: bio('y'), ref: { seq: 2 } }],
+      redoStack: [{ op: bio('x'), ref: { seq: 3 } }],
+    });
+    signOutTreeStore();
+    expect(store().undoStack).toEqual([]);
+    expect(store().redoStack).toEqual([]);
+  });
+
+  it.each([
+    ['signedOut', UNAUTHENTICATED_REPLY],
+    ['otherAccount', apiErrorReply('IDENTITY_MISMATCH', 409)],
+  ] as const)(
+    'still queues an undo after the queue stopped (%s), and loses nothing',
+    async (flag, stop) => {
+      let stopped = true;
+      mockApi({ ...treeRoutes(), [OPS]: () => (stopped ? stop : { body: { seq: 4 } }) });
+      await store().load(CLAN_ID);
+      store().apply(bio('Con trưởng'));
+      await vi.waitFor(() => expect(store()[flag]).toBe(true));
+
+      expect(store().undo()).toEqual({ ok: true });
+      expect(store().pending).toHaveLength(2);
+      expect(store().tree.persons[SON]?.bio).toBeUndefined();
+      await vi.waitFor(() => expect(store()[flag]).toBe(true));
+      expect(store().pending).toHaveLength(2);
+
+      stopped = false;
+      store().setAccount(ME.id);
+      await store().load(CLAN_ID);
+      await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+      expect(store().confirmedTree.persons[SON]?.bio).toBeUndefined();
+    },
+  );
+
   it(`keeps the latest ${MAX_UNDO_STEPS} steps`, async () => {
     mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
     await store().load(CLAN_ID);
