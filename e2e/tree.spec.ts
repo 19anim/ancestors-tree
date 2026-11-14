@@ -1,20 +1,5 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-import { register } from './support.ts';
-
-/** Fills the person form that is open and adds the person. */
-async function addPerson(page: Page, fullName: string, gender: 'Nam' | 'Nữ' = 'Nam') {
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Họ và tên').fill(fullName);
-  await dialog.getByRole('radio', { name: gender }).check();
-  await dialog.getByRole('button', { name: 'Thêm vào cây' }).click();
-  await expect(dialog).toBeHidden();
-}
-
-async function openActions(page: Page, name: string) {
-  await page.getByRole('button', { name: `Thao tác với ${name}` }).click();
-  return page.getByRole('dialog', { name });
-}
+import { expect, test } from '@playwright/test';
+import { addPerson, expectNoSeriousA11yViolations, openActions, register } from './support.ts';
 
 test('build a small family tree and find it again after a reload', async ({ page }) => {
   await page.goto('/register');
@@ -88,13 +73,7 @@ test('build a small family tree and find it again after a reload', async ({ page
   // The threads are decoration: React Flow must not expose them as images.
   await expect(page.getByRole('img', { name: /^Edge from/ })).toHaveCount(0);
 
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze();
-  const serious = results.violations
-    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .map((violation) => `${violation.id}: ${violation.help} (${violation.nodes.length})`);
-  expect(serious).toEqual([]);
+  await expectNoSeriousA11yViolations(page);
 });
 
 test('the Manager deletes the family tree', async ({ page }) => {
