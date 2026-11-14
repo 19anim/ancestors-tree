@@ -9,6 +9,7 @@ import {
 import mongoose, { Types } from 'mongoose';
 import { z } from 'zod';
 import { toClan } from '../clans/dto.ts';
+import { deleteClanData } from '../clans/scoped.ts';
 import { AppError } from '../http/AppError.ts';
 import type { RouteRegistry } from '../http/routeRegistry.ts';
 import { Clan } from '../models/Clan.ts';
@@ -110,6 +111,23 @@ export function registerClanRoutes(api: RouteRegistry): void {
       await clan.save();
       const counts = await memberCounts([clan._id]);
       return { status: 200, body: toClan(clan, membership().role, counts.get(params.id) ?? 1) };
+    },
+  });
+
+  api.define({
+    method: 'delete',
+    path: '/clans/:id',
+    summary: 'Delete the clan with its people, history, members and invites',
+    tags: ['Clans'],
+    access: { clanRole: 'owner' },
+    request: { params: ClanParamsSchema },
+    responses: { 204: { description: 'Deleted' } },
+    handler: async ({ params }) => {
+      await mongoose.connection.transaction(async (session) => {
+        await deleteClanData(params.id, session);
+        await Clan.deleteOne({ _id: params.id }, { session });
+      });
+      return { status: 204 };
     },
   });
 }

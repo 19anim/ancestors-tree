@@ -1,8 +1,8 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, ME, MEMBERS } from './fixtures';
+import { CLAN, CLAN_ID, ME } from './fixtures';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -22,18 +22,22 @@ describe('ClanLayout', () => {
     );
   });
 
-  it('redirects /clans/:id to the members tab', async () => {
+  it('redirects /clans/:id to the tree tab, which comes first', async () => {
     mockApi({
       'GET /me': () => ({ body: ME }),
       [`GET /clans/${CLAN_ID}`]: () => ({ body: CLAN }),
-      [`GET /clans/${CLAN_ID}/members`]: () => ({ body: MEMBERS }),
-      [`GET /clans/${CLAN_ID}/invites`]: () => ({ body: [] }),
+      [`GET /clans/${CLAN_ID}/tree`]: () => ({
+        body: { version: 0, progenitorId: null, persons: [], unions: [] },
+      }),
     });
     renderRoute(`/clans/${CLAN_ID}`);
-    expect(await screen.findByText('Tuấn')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Thành viên' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(await screen.findByText('Chưa có ai trong cây gia phả này.')).toBeInTheDocument();
+    const tabs = within(screen.getByRole('navigation', { name: 'Mục của cây gia phả' }));
+    expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Cây',
+      'Thành viên',
+      'Cài đặt',
+    ]);
+    expect(tabs.getByRole('link', { name: 'Cây' })).toHaveAttribute('aria-current', 'page');
   });
 });

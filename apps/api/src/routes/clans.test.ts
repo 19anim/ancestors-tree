@@ -1,7 +1,13 @@
+import { newObjectId } from '@ancestors-tree/shared/tree';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { Clan } from '../models/Clan.ts';
+import { ClanRemoval } from '../models/ClanRemoval.ts';
+import { Invite } from '../models/Invite.ts';
 import { Membership } from '../models/Membership.ts';
+import { OperationModel } from '../models/Operation.ts';
+import { PersonModel } from '../models/Person.ts';
+import { UnionModel } from '../models/Union.ts';
 import { createTestApp } from '../test/app.ts';
 import { addMember, createClan } from '../test/clans.ts';
 import { useTestDatabase } from '../test/database.ts';
@@ -84,5 +90,81 @@ describe('clans', () => {
     expect((await stranger.agent.patch(path).send({ name: 'Đổi tên' })).status).toBe(404);
     expect((await owner.agent.patch('/api/clans/not-an-id').send({ name: 'X' })).status).toBe(404);
     expect((await Clan.findById(clan.id))?.name).toBe(clan.name);
+  });
+});
+
+describe('DELETE /api/clans/:id', () => {
+  /** A family tree with one person, one union, one op, an invite and a removed member. */
+  async function filledClan(agent: Parameters<typeof createClan>[0], name: string) {
+    const clan = await createClan(agent, { name });
+    const personId = newObjectId();
+    const op = {
+      type: 'batch',
+      payload: {
+        ops: [
+          {
+            type: 'addPerson',
+            payload: {
+              id: personId,
+              fullName: 'Nguyễn Văn Tư',
+              aliases: [],
+              gender: 'male',
+              death: { isDeceased: false },
+              isAdopted: false,
+            },
+          },
+          {
+            type: 'addUnion',
+            payload: { id: newObjectId(), partnerIds: [personId], order: 1, status: 'married' },
+          },
+        ],
+      },
+    };
+    expect(
+      (await agent.post(`/api/clans/${clan.id}/ops`).send({ op, baseVersion: 0 })).status,
+    ).toBe(200);
+    expect(
+      (await agent.post(`/api/clans/${clan.id}/invites`).send({ role: 'viewer' })).status,
+    ).toBe(201);
+    await ClanRemoval.create({ clanId: clan.id, userId: newObjectId(), removedAt: new Date() });
+    return clan;
+  }
+
+  async function countFor(clanId: string): Promise<number[]> {
+    return [
+      await Clan.countDocuments({ _id: clanId }),
+      await PersonModel.countDocuments({ clanId }),
+      await UnionModel.countDocuments({ clanId }),
+      await OperationModel.countDocuments({ clanId }),
+      await Invite.countDocuments({ clanId }),
+      await ClanRemoval.countDocuments({ clanId }),
+      await Membership.countDocuments({ clanId }),
+    ];
+  }
+
+  it('lets the owner delete the family tree and everything in it', async () => {
+    const owner = await signUp(app);
+    const editor = await signUp(app);
+    const doomed = await filledClan(owner.agent, 'Họ Nguyễn');
+    const kept = await filledClan(owner.agent, 'Họ Trần');
+    await addMember(doomed.id, editor.user.id, 'editor');
+
+    const response = await owner.agent.delete(`/api/clans/${doomed.id}`);
+    expect(response.status).toBe(204);
+    expect(await countFor(doomed.id)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(await countFor(kept.id)).toEqual([1, 1, 1, 1, 1, 1, 1]);
+    expect((await editor.agent.get('/api/clans')).body).toEqual([]);
+  });
+
+  it('refuses editors and hides the family tree from strangers', async () => {
+    const owner = await signUp(app);
+    const editor = await signUp(app);
+    const stranger = await signUp(app);
+    const clan = await createClan(owner.agent);
+    await addMember(clan.id, editor.user.id, 'editor');
+
+    expect((await editor.agent.delete(`/api/clans/${clan.id}`)).status).toBe(403);
+    expect((await stranger.agent.delete(`/api/clans/${clan.id}`)).status).toBe(404);
+    expect(await Clan.countDocuments({ _id: clan.id })).toBe(1);
   });
 });

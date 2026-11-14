@@ -140,7 +140,8 @@
       "forgot": "Forgot your password?",
       "noAccount": "No account yet?",
       "register": "Create an account",
-      "googleFailed": "Google sign-in did not work. Try again, or use your email and password."
+      "googleFailed": "Google sign-in did not work. Try again, or use your email and password.",
+      "googleDropsChanges": "Signing in with Google leaves this page and drops your unsaved changes ({{count}}). Sign in with email and password to keep them."
     },
     "register": {
       "title": "Create an account",
@@ -164,7 +165,11 @@
     "menu": {
       "signIn": "Sign in",
       "signOut": "Sign out",
-      "signedInAs": "Signed in as {{name}}"
+      "signedInAs": "Signed in as {{name}}",
+      "signOutTitle": "Sign out?",
+      "signOutBody": "Unsaved changes: {{count}}. If you sign out, they will be discarded.",
+      "signOutStay": "Stay",
+      "signOutAnyway": "Sign out anyway"
     }
   },
   "clans": {
@@ -187,6 +192,7 @@
     },
     "tabs": {
       "label": "Family tree sections",
+      "tree": "Tree",
       "members": "Members",
       "settings": "Settings"
     },
@@ -221,6 +227,16 @@
       "save": "Save changes",
       "saved": "Changes saved"
     },
+    "delete": {
+      "title": "Delete the family tree",
+      "body": "Everyone in the tree, their relationships, the change history, the members and the invite links will be deleted for good. This cannot be undone.",
+      "open": "Delete this family tree",
+      "confirmTitle": "Delete {{name}}?",
+      "confirmLabel": "Type \"{{name}}\" to confirm",
+      "confirm": "Delete for good",
+      "pending": "Deleting…",
+      "cancel": "Cancel"
+    },
     "join": {
       "title": "Family tree invitation",
       "offer": "{{inviter}} invites you to {{clan}} as {{role}}.",
@@ -229,6 +245,90 @@
       "register": "Create an account",
       "home": "Back to home",
       "forbidden": "You cannot join this family tree with this link. Ask the manager for a new invitation."
+    }
+  },
+  "tree": {
+    "loading": "Loading the family tree…",
+    "board": {
+      "label": "Family tree: {{name}}",
+      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below."
+    },
+    "card": {
+      "label": "{{name}}, {{years}}, generation {{generation}}",
+      "labelNoYears": "{{name}}, generation {{generation}}",
+      "actions": "Actions for {{name}}"
+    },
+    "rules": {
+      "INVALID_ID": "An id is not valid. Reload the page and try again.",
+      "DUPLICATE_ID": "This id is already used. Reload the page and try again.",
+      "PERSON_NOT_FOUND": "This person is no longer in the family tree.",
+      "UNION_NOT_FOUND": "This marriage is no longer in the family tree.",
+      "PERSON_HAS_CHILDREN": "A person who still has children cannot be deleted. Detach or move the children first.",
+      "UNION_HAS_CHILDREN": "A marriage that still has children cannot be deleted. Detach or move the children first.",
+      "PROGENITOR_PROTECTED": "The progenitor cannot be deleted. Choose another progenitor first.",
+      "CYCLE": "This change would make someone their own ancestor.",
+      "INVALID_PARTNERS": "A marriage needs one or two different people.",
+      "RESTORE_CONFLICT": "Cannot restore: this person's marriage has changed.",
+      "TREE_FULL": "The family tree already has 5,000 people; no more can be added."
+    },
+    "empty": "No one is in this family tree yet.",
+    "retry": "Try again",
+    "actions": {
+      "addFirst": "Add the first person",
+      "description": "What would you like to do with this person?",
+      "addChild": "Add a child",
+      "addSpouse": "Add a spouse",
+      "setProgenitor": "Set as progenitor",
+      "delete": "Delete this person"
+    },
+    "unlinked": {
+      "title": "Not yet linked",
+      "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
+    },
+    "save": {
+      "saved": "Saved",
+      "saving": "Saving…",
+      "retrying": "Not saved yet, trying again…"
+    },
+    "notice": {
+      "otherTree": "About the family tree you were editing: {{message}}",
+      "reloaded": "The latest version of the family tree was reloaded from the server; your unsaved changes were dropped.",
+      "rejected": "The change was not saved: {{reason}}",
+      "rejectedDependents": "Changes that depended on it were dropped too: {{count}}.",
+      "dismiss": "Got it",
+      "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
+      "signIn": "Sign in again",
+      "discarded": "Unsaved changes were dropped: {{count}}."
+    },
+    "form": {
+      "firstTitle": "Add the first person",
+      "childTitle": "Add a child of {{name}}",
+      "spouseTitle": "Add a spouse of {{name}}",
+      "fullName": "Full name",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "status": "Status",
+      "living": "Living",
+      "deceased": "Deceased",
+      "union": "Child of",
+      "unionWith": "{{name}} and {{partner}}",
+      "unionAlone": "{{name}} (other parent unknown)",
+      "submit": "Add to the tree",
+      "cancel": "Cancel",
+      "notLoaded": "The family tree has not finished loading, try again in a moment."
+    },
+    "delete": {
+      "title": "Delete {{name}}?",
+      "body": "{{name}} will be removed from the family tree.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "switchTree": {
+      "title": "Open another family tree?",
+      "body": "Unsaved changes in the family tree you were editing: {{count}}. If you open another tree, they will be discarded.",
+      "stay": "Stay",
+      "discard": "Discard changes and open"
     }
   }
 }

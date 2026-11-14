@@ -16,11 +16,14 @@ export interface DialogContentProps extends Omit<
   /** Required so every dialog has an accessible name. */
   title: string;
   description?: string;
+  /** Disables the corner close button (the caller also blocks Escape and Cancel). */
+  closeDisabled?: boolean;
 }
 
 export function DialogContent({
   title,
   description,
+  closeDisabled = false,
   className,
   children,
   ...props
@@ -51,6 +54,7 @@ export function DialogContent({
             size="icon"
             className="absolute top-3 right-3 size-8"
             aria-label={t('common.close')}
+            disabled={closeDisabled}
           >
             <X aria-hidden="true" size={16} strokeWidth={1.75} />
           </Button>

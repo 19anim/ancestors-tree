@@ -19,6 +19,17 @@ afterEach(() => {
 });
 
 describe('apiRequest', () => {
+  it('keeps the reason of a rule violation', async () => {
+    mockFetch(async () =>
+      jsonResponse({ error: { code: 'RULE_VIOLATION', message: 'No', reason: 'CYCLE' } }, 422),
+    );
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
+      code: 'RULE_VIOLATION',
+      status: 422,
+      reason: 'CYCLE',
+    });
+  });
+
   it('prefixes /api, sends cookies and returns parsed data', async () => {
     const fetchMock = mockFetch(async () => jsonResponse({ id: 'a1' }));
     await expect(apiRequest('/items/a1', ItemSchema)).resolves.toEqual({ id: 'a1' });

@@ -140,7 +140,8 @@
       "forgot": "Quên mật khẩu?",
       "noAccount": "Chưa có tài khoản?",
       "register": "Tạo tài khoản",
-      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu."
+      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu.",
+      "googleDropsChanges": "Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ {{count}} thay đổi chưa lưu. Hãy đăng nhập bằng email và mật khẩu để giữ chúng."
     },
     "register": {
       "title": "Tạo tài khoản",
@@ -164,7 +165,11 @@
     "menu": {
       "signIn": "Đăng nhập",
       "signOut": "Đăng xuất",
-      "signedInAs": "Đang đăng nhập với tên {{name}}"
+      "signedInAs": "Đang đăng nhập với tên {{name}}",
+      "signOutTitle": "Đăng xuất?",
+      "signOutBody": "Còn {{count}} thay đổi chưa lưu. Đăng xuất thì các thay đổi này sẽ bị bỏ.",
+      "signOutStay": "Ở lại",
+      "signOutAnyway": "Vẫn đăng xuất"
     }
   },
   "clans": {
@@ -187,6 +192,7 @@
     },
     "tabs": {
       "label": "Mục của cây gia phả",
+      "tree": "Cây",
       "members": "Thành viên",
       "settings": "Cài đặt"
     },
@@ -221,6 +227,16 @@
       "save": "Lưu thay đổi",
       "saved": "Đã lưu thay đổi"
     },
+    "delete": {
+      "title": "Xoá cây gia phả",
+      "body": "Mọi người trong cây, các mối quan hệ, lịch sử thay đổi, thành viên và link mời sẽ bị xoá vĩnh viễn. Không thể khôi phục.",
+      "open": "Xoá cây gia phả này",
+      "confirmTitle": "Xoá {{name}}?",
+      "confirmLabel": "Nhập \"{{name}}\" để xác nhận",
+      "confirm": "Xoá vĩnh viễn",
+      "pending": "Đang xoá…",
+      "cancel": "Huỷ"
+    },
     "join": {
       "title": "Lời mời vào cây gia phả",
       "offer": "{{inviter}} mời bạn vào {{clan}} với vai trò {{role}}.",
@@ -229,6 +245,90 @@
       "register": "Tạo tài khoản",
       "home": "Về trang chủ",
       "forbidden": "Bạn không thể tham gia cây gia phả này bằng đường link này. Hãy nhờ người quản lý gửi lời mời mới."
+    }
+  },
+  "tree": {
+    "loading": "Đang tải cây gia phả…",
+    "board": {
+      "label": "Cây gia phả: {{name}}",
+      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới."
+    },
+    "card": {
+      "label": "{{name}}, {{years}}, đời thứ {{generation}}",
+      "labelNoYears": "{{name}}, đời thứ {{generation}}",
+      "actions": "Thao tác với {{name}}"
+    },
+    "rules": {
+      "INVALID_ID": "Mã định danh không hợp lệ. Hãy tải lại trang rồi thử lại.",
+      "DUPLICATE_ID": "Mã định danh này đã được dùng. Hãy tải lại trang rồi thử lại.",
+      "PERSON_NOT_FOUND": "Người này không còn trong cây gia phả.",
+      "UNION_NOT_FOUND": "Cuộc hôn nhân này không còn trong cây gia phả.",
+      "PERSON_HAS_CHILDREN": "Không xoá được người còn con. Hãy gỡ hoặc chuyển các con trước.",
+      "UNION_HAS_CHILDREN": "Không xoá được cuộc hôn nhân còn con. Hãy gỡ hoặc chuyển các con trước.",
+      "PROGENITOR_PROTECTED": "Không xoá được thuỷ tổ. Hãy chọn thuỷ tổ khác trước.",
+      "CYCLE": "Thay đổi này sẽ khiến một người thành tổ tiên của chính mình.",
+      "INVALID_PARTNERS": "Một cuộc hôn nhân cần một hoặc hai người khác nhau.",
+      "RESTORE_CONFLICT": "Không khôi phục được: cuộc hôn nhân của người này đã thay đổi.",
+      "TREE_FULL": "Cây gia phả đã đủ 5.000 người, không thêm được nữa."
+    },
+    "empty": "Chưa có ai trong cây gia phả này.",
+    "retry": "Thử lại",
+    "actions": {
+      "addFirst": "Thêm người đầu tiên",
+      "description": "Bạn muốn làm gì với người này?",
+      "addChild": "Thêm con",
+      "addSpouse": "Thêm vợ/chồng",
+      "setProgenitor": "Chọn làm thuỷ tổ",
+      "delete": "Xoá người này"
+    },
+    "unlinked": {
+      "title": "Chưa nối vào cây",
+      "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
+    },
+    "save": {
+      "saved": "Đã lưu",
+      "saving": "Đang lưu…",
+      "retrying": "Chưa lưu được, đang thử lại…"
+    },
+    "notice": {
+      "otherTree": "Về cây gia phả bạn vừa sửa: {{message}}",
+      "reloaded": "Đã tải lại bản mới nhất của cây gia phả từ máy chủ; thay đổi chưa lưu của bạn đã bị bỏ.",
+      "rejected": "Không lưu được thay đổi: {{reason}}",
+      "rejectedDependents": "Đồng thời bỏ {{count}} thay đổi phụ thuộc vào nó.",
+      "dismiss": "Đã hiểu",
+      "signedOut": "Phiên đăng nhập đã hết hạn. Thay đổi chưa lưu vẫn được giữ nếu bạn đăng nhập lại bằng email và mật khẩu; đăng nhập bằng Google sẽ bỏ chúng.",
+      "signIn": "Đăng nhập lại",
+      "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
+    },
+    "form": {
+      "firstTitle": "Thêm người đầu tiên",
+      "childTitle": "Thêm con của {{name}}",
+      "spouseTitle": "Thêm vợ/chồng của {{name}}",
+      "fullName": "Họ và tên",
+      "gender": "Giới tính",
+      "male": "Nam",
+      "female": "Nữ",
+      "status": "Tình trạng",
+      "living": "Còn sống",
+      "deceased": "Đã mất",
+      "union": "Con của",
+      "unionWith": "{{name}} và {{partner}}",
+      "unionAlone": "{{name}} (chưa rõ cha/mẹ còn lại)",
+      "submit": "Thêm vào cây",
+      "cancel": "Huỷ",
+      "notLoaded": "Cây gia phả chưa tải xong, thử lại sau giây lát."
+    },
+    "delete": {
+      "title": "Xoá {{name}}?",
+      "body": "{{name}} sẽ bị xoá khỏi cây gia phả.",
+      "confirm": "Xoá",
+      "cancel": "Huỷ"
+    },
+    "switchTree": {
+      "title": "Mở cây gia phả khác?",
+      "body": "Còn {{count}} thay đổi chưa lưu ở cây gia phả bạn vừa sửa. Mở cây khác thì các thay đổi này sẽ bị bỏ.",
+      "stay": "Ở lại",
+      "discard": "Bỏ thay đổi và mở"
     }
   }
 }

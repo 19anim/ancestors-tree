@@ -1,9 +1,12 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../../app/providers';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { renderRoute } from '../../test/render';
+import { resetTreeStore, useTreeStore } from '../tree/store';
+
+const ID = '64b7f0c2a1b2c3d4e5f6a0f1';
 
 const LAN = {
   id: '64b7f0c2a1b2c3d4e5f60718',
@@ -14,7 +17,12 @@ const LAN = {
   hasGoogle: false,
 };
 
+beforeEach(() => {
+  resetTreeStore();
+});
+
 afterEach(() => {
+  resetTreeStore();
   vi.unstubAllGlobals();
 });
 
@@ -63,6 +71,31 @@ describe('LoginPage', () => {
       '/api/auth/google/start?returnTo=%2Fclans%2Fabc',
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa đăng nhập được bằng Google');
+  });
+
+  it('warns that Google sign-in drops unsaved tree changes, only while there are any', async () => {
+    mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
+    renderRoute('/login');
+    await screen.findByRole('link', { name: 'Tiếp tục với Google' });
+    expect(
+      screen.queryByText(/Đăng nhập bằng Google sẽ rời khỏi trang này/),
+    ).not.toBeInTheDocument();
+
+    act(() => useTreeStore.setState({ pending: [{ type: 'deletePerson', payload: { id: ID } }] }));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ 1 thay đổi chưa lưu.',
+    );
+    act(() => useTreeStore.setState({ pending: [] }));
+    expect(
+      screen.queryByText(/Đăng nhập bằng Google sẽ rời khỏi trang này/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not warn about unsaved changes when there are none to lose', async () => {
+    mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
+    renderRoute('/login');
+    await screen.findByRole('link', { name: 'Tiếp tục với Google' });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('ignores return paths outside the app', async () => {

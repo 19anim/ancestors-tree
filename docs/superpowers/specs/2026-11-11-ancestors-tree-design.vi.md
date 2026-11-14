@@ -344,16 +344,23 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 | `setParents` | `{ personId, parentUnionId \| null }` | `setParents` với giá trị cũ |
 | `setTreeLink` | `{ personId, treeLink \| null }` | `setTreeLink` với giá trị cũ |
 | `setTreeTheme` | `{ changes }` — các trường `TreeTheme` thay đổi; `null` đưa trường đó về mặc định (§13.4) | `setTreeTheme` với giá trị cũ của đúng các trường đó |
+| `setProgenitor` | `{ personId | null }` — chỉ Quản lý; `personId` phải là một người có trong dòng họ | `setProgenitor` với giá trị cũ |
 | `batch` | `{ ops: Operation[] }` (dùng cho AI nhập liệu) | `batch` gồm các inverse theo thứ tự ngược |
 | `restorePerson` / `restoreUnion` | snapshot đầy đủ | `deletePerson` / `deleteUnion` — chỉ sinh ra khi undo, giao diện không gửi trực tiếp |
 
-`_id` của Person/Union do client tạo. Server kiểm tra đúng định dạng ObjectId và chưa bị dùng; sai thì trả `RULE_VIOLATION`.
+`_id` của Person/Union do client tạo. ObjectId sai định dạng bị chặn khi kiểm tra request (`VALIDATION_ERROR`, 400); id đã được một người (hoặc một Union) khác dùng, ở bất kỳ dòng họ nào, trả `RULE_VIOLATION` với reason `DUPLICATE_ID`.
+
+**Giới hạn:** một `batch` có 1–500 thao tác và không chứa `batch` khác; một dòng họ có tối đa 5.000 người (`TREE_FULL`); `GET /api/clans/:id/ops?since=` trả tối đa 500 thao tác mỗi lần gọi.
 
 **Luật nghiệp vụ** (do `applyOp` kiểm tra, vi phạm thì ném `OpError`):
 - Không xoá được người còn con (phải gỡ hoặc chuyển con trước). Xoá một người thì các Union mà người đó là partner duy nhất cũng bị xoá theo.
+- Không xoá được Union còn con, để không đứa con nào trỏ tới một Union không còn tồn tại (`UNION_HAS_CHILDREN`).
 - `parentUnionId` phải trỏ tới một Union có thật trong cùng dòng họ.
 - Không có vòng lặp (không ai là tổ tiên của chính mình).
 - Không xoá được thuỷ tổ khi chưa chọn thuỷ tổ khác.
+- Dòng họ mới tạo chưa có thuỷ tổ. Quản lý chọn thuỷ tổ ngay trên cây bằng `setProgenitor`; thêm người đầu tiên không tự chọn thuỷ tổ. Trước đó mọi người nằm ở mục "Chưa nối vào cây".
+
+API trả lời một luật bị vi phạm bằng `RULE_VIOLATION` (422) kèm mã `OpError` trong `reason` (ví dụ `PERSON_HAS_CHILDREN`); giao diện hiện luật đó bằng lời đã dịch.
 
 ### 6.2 Luồng ghi một thay đổi
 
@@ -363,7 +370,7 @@ Client                                         Server
 op = { type:'addPerson', payload:{...} }
 tree = applyOp(tree, op)   ← màn hình đổi NGAY (optimistic update)
 pending.push(op)
-POST /api/clans/:id/ops { op, baseVersion: 42 } ─▶ requireAuth → requireRole('editor') → validate(Zod)
+POST /api/clans/:id/ops { op, baseVersion: 42 } ─▶ requireAuth → requireRole('editor') → validate(Zod)   (`setProgenitor`, kể cả trong batch, cần 'owner')
                                                withTransaction:
                                                  clan.version !== 42 ?  → 409 VERSION_CONFLICT
                                                  tree = loadTree(clanId)
@@ -391,6 +398,8 @@ pending.shift(); version = 43
 ```
 
 Thử lại tối đa 3 lần; quá số đó thì tải lại toàn bộ cây và báo người dùng.
+
+**Hành vi ở P5 (cho tới khi rebase xong ở P6).** Khi gặp 409, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng. Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác bỏ thao tác bị từ chối cùng các thao tác phụ thuộc vào nó, báo lý do và số lượng đã bỏ, rồi chạy lại phần còn lại.
 
 ### 6.4 Undo / redo / hoàn tác thay đổi cũ
 
@@ -436,7 +445,7 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 |---|---|
 | `/login`, `/register`, `/forgot-password`, `/reset-password` | Tài khoản |
 | `/clans` | Các dòng họ của tôi + tạo mới |
-| `/clans/:id/tree` | ⭐ Cây gia phả (trang chính); `?focus=:personId` để bay tới một người. Khi trang cây chưa có (tới P5), `/clans/:id` mở trang thành viên |
+| `/clans/:id/tree` | ⭐ Cây gia phả (trang chính); `?focus=:personId` để bay tới một người. `/clans/:id` mở trang này |
 | `/clans/:id/upcoming` | Giỗ sắp tới |
 | `/clans/:id/history` | Lịch sử sửa |
 | `/clans/:id/members` | Thành viên & link mời |
@@ -455,6 +464,10 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 | State giao diện cục bộ (panel đang mở, người đang chọn) | `useState` / slice Zustand nhỏ | |
 
 Component đọc store qua **selector** (`useTreeStore(s => s.persons[id])`) để chỉ vẽ lại khi đúng phần đó đổi.
+
+**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác, trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại và báo người dùng đã bỏ bao nhiêu thay đổi. Các thông báo (tải lại, thay đổi bị từ chối, hết phiên, thay đổi bị bỏ) hiện ở mọi trang cho tới khi người dùng đóng, vì thay đổi có thể đã mất trong lúc đang ở trang khác. Sau khi hết phiên, đăng nhập bằng Google sẽ rời khỏi trang và bỏ các thay đổi đang giữ, nên trang đăng nhập cảnh báo và gợi ý dùng email và mật khẩu. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
+
+**Xoá cây gia phả** (chỉ Quản lý, `DELETE /api/clans/:id`, 204) xoá dòng họ cùng mọi người, union, thao tác, lời mời, bản ghi bị gỡ và tư cách thành viên. Quản lý phải gõ tên cây để xác nhận; việc so khớp chuẩn hoá Unicode NFC.
 
 Cache của TanStack Query được lưu vào IndexedDB (`@tanstack/query-persist-client`) để xem offline các cây mở gần đây (S7).
 
@@ -810,14 +823,14 @@ ancestors-tree/                      gốc trên Cloudinary
   ```json
   { "error": { "code": "VERSION_CONFLICT", "message": "The tree was updated by someone else" } }
   ```
-  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, từ `applyOp`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
+  Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `RULE_VIOLATION` (422, từ `applyOp`, kèm `reason`: mã `OpError`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409).
 - **Client:** api client chuyển lỗi thành `ApiError { code, message }`, giao diện hiện câu tiếng Việt tương ứng với `code`. Mỗi feature được bọc trong một **Error Boundary**. Thao tác lỗi thì hiện toast. Mất mạng khi gửi op thì giữ trong `pending` và thử lại kiểu **exponential backoff** (1 s, 2 s, 4 s…); thanh công cụ hiện "Chưa lưu".
 - **Render cold start (~30–60 giây):** lần tải đầu hiện màn hình "Đang khởi động máy chủ…" thay vì trang trắng.
 - **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production.
 
 ### 13.2 Trạng thái tải & trống
 
-Skeleton có hình dạng giống nội dung thật (không dùng vòng xoay chung chung ở các trang chính). Dòng họ trống → hướng dẫn bước đầu ("Thêm thuỷ tổ"). Danh sách giỗ trống → giải thích cần gì (ngày mất âm lịch).
+Skeleton có hình dạng giống nội dung thật (không dùng vòng xoay chung chung ở các trang chính). Dòng họ trống → hướng dẫn bước đầu ("Thêm người đầu tiên", sau đó Quản lý chọn thuỷ tổ). Danh sách giỗ trống → giải thích cần gì (ngày mất âm lịch).
 
 ### 13.3 Hướng thiết kế: "album gia đình" (chống AI-slop)
 

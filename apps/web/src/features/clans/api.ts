@@ -61,6 +61,18 @@ export function useUpdateClan(id: string) {
   });
 }
 
+export function useDeleteClan(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest(`/clans/${id}`, z.undefined(), { method: 'DELETE' }),
+    onSuccess: () => {
+      // The family tree is gone: drop its cached queries instead of refetching a 404.
+      queryClient.removeQueries({ queryKey: clanKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: clanKeys.all, exact: true });
+    },
+  });
+}
+
 export function useMembers(id: string) {
   return useQuery({
     queryKey: clanKeys.members(id),

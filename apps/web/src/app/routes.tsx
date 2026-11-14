@@ -18,6 +18,7 @@ import { HomePage } from '../features/home';
 import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
 import { RouteError } from './RouteError';
+import { TreePage } from '../features/tree';
 
 // Only the gallery's own code is a separate chunk that home-page visitors never download.
 // Shared components it uses (such as Dialog and TextField) stay in the main bundle.
@@ -46,7 +47,8 @@ export const routes: RouteObject[] = [
             path: 'clans/:id',
             element: <ClanLayout />,
             children: [
-              { index: true, element: <Navigate to="members" replace /> },
+              { index: true, element: <Navigate to="tree" replace /> },
+              { path: 'tree', element: <TreePage /> },
               { path: 'members', element: <ClanMembersPage /> },
               { path: 'settings', element: <ClanSettingsPage /> },
             ],

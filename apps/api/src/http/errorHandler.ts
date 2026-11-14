@@ -53,6 +53,7 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
         code: appError.code,
         message: appError.message,
         ...(appError.details ? { details: appError.details } : {}),
+        ...(appError.reason ? { reason: appError.reason } : {}),
       },
     };
     res.status(appError.status).json(body);

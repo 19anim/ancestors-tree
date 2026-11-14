@@ -1,4 +1,5 @@
 import type { ErrorCode, ErrorDetail } from '@ancestors-tree/shared';
+import type { OpErrorCode } from '@ancestors-tree/shared/tree';
 
 /** Codes produced by the client itself, never sent by the API. */
 export const CLIENT_ONLY_ERROR_CODES = ['NETWORK_ERROR', 'INVALID_RESPONSE'] as const;
@@ -9,13 +10,22 @@ export class ApiError extends Error {
   readonly code: ClientErrorCode;
   readonly status: number;
   readonly details: ErrorDetail[] | undefined;
+  /** Only with RULE_VIOLATION: the rule applyOp refused (translated as `tree.rules.<reason>`). */
+  readonly reason: OpErrorCode | undefined;
 
-  constructor(code: ClientErrorCode, message: string, status: number, details?: ErrorDetail[]) {
+  constructor(
+    code: ClientErrorCode,
+    message: string,
+    status: number,
+    details?: ErrorDetail[],
+    reason?: OpErrorCode,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
     this.details = details;
+    this.reason = reason;
   }
 }
 
@@ -24,6 +34,10 @@ const CODE_BY_STATUS: Partial<Record<number, ErrorCode>> = {
   401: 'UNAUTHENTICATED',
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
+  // A newer API may send a reason this client does not know; the status still tells the store
+  // whether to reload (409) or roll back (422).
+  409: 'VERSION_CONFLICT',
+  422: 'RULE_VIOLATION',
   429: 'RATE_LIMITED',
 };
 

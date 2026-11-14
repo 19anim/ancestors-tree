@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OP_ERROR_CODE_LIST } from './tree/op-error.ts';
 
 interface ErrorCodeInfo {
   status: number;
@@ -80,6 +81,8 @@ export const ApiErrorBodySchema = z.object({
     code: z.enum(ERROR_CODE_LIST),
     message: z.string(),
     details: z.array(ErrorDetailSchema).optional(),
+    /** Only with RULE_VIOLATION: the rule applyOp refused (docs/error-codes.md lists them). */
+    reason: z.enum(OP_ERROR_CODE_LIST).optional(),
   }),
 });
 

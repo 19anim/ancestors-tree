@@ -35,6 +35,16 @@ describe('ERROR_CODES', () => {
 });
 
 describe('ApiErrorBodySchema', () => {
+  it('accepts a known rule-violation reason and rejects an unknown one', () => {
+    const body = {
+      error: { code: 'RULE_VIOLATION', message: 'Has children', reason: 'PERSON_HAS_CHILDREN' },
+    };
+    expect(ApiErrorBodySchema.parse(body)).toEqual(body);
+    expect(
+      ApiErrorBodySchema.safeParse({ error: { ...body.error, reason: 'SOMETHING_ELSE' } }).success,
+    ).toBe(false);
+  });
+
   it('accepts a well-formed error body', () => {
     const body = { error: { code: 'NOT_FOUND', message: 'Route not found' } };
     expect(ApiErrorBodySchema.parse(body)).toEqual(body);

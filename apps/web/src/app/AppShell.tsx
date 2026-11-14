@@ -1,8 +1,16 @@
-import { Suspense } from 'react';
+import { Suspense, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet } from 'react-router';
 import { UserMenu, useCurrentUser } from '../features/auth';
 import { ServerStatus } from '../features/system';
+import {
+  discardTreeStateForAccountChange,
+  resetTreeStore,
+  TreeNoticeBanner,
+  UnsentChangesGuard,
+  useTreeStore,
+  useUnsentChangeCount,
+} from '../features/tree';
 import { useDocumentLanguage } from '../shared/i18n/useDocumentLanguage';
 import { cn } from '../shared/lib/cn';
 import { ThemeToggle } from '../shared/ui';
@@ -14,10 +22,34 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   );
 }
 
+/**
+ * Unsent tree changes belong to the account that made them. When another account signs in (over
+ * the previous one, or after a sign-out), they are dropped so they are never sent under it, and a
+ * notice says how many. The same account signing in again after its session ended keeps them:
+ * they are sent then.
+ */
+function useResetTreeOnAccountChange(userId: string | undefined): void {
+  const lastUserId = useRef<string | undefined>(undefined);
+  // A layout effect runs before every passive effect of the same commit, so the queue is empty
+  // before a page (such as the tree page loading its tree) can resume sending.
+  useLayoutEffect(() => {
+    if (userId === undefined) return;
+    if (lastUserId.current !== undefined && lastUserId.current !== userId) {
+      discardTreeStateForAccountChange();
+    } else if (lastUserId.current === userId) {
+      // The same account is back after its session ended: send what was kept.
+      useTreeStore.getState().resumeAfterSignIn();
+    }
+    lastUserId.current = userId;
+  }, [userId]);
+}
+
 export function AppShell() {
   const { t } = useTranslation();
   useDocumentLanguage();
   const me = useCurrentUser();
+  const unsentChanges = useUnsentChangeCount();
+  useResetTreeOnAccountChange(me.data?.id);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -62,7 +94,7 @@ export function AppShell() {
             </ul>
           </nav>
           <div className="flex items-center gap-2">
-            <UserMenu />
+            <UserMenu unsentChanges={unsentChanges} onSignedOut={resetTreeStore} />
             <ThemeToggle />
           </div>
         </div>
@@ -73,10 +105,14 @@ export function AppShell() {
         tabIndex={-1}
         className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 focus:outline-none"
       >
+        <TreeNoticeBanner />
         <Suspense fallback={<p className="text-ink-muted">{t('common.loading')}</p>}>
           <Outlet />
         </Suspense>
       </main>
+
+      {/* App-wide: changes keep being sent, and can be lost, from any page. */}
+      <UnsentChangesGuard />
 
       <footer className="border-t border-line">
         <div className="mx-auto w-full max-w-6xl px-4 py-4">

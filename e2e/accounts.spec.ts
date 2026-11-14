@@ -1,20 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-
-const PASSWORD = 'correct horse 1';
-
-function uniqueEmail(name: string): string {
-  return `${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
-}
-
-async function register(page: Page, name: string, slug: string): Promise<string> {
-  const email = uniqueEmail(slug);
-  await page.getByLabel('Tên hiển thị').fill(name);
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Mật khẩu', { exact: true }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
-  return email;
-}
+import { expect, test } from '@playwright/test';
+import { PASSWORD, register } from './support.ts';
 
 test('sign up, create a clan, invite a relative and see them join', async ({ page, browser }) => {
   await page.goto('/register');
@@ -24,6 +10,8 @@ test('sign up, create a clan, invite a relative and see them join', async ({ pag
   await page.getByLabel('Tên cây gia phả').fill('Họ Nguyễn');
   await page.getByRole('button', { name: 'Tạo cây gia phả' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeVisible();
+  await expect(page.getByText('Chưa có ai trong cây gia phả này.')).toBeVisible();
+  await page.getByRole('link', { name: 'Thành viên' }).click();
 
   await page.getByLabel('Vai trò khi tham gia').selectOption({ label: 'Biên tập' });
   await page.getByRole('button', { name: 'Tạo link mời' }).click();
@@ -42,6 +30,7 @@ test('sign up, create a clan, invite a relative and see them join', async ({ pag
     await register(relativePage, 'Tuấn', 'tuan');
     await relativePage.getByRole('button', { name: 'Tham gia' }).click();
     await expect(relativePage.getByRole('heading', { level: 1, name: 'Họ Nguyễn' })).toBeVisible();
+    await expect(relativePage).toHaveURL(/\/clans\/[^/]+\/tree$/);
   } finally {
     await relative.close();
   }
@@ -66,7 +55,12 @@ test('a silent refresh keeps the user signed in, and sign-out then sign-in works
   await expect(page.getByText('Hà', { exact: true })).toBeVisible();
   expect((await context.cookies()).some((cookie) => cookie.name === 'at')).toBe(true);
 
+  // Wait for the server to clear the cookies; navigating straight away races the logout request.
+  const loggedOut = page.waitForResponse(
+    (response) => response.url().endsWith('/api/auth/logout') && response.ok(),
+  );
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await loggedOut;
   await page.goto('/clans');
   await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập' })).toBeVisible();
 

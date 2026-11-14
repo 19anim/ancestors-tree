@@ -1,4 +1,5 @@
 import { ERROR_CODE_LIST } from '@ancestors-tree/shared';
+import { OP_ERROR_CODE_LIST } from '@ancestors-tree/shared/tree';
 import { describe, expect, it } from 'vitest';
 import { CLIENT_ONLY_ERROR_CODES } from '../shared/lib/apiError';
 import en from './en.json';
@@ -15,6 +16,13 @@ function flatten(value: unknown, prefix = ''): Record<string, unknown> {
 describe('locales', () => {
   const viFlat = flatten(vi);
   const enFlat = flatten(en);
+
+  it('translate every rule-violation reason', () => {
+    for (const reason of OP_ERROR_CODE_LIST) {
+      expect(vi.tree.rules, reason).toHaveProperty(reason);
+      expect(en.tree.rules, reason).toHaveProperty(reason);
+    }
+  });
 
   it('define exactly the same keys in vi and en', () => {
     expect(Object.keys(enFlat).sort()).toEqual(Object.keys(viFlat).sort());
