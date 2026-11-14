@@ -164,7 +164,11 @@
     "menu": {
       "signIn": "Đăng nhập",
       "signOut": "Đăng xuất",
-      "signedInAs": "Đang đăng nhập với tên {{name}}"
+      "signedInAs": "Đang đăng nhập với tên {{name}}",
+      "signOutTitle": "Đăng xuất?",
+      "signOutBody": "Còn {{count}} thay đổi chưa lưu. Đăng xuất thì các thay đổi này sẽ bị bỏ.",
+      "signOutStay": "Ở lại",
+      "signOutAnyway": "Vẫn đăng xuất"
     }
   },
   "clans": {
@@ -307,11 +311,11 @@
       "confirm": "Xoá",
       "cancel": "Huỷ"
     },
-    "leave": {
-      "title": "Rời trang này?",
-      "body": "Còn thay đổi chưa lưu. Rời trang thì các thay đổi này sẽ bị bỏ.",
+    "switchTree": {
+      "title": "Mở cây gia phả khác?",
+      "body": "Còn {{count}} thay đổi chưa lưu ở cây gia phả này. Mở cây khác thì các thay đổi này sẽ bị bỏ.",
       "stay": "Ở lại",
-      "leave": "Vẫn rời"
+      "discard": "Bỏ thay đổi và mở"
     }
   }
 }

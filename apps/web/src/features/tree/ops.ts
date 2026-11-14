@@ -30,7 +30,7 @@ export function buildPerson(input: NewPersonInput, extra: Partial<Person> = {}):
   };
 }
 
-export function addFirstPersonOp(input: NewPersonInput): Op {
+export function addFirstPersonOp(input: NewPersonInput): Extract<Op, { type: 'addPerson' }> {
   return { type: 'addPerson', payload: buildPerson(input) };
 }
 

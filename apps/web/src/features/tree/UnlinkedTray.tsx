@@ -50,6 +50,7 @@ export function UnlinkedTray() {
                   size="icon"
                   className="size-8 rounded-full"
                   aria-label={t('tree.card.actions', { name: person.fullName })}
+                  data-person-actions={person.id}
                   onClick={() => openActions(person.id)}
                 >
                   <Ellipsis aria-hidden="true" className="size-4" strokeWidth={1.75} />

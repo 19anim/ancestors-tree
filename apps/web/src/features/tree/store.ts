@@ -52,8 +52,9 @@ export interface TreeStoreState {
   dismissNotice: () => void;
 }
 
-/** For the leave-page guard: a primitive, so it is a stable selector. */
+/** For the unsent-changes guard: primitives, so they are stable selectors. */
 export const selectHasUnsentChanges = (state: TreeStoreState): boolean => state.pending.length > 0;
+export const selectUnsentCount = (state: TreeStoreState): number => state.pending.length;
 
 type TreeData = Omit<TreeStoreState, 'load' | 'apply' | 'dismissNotice'>;
 
@@ -180,8 +181,9 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       } else if (isRetryable(error)) {
         scheduleRetry(mine);
       } else if (isRefusal(error)) {
-        // The tree is gone or no longer ours (404, 403). The pending ops stay in the store, so
-        // the leave guard still sees them and the next load() reports them as discarded.
+        // The tree is gone or no longer ours (404, 403). The pending ops stay in the store: the
+        // app-level UnsentChangesGuard (dialog and beforeunload) still counts them, and the next
+        // load() reports them as discarded.
         needsReload = false;
         attempt = 0;
         set({ status: 'error', loadError: error, retrying: false });
@@ -272,8 +274,9 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         }
       }
 
-      // A new session. Unsent ops of the previous one are dropped: say how many (the page's
-      // leave guard should have asked first).
+      // A new session. Unsent ops of the previous one are dropped: say how many (UnsentChangesGuard
+      // asks before another tree opens and empties the queue itself when the user agrees, so
+      // this notice only shows when something else got here).
       const discarded = current.pending.length;
       session += 1;
       const mine = session;
@@ -327,7 +330,11 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
   };
 });
 
-/** Tests: forget everything, including the module-level send state. */
+/**
+ * Forgets everything, including the module-level send state: answers still on their way are
+ * ignored and nothing more is sent. For sign-out, a change of account, the user discarding
+ * unsent changes, and tests.
+ */
 export function resetTreeStore(): void {
   session += 1;
   sending = false;
@@ -335,4 +342,9 @@ export function resetTreeStore(): void {
   loading = undefined;
   clearRetry();
   useTreeStore.setState(INITIAL);
+}
+
+/** How many changes are not saved yet, for the app shell (sign-out asks first when any). */
+export function useUnsentChangeCount(): number {
+  return useTreeStore(selectUnsentCount);
 }

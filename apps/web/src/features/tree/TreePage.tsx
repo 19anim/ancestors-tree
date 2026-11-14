@@ -1,16 +1,15 @@
 import { hasRoleAtLeast, type Clan } from '@ancestors-tree/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOutletContext } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
 import { EmptyTree } from './EmptyTree';
-import { LeaveGuard } from './LeaveGuard';
 import { SaveStatus } from './SaveStatus';
 import { useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
-import { TreeDialogs, type TreeDialog } from './TreeDialogs';
+import { TreeDialogs, useTreeDialog } from './TreeDialogs';
 import { TreeNoticeBanner } from './TreeNoticeBanner';
 import { TreeSkeleton } from './TreeSkeleton';
 import { UnlinkedTray } from './UnlinkedTray';
@@ -23,11 +22,11 @@ export function TreePage() {
   const status = useTreeStore((state) => state.status);
   const loadError = useTreeStore((state) => state.loadError);
   const isEmpty = useTreeStore((state) => Object.keys(state.tree.persons).length === 0);
-  const [dialog, setDialog] = useState<TreeDialog>(null);
+  const { dialog, changeDialog, firstPersonAdded, returnFocus } = useTreeDialog();
   // Stable, so the cards (context consumers) do not re-render when the page does.
   const openActions = useCallback(
-    (personId: string) => setDialog({ kind: 'actions', personId }),
-    [],
+    (personId: string) => changeDialog({ kind: 'actions', personId }),
+    [changeDialog],
   );
   const canEdit = hasRoleAtLeast(clan.role, 'editor');
 
@@ -57,7 +56,7 @@ export function TreePage() {
         <SaveStatus />
         <TreeNoticeBanner />
         {isEmpty ? (
-          <EmptyTree onAddFirst={canEdit ? () => setDialog({ kind: 'first' }) : undefined} />
+          <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
         ) : (
           <>
             <TreeBoard label={t('tree.board.label', { name: clan.name })} />
@@ -66,9 +65,14 @@ export function TreePage() {
         )}
       </div>
       {canEdit ? (
-        <TreeDialogs dialog={dialog} isOwner={clan.role === 'owner'} onDialogChange={setDialog} />
+        <TreeDialogs
+          dialog={dialog}
+          isOwner={clan.role === 'owner'}
+          onDialogChange={changeDialog}
+          onFirstPersonAdded={firstPersonAdded}
+          onCloseAutoFocus={returnFocus}
+        />
       ) : null}
-      <LeaveGuard />
     </TreeActionsContext>
   );
 }

@@ -29,6 +29,7 @@ interface PersonFormDialogProps {
   unionChoices?: UnionChoice[];
   onSubmit: (input: NewPersonInput, unionId: string | undefined) => ApplyResult;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** The P5 person form: full name, gender, living or deceased (dates arrive in P6). */
@@ -37,6 +38,7 @@ export function PersonFormDialog({
   unionChoices = [],
   onSubmit,
   onClose,
+  onCloseAutoFocus,
 }: PersonFormDialogProps) {
   const { t } = useTranslation();
   const unionFieldId = useId();
@@ -64,7 +66,7 @@ export function PersonFormDialog({
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent title={title}>
+      <DialogContent title={title} onCloseAutoFocus={onCloseAutoFocus}>
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
           <TextField
             label={t('tree.form.fullName')}

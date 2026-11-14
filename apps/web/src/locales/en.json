@@ -164,7 +164,11 @@
     "menu": {
       "signIn": "Sign in",
       "signOut": "Sign out",
-      "signedInAs": "Signed in as {{name}}"
+      "signedInAs": "Signed in as {{name}}",
+      "signOutTitle": "Sign out?",
+      "signOutBody": "Unsaved changes: {{count}}. If you sign out, they will be discarded.",
+      "signOutStay": "Stay",
+      "signOutAnyway": "Sign out anyway"
     }
   },
   "clans": {
@@ -307,11 +311,11 @@
       "confirm": "Delete",
       "cancel": "Cancel"
     },
-    "leave": {
-      "title": "Leave this page?",
-      "body": "Some changes are not saved yet. If you leave, they will be discarded.",
+    "switchTree": {
+      "title": "Open another family tree?",
+      "body": "Unsaved changes in this family tree: {{count}}. If you open another tree, they will be discarded.",
       "stay": "Stay",
-      "leave": "Leave anyway"
+      "discard": "Discard changes and open"
     }
   }
 }

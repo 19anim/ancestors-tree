@@ -9,10 +9,16 @@ interface DeletePersonDialogProps {
   person: Person;
   onConfirm: () => ApplyResult;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** Confirms a delete; when a rule forbids it (spec §6.1), says which and stays open. */
-export function DeletePersonDialog({ person, onConfirm, onClose }: DeletePersonDialogProps) {
+export function DeletePersonDialog({
+  person,
+  onConfirm,
+  onClose,
+  onCloseAutoFocus,
+}: DeletePersonDialogProps) {
   const { t } = useTranslation();
   const [reason, setReason] = useState<ApplyFailure | null>(null);
   const confirm = () => {
@@ -25,6 +31,7 @@ export function DeletePersonDialog({ person, onConfirm, onClose }: DeletePersonD
       <DialogContent
         title={t('tree.delete.title', { name: person.fullName })}
         description={t('tree.delete.body', { name: person.fullName })}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         {reason ? (
           <p role="alert" className="mb-4 font-medium text-stamp">

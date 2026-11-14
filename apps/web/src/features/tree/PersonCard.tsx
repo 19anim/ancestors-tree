@@ -38,6 +38,8 @@ export function PersonCard({ person, tape, generation }: PersonCardProps) {
           // nodrag/nopan: React Flow leaves clicks on this button alone.
           className="nodrag nopan absolute -top-3 -right-3 size-8 rounded-full"
           aria-label={t('tree.card.actions', { name: person.fullName })}
+          // Where focus returns when a dialog opened from elsewhere closes (TreeDialogs).
+          data-person-actions={person.id}
           onClick={() => openActions(person.id)}
         >
           <Ellipsis aria-hidden="true" className="size-4" strokeWidth={1.75} />
