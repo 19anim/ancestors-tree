@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet } from 'react-router';
 import { UserMenu, useCurrentUser } from '../features/auth';
 import { ServerStatus } from '../features/system';
-import { resetTreeStore, UnsentChangesGuard, useUnsentChangeCount } from '../features/tree';
+import {
+  discardTreeStateForAccountChange,
+  resetTreeStore,
+  TreeNoticeBanner,
+  UnsentChangesGuard,
+  useUnsentChangeCount,
+} from '../features/tree';
 import { useDocumentLanguage } from '../shared/i18n/useDocumentLanguage';
 import { cn } from '../shared/lib/cn';
 import { ThemeToggle } from '../shared/ui';
@@ -17,8 +23,9 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
 
 /**
  * Unsent tree changes belong to the account that made them. When another account signs in (over
- * the previous one, or after a sign-out), they are dropped so they are never sent under it. The
- * same account signing in again after its session ended keeps them: they are sent then.
+ * the previous one, or after a sign-out), they are dropped so they are never sent under it, and a
+ * notice says how many. The same account signing in again after its session ended keeps them:
+ * they are sent then.
  */
 function useResetTreeOnAccountChange(userId: string | undefined): void {
   const lastUserId = useRef<string | undefined>(undefined);
@@ -26,7 +33,9 @@ function useResetTreeOnAccountChange(userId: string | undefined): void {
   // before a page (such as the tree page loading its tree) can resume sending.
   useLayoutEffect(() => {
     if (userId === undefined) return;
-    if (lastUserId.current !== undefined && lastUserId.current !== userId) resetTreeStore();
+    if (lastUserId.current !== undefined && lastUserId.current !== userId) {
+      discardTreeStateForAccountChange();
+    }
     lastUserId.current = userId;
   }, [userId]);
 }
@@ -92,6 +101,7 @@ export function AppShell() {
         tabIndex={-1}
         className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 focus:outline-none"
       >
+        <TreeNoticeBanner />
         <Suspense fallback={<p className="text-ink-muted">{t('common.loading')}</p>}>
           <Outlet />
         </Suspense>

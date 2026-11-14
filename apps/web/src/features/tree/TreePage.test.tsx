@@ -64,7 +64,7 @@ describe('TreePage', () => {
     });
     renderRoute(`/clans/${CLAN_ID}/tree`);
     await screen.findByRole('button', { name: 'Thử lại' });
-    act(() => useTreeStore.setState({ notice: { kind: 'discarded', count: 2 } }));
+    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'discarded', count: 2 } }));
     expect(screen.getByText('2 thay đổi chưa lưu đã bị bỏ.')).toBeInTheDocument();
   });
 
@@ -72,11 +72,48 @@ describe('TreePage', () => {
     mockApi(treeRoutes(EMPTY_TREE_RESPONSE, VIEWER));
     renderRoute(`/clans/${CLAN_ID}/tree`);
     await screen.findByText('Chưa có ai trong cây gia phả này.');
-    act(() => useTreeStore.setState({ notice: { kind: 'signedOut' } }));
+    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'signedOut' } }));
     const link = screen.getByRole('link', { name: 'Đăng nhập lại' });
     expect(new URLSearchParams(link.getAttribute('href')?.split('?')[1]).get('returnTo')).toBe(
       `/clans/${CLAN_ID}/tree`,
     );
+  });
+
+  it('shows a notice on other pages too, because the changes may have been lost there', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET /clans/${CLAN_ID}/members`]: () => ({ body: [] }),
+    });
+    useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
+    renderRoute(`/clans/${CLAN_ID}/members`);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Đã tải lại bản mới nhất');
+  });
+
+  it('shows a notice once on the tree page', async () => {
+    mockApi(treeRoutes(EMPTY_TREE_RESPONSE, VIEWER));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Chưa có ai trong cây gia phả này.');
+    act(() => useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } }));
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('loads the tree again when the store is reset while the page stays open', async () => {
+    let loads = 0;
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE, VIEWER),
+      [`GET /clans/${CLAN_ID}/tree`]: () => {
+        loads += 1;
+        return { body: EMPTY_TREE_RESPONSE };
+      },
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Chưa có ai trong cây gia phả này.');
+    expect(loads).toBe(1);
+
+    act(() => resetTreeStore());
+    expect(await screen.findByText('Chưa có ai trong cây gia phả này.')).toBeInTheDocument();
+    expect(loads).toBe(2);
+    expect(useTreeStore.getState()).toMatchObject({ clanId: CLAN_ID, status: 'ready' });
   });
 
   it('explains every notice and lets the user dismiss it', async () => {
@@ -85,12 +122,14 @@ describe('TreePage', () => {
     renderRoute(`/clans/${CLAN_ID}/tree`);
     await screen.findByText('Chưa có ai trong cây gia phả này.');
 
-    act(() => useTreeStore.setState({ notice: { kind: 'reloaded' } }));
+    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'reloaded' } }));
     expect(screen.getByRole('alert')).toHaveTextContent('Đã tải lại bản mới nhất');
     act(() =>
       useTreeStore.setState({
         notice: {
+          clanId: CLAN_ID,
           kind: 'rejected',
+          dropped: 0,
           error: new ApiError('RULE_VIOLATION', 'No', 422, undefined, 'CYCLE'),
         },
       }),
@@ -98,9 +137,9 @@ describe('TreePage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Thay đổi này sẽ khiến một người thành tổ tiên của chính mình.',
     );
-    act(() => useTreeStore.setState({ notice: { kind: 'signedOut' } }));
+    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'signedOut' } }));
     expect(screen.getByRole('alert')).toHaveTextContent('Phiên đăng nhập đã hết hạn.');
-    act(() => useTreeStore.setState({ notice: { kind: 'discarded', count: 3 } }));
+    act(() => useTreeStore.setState({ notice: { clanId: CLAN_ID, kind: 'discarded', count: 3 } }));
     expect(screen.getByRole('alert')).toHaveTextContent('3 thay đổi chưa lưu đã bị bỏ.');
     await user.click(screen.getByRole('button', { name: 'Đã hiểu' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

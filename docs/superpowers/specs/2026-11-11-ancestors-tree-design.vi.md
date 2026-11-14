@@ -348,7 +348,7 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 | `batch` | `{ ops: Operation[] }` (dùng cho AI nhập liệu) | `batch` gồm các inverse theo thứ tự ngược |
 | `restorePerson` / `restoreUnion` | snapshot đầy đủ | `deletePerson` / `deleteUnion` — chỉ sinh ra khi undo, giao diện không gửi trực tiếp |
 
-`_id` của Person/Union do client tạo. ObjectId sai định dạng bị chặn khi kiểm tra request (`VALIDATION_ERROR`, 400); id đã được dùng, ở bất kỳ dòng họ nào, trả `RULE_VIOLATION` với reason `DUPLICATE_ID`.
+`_id` của Person/Union do client tạo. ObjectId sai định dạng bị chặn khi kiểm tra request (`VALIDATION_ERROR`, 400); id đã được một người (hoặc một Union) khác dùng, ở bất kỳ dòng họ nào, trả `RULE_VIOLATION` với reason `DUPLICATE_ID`.
 
 **Giới hạn:** một `batch` có 1–500 thao tác và không chứa `batch` khác; một dòng họ có tối đa 5.000 người (`TREE_FULL`); `GET /api/clans/:id/ops?since=` trả tối đa 500 thao tác mỗi lần gọi.
 
@@ -399,7 +399,7 @@ pending.shift(); version = 43
 
 Thử lại tối đa 3 lần; quá số đó thì tải lại toàn bộ cây và báo người dùng.
 
-**Hành vi ở P5 (cho tới khi rebase xong ở P6).** Khi gặp 409, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng. Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác chỉ bỏ thao tác bị từ chối, báo lý do và chạy lại phần còn lại.
+**Hành vi ở P5 (cho tới khi rebase xong ở P6).** Khi gặp 409, hoặc khi một câu trả lời thành công không đọc được, client tải lại toàn bộ cây, bỏ các thao tác đang chờ và báo người dùng. Nếu tải lại thất bại thì thử lại với cùng thời gian chờ tăng dần như khi gửi, không lặp liên tục. Lỗi 401 dừng hàng đợi và giữ nguyên mọi thao tác đang chờ cho tới khi người dùng đăng nhập lại; khi đó việc gửi tiếp tục. Mọi lỗi 4xx khác bỏ thao tác bị từ chối cùng các thao tác phụ thuộc vào nó, báo lý do và số lượng đã bỏ, rồi chạy lại phần còn lại.
 
 ### 6.4 Undo / redo / hoàn tác thay đổi cũ
 
@@ -465,7 +465,7 @@ Mỗi feature chỉ công khai qua file `index.ts` của nó. Feature này khôn
 
 Component đọc store qua **selector** (`useTreeStore(s => s.persons[id])`) để chỉ vẽ lại khi đúng phần đó đổi.
 
-**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác, trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
+**Thay đổi chưa gửi không bao giờ mất âm thầm.** Store vẫn gửi ngầm ở mọi trang. Một "người gác" cấp app sẽ hỏi trước khi mở trang của cây khác, trước khi đóng hoặc tải lại tab (hộp thoại của chính trình duyệt) và trước khi đăng xuất; nó không bao giờ hỏi ở trang Thành viên, Cài đặt, danh sách cây gia phả hay trang đăng nhập. Mở cây khác khi còn thao tác đang chờ sẽ làm mất chúng (store khi đó báo số lượng); đổi tài khoản thì store được đặt lại và báo người dùng đã bỏ bao nhiêu thay đổi. Các thông báo (tải lại, thay đổi bị từ chối, hết phiên, thay đổi bị bỏ) hiện ở mọi trang cho tới khi người dùng đóng, vì thay đổi có thể đã mất trong lúc đang ở trang khác. Sau khi hết phiên, đăng nhập bằng Google sẽ rời khỏi trang và bỏ các thay đổi đang giữ, nên trang đăng nhập cảnh báo và gợi ý dùng email và mật khẩu. `apply()` trả `{ ok: false, reason }` thay vì ném lỗi, với `reason` là một mã `OpError` hoặc `NOT_LOADED`. Trang cây được tải lười, nên React Flow không nằm trong bundle chính.
 
 **Xoá cây gia phả** (chỉ Quản lý, `DELETE /api/clans/:id`, 204) xoá dòng họ cùng mọi người, union, thao tác, lời mời, bản ghi bị gỡ và tư cách thành viên. Quản lý phải gõ tên cây để xác nhận; việc so khớp chuẩn hoá Unicode NFC.
 

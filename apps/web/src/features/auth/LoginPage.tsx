@@ -1,6 +1,7 @@
 import { LoginRequestSchema } from '@ancestors-tree/shared';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useUnsentChangeCount } from '../tree';
 import { setServerError, useZodForm } from '../../shared/lib/formErrors';
 import { Button, TextField } from '../../shared/ui';
 import { useAuthProviders, useLogin } from './api';
@@ -16,6 +17,7 @@ export function LoginPage() {
   const rawReturnTo = searchParams.get('returnTo');
   const providers = useAuthProviders();
   const login = useLogin();
+  const unsentChanges = useUnsentChangeCount();
   const form = useZodForm(LoginRequestSchema);
   const { errors } = form.formState;
   const registerLink = rawReturnTo ? `/register?${new URLSearchParams({ returnTo })}` : '/register';
@@ -39,6 +41,11 @@ export function LoginPage() {
       {providers.data?.google ? (
         <>
           <GoogleButton returnTo={returnTo} />
+          {unsentChanges > 0 ? (
+            <p role="alert" className="text-sm font-medium text-stamp">
+              {t('auth.login.googleDropsChanges', { count: unsentChanges })}
+            </p>
+          ) : null}
           <p className="text-center text-sm text-ink-muted">{t('auth.or')}</p>
         </>
       ) : null}

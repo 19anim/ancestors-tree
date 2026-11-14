@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
 import { Button, buttonVariants } from '../../shared/ui';
 import { rejectionMessage } from './format';
 import { useTreeStore, type TreeNotice } from './store';
@@ -10,7 +10,9 @@ function noticeText(t: TFunction, notice: TreeNotice): string {
     case 'reloaded':
       return t('tree.notice.reloaded');
     case 'rejected':
-      return t('tree.notice.rejected', { reason: rejectionMessage(t, notice.error) });
+      return notice.dropped > 0
+        ? `${t('tree.notice.rejected', { reason: rejectionMessage(t, notice.error) })} ${t('tree.notice.rejectedDependents', { count: notice.dropped })}`
+        : t('tree.notice.rejected', { reason: rejectionMessage(t, notice.error) });
     case 'signedOut':
       return t('tree.notice.signedOut');
     case 'discarded':
@@ -23,23 +25,25 @@ function noticeText(t: TFunction, notice: TreeNotice): string {
   }
 }
 
-/** After a reload, a refused change, a lost session or dropped changes, says what happened. */
+/**
+ * After a reload, a refused change, a lost session or dropped changes, says what happened. Shown
+ * app-wide (by the app shell): the changes may have been lost while another page was open.
+ */
 export function TreeNoticeBanner() {
   const { t } = useTranslation();
   const notice = useTreeStore((state) => state.notice);
   const dismiss = useTreeStore((state) => state.dismissNotice);
-  const location = useLocation();
   if (!notice) return null;
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
+      className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
     >
       <p className="font-medium text-stamp">{noticeText(t, notice)}</p>
       <div className="flex items-center gap-2">
         {notice.kind === 'signedOut' ? (
           <Link
-            to={`/login?${new URLSearchParams({ returnTo: location.pathname + location.search })}`}
+            to={`/login?${new URLSearchParams({ returnTo: `/clans/${notice.clanId}/tree` })}`}
             className={buttonVariants({ variant: 'secondary', size: 'sm' })}
           >
             {t('tree.notice.signIn')}

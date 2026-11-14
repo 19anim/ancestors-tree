@@ -29,11 +29,11 @@ export function UserMenu({ unsentChanges = 0, onSignedOut }: UserMenuProps) {
 
   const signOut = () => {
     setAsking(false);
+    // Before the request: the dialog says unsent changes are discarded, so stop sending them now
+    // (they would otherwise keep going out, and may hit 401, while the logout request runs).
+    onSignedOut?.();
     logout.mutate(undefined, {
-      onSettled: () => {
-        onSignedOut?.();
-        void navigate('/');
-      },
+      onSettled: () => void navigate('/'),
     });
   };
 

@@ -160,7 +160,7 @@ describe('when the server says no', () => {
     await store().load(CLAN_ID);
     store().apply(addPerson(NEW_ID));
 
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded' }));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
     expect(loads).toBe(2);
     expect(store().confirmedVersion).toBe(7);
     expect(store().pending).toEqual([]);
@@ -242,7 +242,7 @@ describe('a saved op whose answer cannot be read', () => {
     await store().load(CLAN_ID);
     store().apply(bio('Con trưởng'));
 
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded' }));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
     expect(loads).toBe(2);
     expect(store().confirmedVersion).toBe(4);
     expect(store().pending).toEqual([]);
@@ -255,7 +255,7 @@ describe('a saved op whose answer cannot be read', () => {
     vi.mocked(fetch).mockImplementationOnce(async () => null as unknown as Response);
     store().apply(bio('Con trưởng'));
 
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded' }));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
     expect(api.calls.filter((call) => call.method === 'GET')).toHaveLength(2);
     expect(store().pending).toEqual([]);
   });
@@ -358,11 +358,11 @@ describe('when the reload after a conflict fails', () => {
     const posts = () => api.calls.filter((call) => call.method === 'POST').length;
     expect(posts()).toBe(1);
     expect(loads).toBe(2);
-    // The unsent ops are kept and the tree stays usable while the reload waits.
+    // The unsent ops are kept; a new edit is refused, because the reload would drop it.
     expect(store().status).toBe('ready');
     expect(store().pending).toHaveLength(1);
-    expect(store().apply(bio('Con thứ'))).toEqual({ ok: true });
-    expect(store().pending).toHaveLength(2);
+    expect(store().apply(bio('Con thứ'))).toEqual({ ok: false, reason: 'NOT_LOADED' });
+    expect(store().pending).toHaveLength(1);
 
     await vi.advanceTimersByTimeAsync(999);
     expect(loads).toBe(2);
@@ -381,11 +381,11 @@ describe('when the reload after a conflict fails', () => {
     // Seven fake seconds in: one POST and five GETs, nothing more.
     expect(posts()).toBe(1);
     expect(api.calls).toHaveLength(6);
-    expect(store().pending).toHaveLength(2);
+    expect(store().pending).toHaveLength(1);
 
     treeUp = true;
     await vi.advanceTimersByTimeAsync(8000);
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded' }));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
     expect(store().confirmedVersion).toBe(9);
     expect(store().pending).toEqual([]);
     expect(store().retrying).toBe(false);
@@ -411,7 +411,7 @@ describe('when the reload after a conflict fails', () => {
     expect(selectHasUnsentChanges(store())).toBe(true);
   });
 
-  it('drops an edit made while the reload is on its way, and says so', async () => {
+  it('refuses an edit while the reload is on its way, so none is dropped unseen', async () => {
     const held = gate();
     let loads = 0;
     const api = mockApi({
@@ -427,13 +427,79 @@ describe('when the reload after a conflict fails', () => {
     store().apply(bio('Con trưởng'));
     await vi.waitFor(() => expect(loads).toBe(2));
 
-    expect(store().apply(addPerson(NEW_ID))).toEqual({ ok: true });
+    expect(store().apply(addPerson(NEW_ID))).toEqual({ ok: false, reason: 'NOT_LOADED' });
+    expect(store().tree.persons[NEW_ID]).toBeUndefined();
     held.open();
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded' }));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
     expect(store().tree.persons[NEW_ID]).toBeUndefined();
     expect(store().pending).toEqual([]);
     expect(store().confirmedVersion).toBe(5);
     expect(api.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  });
+});
+
+describe('a notice nobody has seen yet', () => {
+  it('survives opening another family tree', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => apiErrorReply('VERSION_CONFLICT', 409),
+      [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID }));
+
+    await store().load(OTHER_CLAN);
+    expect(store().clanId).toBe(OTHER_CLAN);
+    expect(store().notice).toEqual({ kind: 'reloaded', clanId: CLAN_ID });
+    store().dismissNotice();
+    expect(store().notice).toBeNull();
+  });
+
+  it('survives opening another family tree after a refused op', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => apiErrorReply('FORBIDDEN', 403),
+      [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
+    });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    await vi.waitFor(() => expect(store().notice?.kind).toBe('rejected'));
+    await store().load(OTHER_CLAN);
+    expect(store().notice).toMatchObject({ kind: 'rejected', clanId: CLAN_ID });
+  });
+
+  it('is replaced by a discarded notice, which the guard asked about first', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => ({ status: 503, body: {} }),
+      [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
+    });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await store().load(CLAN_ID);
+    useTreeStore.setState({ notice: { kind: 'reloaded', clanId: CLAN_ID } });
+    store().apply(bio('Con trưởng'));
+    await store().load(OTHER_CLAN);
+    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
+  });
+});
+
+describe('a refused op with ops that depend on it', () => {
+  it('says how many dependent ops were dropped with it', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: () => apiErrorReply('FORBIDDEN', 403),
+    });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(NEW_ID));
+    store().apply({
+      type: 'addUnion',
+      payload: { id: OTHER_ID, partnerIds: [SON, NEW_ID], order: 1, status: 'married' },
+    });
+    expect(store().pending).toHaveLength(2);
+
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(store().notice).toMatchObject({ kind: 'rejected', clanId: CLAN_ID, dropped: 1 });
   });
 });
 
@@ -452,7 +518,7 @@ describe('when the session has expired', () => {
     store().apply(bio('Con trưởng'));
     store().apply(addPerson(NEW_ID));
 
-    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'signedOut' }));
+    await vi.waitFor(() => expect(store().notice).toEqual({ kind: 'signedOut', clanId: CLAN_ID }));
     expect(store().signedOut).toBe(true);
     expect(store().pending).toHaveLength(2);
     expect(store().tree.persons[NEW_ID]).toBeDefined();
@@ -576,7 +642,7 @@ describe('opening the tree again', () => {
     await vi.waitFor(() => expect(posted).toBe(1));
 
     await store().load(OTHER_CLAN);
-    expect(store().notice).toEqual({ kind: 'discarded', count: 2 });
+    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 2 });
     expect(store().clanId).toBe(OTHER_CLAN);
 
     // The answer for the old family tree arrives late: it must change nothing.
@@ -604,7 +670,7 @@ describe('opening the tree again', () => {
 
     await store().load(CLAN_ID);
     expect(store().status).toBe('ready');
-    expect(store().notice).toEqual({ kind: 'discarded', count: 1 });
+    expect(store().notice).toEqual({ kind: 'discarded', clanId: CLAN_ID, count: 1 });
     expect(store().pending).toEqual([]);
   });
 });

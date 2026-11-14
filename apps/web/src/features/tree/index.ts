@@ -1,6 +1,12 @@
 import { lazy } from 'react';
 
-export { discardTreeStateFor, resetTreeStore, useUnsentChangeCount } from './store';
+export {
+  discardTreeStateFor,
+  discardTreeStateForAccountChange,
+  resetTreeStore,
+  useUnsentChangeCount,
+} from './store';
+export { TreeNoticeBanner } from './TreeNoticeBanner';
 export { TreeSkeleton } from './TreeSkeleton';
 export { UnsentChangesGuard } from './UnsentChangesGuard';
 

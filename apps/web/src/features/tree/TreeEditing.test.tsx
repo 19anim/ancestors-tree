@@ -410,7 +410,7 @@ describe('unsent changes', () => {
     await openOtherTree(user);
     const ask = screen.getByRole('dialog', { name: ASK });
     expect(ask).toHaveTextContent(
-      'Còn 1 thay đổi chưa lưu ở cây gia phả này. Mở cây khác thì các thay đổi này sẽ bị bỏ.',
+      'Còn 1 thay đổi chưa lưu ở cây gia phả bạn vừa sửa. Mở cây khác thì các thay đổi này sẽ bị bỏ.',
     );
     await user.click(within(ask).getByRole('button', { name: 'Ở lại' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -558,8 +558,30 @@ describe('unsent changes', () => {
     );
     expect(await screen.findByRole('link', { name: 'Đăng nhập' })).toBeInTheDocument();
     expect(loggedOut()).toBe(true);
-    expect(useTreeStore.getState()).toMatchObject({ clanId: null, status: 'idle', pending: [] });
+    // The tree page, still open for a moment, may load its tree again; the changes are gone.
+    expect(pendingCount()).toBe(0);
     expect(beforeUnloadPrevented()).toBe(false);
+  });
+
+  it('empties the queue before the logout request is sent', async () => {
+    const user = userEvent.setup();
+    let pendingAtLogout: number | undefined;
+    unsentApp(undefined, {
+      'POST /auth/logout': () => {
+        pendingAtLogout = pendingCount();
+        return { status: 204 };
+      },
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await addFirstPerson(user);
+    await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Đăng xuất?' })).getByRole('button', {
+        name: 'Vẫn đăng xuất',
+      }),
+    );
+    await screen.findByRole('link', { name: 'Đăng nhập' });
+    expect(pendingAtLogout).toBe(0);
   });
 
   it('empties the queue when another account signs in, but not for the same account', async () => {
@@ -579,6 +601,8 @@ describe('unsent changes', () => {
     act(() => queryClient.setQueryData(['me'], OTHER_USER));
     expect(await screen.findByText(OTHER_USER.name)).toBeInTheDocument();
     expect(useTreeStore.getState()).toMatchObject({ clanId: null, pending: [] });
+    // Nobody asked the user: the notice, on whatever page is open, says how many were dropped.
+    expect(screen.getByRole('alert')).toHaveTextContent('1 thay đổi chưa lưu đã bị bỏ.');
     expect(beforeUnloadPrevented()).toBe(false);
   });
 

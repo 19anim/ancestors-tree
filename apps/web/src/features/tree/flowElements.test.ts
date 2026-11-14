@@ -32,6 +32,7 @@ describe('toFlowElements', () => {
       width: 48,
       height: 138,
       data: { couple: true },
+      domAttributes: { 'aria-hidden': true },
     });
     expect(nodes[3]).toMatchObject({
       type: 'person',
@@ -47,6 +48,7 @@ describe('toFlowElements', () => {
         source: unionNodeId(U),
         target: C,
         data: { from: { x: 124, y: 69 }, dropTo: 146, to: { x: 124, y: 218 } },
+        domAttributes: { 'aria-hidden': true },
       },
     ]);
   });

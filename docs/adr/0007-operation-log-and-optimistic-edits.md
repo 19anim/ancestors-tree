@@ -19,16 +19,22 @@ A family tree is edited by several relatives, often on weak mobile connections. 
 
 - **Network failure, 429 or 5xx:** the queue is kept and the send is retried with backoff (1 s, 2 s, 4 s, … up to 30 s).
 - **409, or a 2xx answer that cannot be read (`INVALID_RESPONSE`):** the store reloads the whole tree, drops every pending op and shows a `reloaded` notice. The op may or may not have been saved, so the server's tree is the only truth. This is not a rejection, so nothing is rolled back one op at a time. If the reload itself fails (network, 429, 5xx, an unreadable answer), it is retried with the same backoff, never in a tight loop; the pending ops stay until a reload succeeds.
-- **Other 4xx:** the refused op is dropped, the user is told why (`rejected` notice) and the remaining ops are replayed on the confirmed tree.
+- **Other 4xx:** the refused op is dropped, the user is told why (`rejected` notice) and the remaining ops are replayed on the confirmed tree. Ops that no longer apply without it (for example an "add spouse" for a person whose `addPerson` was refused) are dropped too, and the notice says how many.
 - **401:** the queue stops and keeps every pending op; a `signedOut` notice is shown. Sending resumes on the next `apply()` or `load()` of the same tree, after the user signs in again.
 
-**Unsent edits are never lost silently.** The store keeps sending in the background while the user visits other pages, so most navigation loses nothing. The three ways to lose pending ops each ask first, through `UnsentChangesGuard`, which the app shell mounts once:
+**Unsent edits are never lost silently.** The store keeps sending in the background while the user visits other pages, so most navigation loses nothing. Pending ops can be lost in seven ways. Three ask first, through `UnsentChangesGuard` (mounted once by the app shell) and the user menu; the others tell the user, in a notice shown on every page until dismissed (`TreeNoticeBanner`, mounted by the app shell):
 
 - opening another tree's page asks in a dialog (`load` of a different tree would drop the queue; if it ever does, it shows a `discarded(count)` notice);
 - closing or reloading the tab triggers the browser's `beforeunload` prompt;
-- signing out asks before it goes ahead.
+- signing out asks before it goes ahead (and the store is reset before the logout request is sent);
+- a 409 reloads the tree and tells the user afterwards (`reloaded`);
+- a refused op and the ops that depended on it are dropped, and the notice says how many (`rejected`);
+- an account change resets the store and tells the user how many changes were dropped (`discarded(count)`);
+- signing in with Google after a session expiry is a full-page redirect that drops the in-memory queue, so the login page warns the user and suggests email and password (persisting the queue is planned for P6).
 
-The guard never asks for Members, Settings, the `/clans` list or `/login`. When the signed-in account changes, the app shell resets the store (`reset`), so one person's unsent edits are never sent as another's. Deleting a tree calls `discardTreeStateFor(id)`, which resets the store only when it holds that tree.
+A notice stays until the user dismisses it, even when another tree opens; it carries the `clanId` of the tree it belongs to, so its text never says "this tree".
+
+The guard never asks for Members, Settings, the `/clans` list or `/login`. When the signed-in account changes, the app shell resets the store (`resetTreeStore`), so one person's unsent edits are never sent as another's in this tab. Deleting a tree calls `discardTreeStateFor(id)`, which resets the store only when it holds that tree.
 
 **Deleting a family tree.** `DELETE /api/clans/:id` (Owner only, 204) removes the Clan and every clan-scoped collection: Person, Union, Operation, Invite, ClanRemoval and Membership. The dialog asks the Manager to type the tree's name; the comparison is Unicode NFC-normalised, so a name typed with composed or decomposed Vietnamese diacritics both match.
 

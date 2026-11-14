@@ -140,7 +140,8 @@
       "forgot": "Quên mật khẩu?",
       "noAccount": "Chưa có tài khoản?",
       "register": "Tạo tài khoản",
-      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu."
+      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu.",
+      "googleDropsChanges": "Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ {{count}} thay đổi chưa lưu. Hãy đăng nhập bằng email và mật khẩu để giữ chúng."
     },
     "register": {
       "title": "Tạo tài khoản",
@@ -292,8 +293,9 @@
     "notice": {
       "reloaded": "Đã tải lại bản mới nhất của cây gia phả từ máy chủ; thay đổi chưa lưu của bạn đã bị bỏ.",
       "rejected": "Không lưu được thay đổi: {{reason}}",
+      "rejectedDependents": "Đồng thời bỏ {{count}} thay đổi phụ thuộc vào nó.",
       "dismiss": "Đã hiểu",
-      "signedOut": "Phiên đăng nhập đã hết hạn. Đăng nhập lại để lưu các thay đổi.",
+      "signedOut": "Phiên đăng nhập đã hết hạn. Thay đổi chưa lưu vẫn được giữ nếu bạn đăng nhập lại bằng email và mật khẩu; đăng nhập bằng Google sẽ bỏ chúng.",
       "signIn": "Đăng nhập lại",
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
     },
@@ -323,7 +325,7 @@
     },
     "switchTree": {
       "title": "Mở cây gia phả khác?",
-      "body": "Còn {{count}} thay đổi chưa lưu ở cây gia phả này. Mở cây khác thì các thay đổi này sẽ bị bỏ.",
+      "body": "Còn {{count}} thay đổi chưa lưu ở cây gia phả bạn vừa sửa. Mở cây khác thì các thay đổi này sẽ bị bỏ.",
       "stay": "Ở lại",
       "discard": "Bỏ thay đổi và mở"
     }

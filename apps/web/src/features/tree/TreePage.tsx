@@ -10,7 +10,6 @@ import { useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 import { TreeBoard } from './TreeBoard';
 import { TreeDialogs, useTreeDialog } from './TreeDialogs';
-import { TreeNoticeBanner } from './TreeNoticeBanner';
 import { TreeSkeleton } from './TreeSkeleton';
 import { UnlinkedTray } from './UnlinkedTray';
 
@@ -30,14 +29,16 @@ export function TreePage() {
   );
   const canEdit = hasRoleAtLeast(clan.role, 'editor');
 
+  // Also when the store was reset while this page stayed open (another account signed in): the
+  // page would otherwise show the skeleton for good.
+  const needsLoad = loadedClanId !== clan.id && status === 'idle';
   useEffect(() => {
     void load(clan.id);
-  }, [clan.id, load]);
+  }, [clan.id, load, needsLoad]);
 
   if (loadedClanId === clan.id && status === 'error') {
     return (
       <div className="flex flex-col items-start gap-3">
-        <TreeNoticeBanner />
         <p role="alert" className="font-medium text-stamp">
           {t(errorMessageKey(loadError))}
         </p>
@@ -54,7 +55,6 @@ export function TreePage() {
     <TreeActionsContext value={canEdit ? openActions : null}>
       <div className="flex flex-col gap-4">
         <SaveStatus />
-        <TreeNoticeBanner />
         {isEmpty ? (
           <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
         ) : (

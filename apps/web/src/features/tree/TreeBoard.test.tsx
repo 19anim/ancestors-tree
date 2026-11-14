@@ -41,6 +41,20 @@ afterEach(() => {
 });
 
 describe('TreeBoard', () => {
+  it('keeps threads and union knots away from screen readers', async () => {
+    showTree(family);
+    const { container } = renderWithProviders(<TreeBoard label="Cây gia phả: Họ Nguyễn" />);
+    await screen.findByRole('figure', { name: /Nguyễn Văn Tư/ });
+    // React Flow names every edge "Edge from <id> to <id>" (role="img"); the threads carry
+    // aria-hidden (flowElements.test.ts), so none is exposed. jsdom measures no handles, so the
+    // edges themselves are not drawn here; the union knots are.
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Edge from/)).not.toBeInTheDocument();
+    const knots = container.querySelectorAll('.react-flow__node-union');
+    expect(knots.length).toBeGreaterThan(0);
+    for (const knot of knots) expect(knot).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('draws everyone linked to the progenitor with name, years, generation and tape', async () => {
     showTree(family);
     renderWithProviders(<TreeBoard label="Cây gia phả: Họ Nguyễn" />);

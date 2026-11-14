@@ -17,6 +17,13 @@ export interface FlowElements {
   edges: ThreadFlowEdge[];
 }
 
+/**
+ * React Flow gives every edge role="img" with the label "Edge from <id> to <id>" and every node
+ * aria-roledescription="node"; hiding the wrapper keeps ObjectIds away from screen readers. The
+ * relationships are in the cards' generation labels (spec §7.8).
+ */
+const HIDDEN_FROM_SCREEN_READERS = { 'aria-hidden': true } as const;
+
 export function unionNodeId(unionId: string): string {
   return `union-${unionId}`;
 }
@@ -67,6 +74,7 @@ export function toFlowElements(layout: TreeLayout, previous?: FlowElements): Flo
         width: union.width,
         height: union.height,
         data: { couple: union.couple },
+        domAttributes: HIDDEN_FROM_SCREEN_READERS,
       }),
     ),
     ...layout.persons.map((person) =>
@@ -88,6 +96,7 @@ export function toFlowElements(layout: TreeLayout, previous?: FlowElements): Flo
       source: unionNodeId(thread.unionId),
       target: thread.childId,
       data: { from: thread.from, dropTo: thread.dropTo, to: thread.to },
+      domAttributes: HIDDEN_FROM_SCREEN_READERS,
     };
     const old = oldEdges.get(edge.id);
     return old && sameEdge(old, edge) ? old : edge;
