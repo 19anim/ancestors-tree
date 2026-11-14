@@ -165,7 +165,8 @@ DateInfo {                       // dùng cho cả ngày sinh và ngày mất
   approxYear?: number,           // chỉ biết "khoảng năm 1920"
   source: 'solar' | 'lunar' | 'approx'   // người dùng thực sự đã nhập loại nào (giữ làm dữ liệu gốc)
 }
-// Khi một bên đủ ngày/tháng/năm, bên kia được tính ra.
+// Khi một bên đủ ngày/tháng/năm, bên kia được tính ra. Schema dùng chung từ chối bên tính ra
+// nếu nó không khớp với kết quả đổi lịch từ bên người dùng đã nhập (P6b).
 // Giao diện hiện kèm năm Can Chi: 1924 → "Giáp Tý".
 
 // ===== Tài khoản & quyền =====
@@ -540,9 +541,23 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 ### 7.6 Form & nhập liệu
 
 - React Hook Form + resolver Zod (schema từ `packages/shared`).
-- Bấm vào một người mở **panel bên phải** (bottom sheet trên điện thoại) để xem/sửa. Lưu thì tạo op `updatePerson` chỉ chứa các trường đã đổi.
-- `DualDateInput`: nút chuyển **Âm / Dương / Chỉ biết năm**. Nhập một bên thì hiện bên kia và năm Can Chi. Ô "tháng nhuận" hiện khi chọn Âm.
-- Menu chuột phải (và nút trên thẻ ở thiết bị cảm ứng): Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… · Nối với cây gia phả khác · Trang trí thẻ này… (§13.4) · Xoá.
+- **Panel hồ sơ** (P6b). Bấm vào một thẻ, hoặc nhấn Enter trên thẻ, sẽ mở **panel bên phải** (rộng khoảng 400 px, cây vẫn dùng được bên cạnh), hoặc **bottom sheet** trên màn hình nhỏ.
+  - Người đang mở nằm trong URL (`?person=<id>`), nên gửi link là mở đúng hồ sơ đó, nút Back trên điện thoại đóng panel, và tải lại trang thì panel vẫn mở. Esc hoặc nút đóng sẽ đóng panel và trả focus về thẻ.
+  - **Chế độ xem** (mọi người): tên và tên khác, giới tính, ngày sinh (cả hai lịch và năm Can Chi), ngày mất kèm ngày giỗ năm nay (§9.2), nơi an táng, thứ tự trong anh chị em, chi/nhánh, con nuôi, tiểu sử. Với dâu/rể, phần gia đình gốc (§8) nằm đầu tiên.
+  - **Thao tác** (người có quyền sửa), ngay trong panel: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Chọn làm thuỷ tổ (Quản lý) · Xoá. Trên thiết bị có chuột, bấm chuột phải vào thẻ mở menu với đúng các thao tác đó. Các nút này thay cho hộp thoại "Thao tác với X" của P5.
+  - **Chế độ sửa.** Người có quyền sửa bấm **Sửa** để mở form, có Lưu và Huỷ. Lưu gửi một op `updatePerson` chỉ chứa các trường đã đổi kể từ lúc mở form, nên là một bước hoàn tác và không ghi đè thay đổi của người khác ở trường khác. Trường không bắt buộc bị xoá trống được gửi là `null`. Đóng panel, mở người khác hoặc rời trang khi form còn thay đổi chưa lưu thì ứng dụng hỏi trước.
+  - Nếu người đó bị xoá trong lúc panel đang mở (do người khác, hoặc do một lần hoàn tác), panel đóng lại và báo cho người dùng biết.
+- `DualDateInput`: nút chuyển **Âm / Dương / Chỉ biết năm**, mỗi chế độ có ô ngày, tháng, năm.
+  - Nhập một bên thì hiện bên kia đã đổi và năm Can Chi ("= 25/11/1950 dương lịch · năm Canh Dần").
+  - Ở chế độ Âm, ô "tháng nhuận" chỉ đánh dấu được khi tháng nhuận của năm đó đúng là tháng đã chọn.
+  - Lỗi hiện ngay tại ô, VD ngày 30 trong tháng âm chỉ có 29 ngày. Chỉ nhập năm ở chế độ Âm hoặc Dương thì ứng dụng gợi ý chọn "Chỉ biết năm".
+  - Lưu cả bên người dùng đã nhập lẫn bên tính ra (§5).
+- **Thêm cha/mẹ** (nếu chưa có).
+  - Chưa có cha mẹ: người mới, một Union mới chỉ có người đó, và `setParents` được gửi trong một `batch`.
+  - Đã có một người: người mới vào Union của người đó làm người thứ hai. Form ghi tên các anh chị em cũng có thêm cha/mẹ này ("cũng là cha/mẹ của: Y, Z"), và giới tính mặc định là giới tính còn lại.
+  - Đã có đủ hai người: không có thao tác này.
+  - Trên thuỷ tổ, chỉ Quản lý thấy thao tác này, với ô "Đặt người này làm thuỷ tổ (đời thứ 1)" đánh dấu sẵn; batch khi đó kết thúc bằng `setProgenitor`, vẫn là một bước hoàn tác. Người có quyền sửa không thấy thao tác này trên thuỷ tổ.
+- Menu chuột phải (và các nút trong panel trên thiết bị cảm ứng), danh sách đầy đủ khi các tính năng lần lượt có: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… (P6c) · Nối với cây gia phả khác (P10) · Trang trí thẻ này… (§13.4) · Xoá.
 - Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
 - **Thêm nhiều người** (chỉ người có quyền sửa), mở từ thanh công cụ của cây và từ cột **Ảnh chưa dán**. Dành cho gia đình biết tên trước khi biết ai ở đâu trong cây.
   - Form có mỗi người một dòng: họ tên, giới tính, còn sống/đã mất. Điền xong dòng cuối thì hiện thêm một dòng mới; dòng để trống bị bỏ qua.
@@ -582,7 +597,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 ### 7.8 Responsive & khả năng tiếp cận
 
 - Kéo/zoom bằng cảm ứng (React Flow có sẵn); panel thành bottom sheet trên màn hình nhỏ.
-- Bàn phím: Tab qua các thẻ, Enter mở hồ sơ, phím mũi tên di chuyển giữa cha/con/anh chị em. Bản thân khung cây là một điểm dừng Tab trước các thẻ: phím mũi tên di chuyển khung nhìn, + (hoặc =) và − phóng to, thu nhỏ, 0 xem cả cây, và ba nút thu phóng nằm sau các thẻ theo thứ tự Tab (P6a; phím mũi tên đi giữa người thân có ở P6b). Các nút thu phóng nằm ở góc dưới bên phải, dòng ghi công của React Flow ở góc dưới bên trái. Thẻ nào nhận focus khi đang ở ngoài màn hình thì được đưa vào giữa khung nhìn, giữ nguyên mức phóng; người vừa thêm được đưa vào tầm nhìn bằng lần dịch ngắn nhất, giữ nguyên mức phóng, để thẻ vừa thao tác vẫn còn trên màn hình (xoá người thì giữ nguyên khung nhìn). "Đổi quan hệ…" trong menu của thẻ là cách dùng bàn phím thay cho kéo thả (§7.6).
+- Bàn phím: Tab qua các thẻ, Enter mở hồ sơ, phím mũi tên đi giữa người thân (P6b): ↑ tới cha/mẹ, ↓ tới người con đầu, ← và → tới anh chị em liền trước và liền sau; ở thẻ dâu/rể, ← và → tới vợ/chồng. Bản thân khung cây là một điểm dừng Tab trước các thẻ: phím mũi tên di chuyển khung nhìn, + (hoặc =) và − phóng to, thu nhỏ, 0 xem cả cây, và ba nút thu phóng nằm sau các thẻ theo thứ tự Tab (P6a; phím mũi tên đi giữa người thân có ở P6b). Các nút thu phóng nằm ở góc dưới bên phải, dòng ghi công của React Flow ở góc dưới bên trái. Thẻ nào nhận focus khi đang ở ngoài màn hình thì được đưa vào giữa khung nhìn, giữ nguyên mức phóng; người vừa thêm được đưa vào tầm nhìn bằng lần dịch ngắn nhất, giữ nguyên mức phóng, để thẻ vừa thao tác vẫn còn trên màn hình (xoá người thì giữ nguyên khung nhìn). "Đổi quan hệ…" trong menu của thẻ là cách dùng bàn phím thay cho kéo thả (§7.6).
 - Độ tương phản đạt WCAG AA. Mỗi thẻ có `aria-label` gồm tên, năm sinh–mất, đời.
 
 ---
@@ -598,7 +613,7 @@ Gia phả Việt Nam truyền thống theo dòng cha, nhưng các gia đình v�
 
 **Luật hiển thị:**
 - Dâu/rể đặt **cạnh vợ/chồng là người trong họ** (theo `Union.order`) và không bao giờ mở rộng lên trên, nên layout luôn là cây hậu duệ thuần (§7.4).
-- Thẻ dâu/rể có kiểu riêng nhưng nhẹ nhàng (viền, nền nhạt hơn) và một dòng phụ lấy từ `birthFamily`, VD "Con gái ông Trần Văn X · Hà Nam". Mở panel sẽ thấy đầy đủ thông tin gia đình gốc.
+- Thẻ dâu/rể có kiểu riêng nhưng nhẹ nhàng (viền, nền nhạt hơn). Một dòng phụ lấy từ `birthFamily`, VD "Con gái ông Trần Văn X · Hà Nam", nằm trong tên đọc của thẻ và hiện thành chú thích khi rê chuột hoặc focus; thẻ vẫn chỉ có một dòng, nên mọi thẻ cao bằng nhau (P6b). Mở panel sẽ thấy đầy đủ thông tin gia đình gốc.
 - Dâu/rể cùng số đời với vợ/chồng nhưng **không tính vào thống kê người trong họ** ("312 người · 85 dâu/rể").
 - **Con cháu của con gái**: `Clan.settings.daughtersDescendantsDepth` quyết định hiện bao nhiêu đời dưới người con gái đã đi lấy chồng (mặc định 1 = các con của cô ấy, thu gọn sẵn). Kiểu truyền thống "chỉ theo dòng con trai" là 0.
 - **Nút "Ẩn dâu/rể"** trong menu xem và trong tuỳ chọn xuất file, cho ra gia phả kiểu truyền thống chỉ gồm người trong họ. Dâu/rể bị ẩn thu thành một dấu nhỏ trên thẻ vợ/chồng ("+1 vợ").
@@ -881,7 +896,7 @@ Giao diện không được trông như template SaaS do AI sinh ra. Đối tư�
 | Sticker vàng tròn có hình bánh kem vẽ nét | sinh nhật: icon Lucide `Cake` phía trên ngày dương ("21/11"); chữ cho trình đọc màn hình là "Sinh nhật 21/11" |
 | Cột "Ảnh chưa dán" | người chưa nối với cây (§7.6) |
 
-Dòng dưới chú thích hiện ngày giỗ với người đã mất có ngày mất âm lịch, và hiện năm sinh–mất ("1990–") với mọi người khác, nên mọi thẻ đầy đủ cao bằng nhau (thẻ cao thêm từ 124 px lên khoảng 138 px). Sticker sinh nhật vẫn dán ở góc ảnh.
+Dòng dưới chú thích hiện ngày giỗ với người đã mất có ngày mất âm lịch (do người dùng nhập, hoặc tính ra từ ngày dương đầy đủ), và hiện năm sinh–mất ("1990–") với mọi người khác, nên mọi thẻ đầy đủ cao bằng nhau (thẻ cao thêm từ 124 px lên khoảng 138 px). Năm ước chừng hiện là "~1920", trình đọc màn hình đọc là "khoảng năm 1920". Sticker sinh nhật vẫn dán ở góc ảnh, chỉ cho người còn sống đã biết ngày và tháng sinh dương lịch (do nhập hoặc tính ra).
 
 Mỗi thẻ nghiêng nhẹ theo một góc tính từ id của người đó (±2,5°). Bảng trông như làm tay, nhưng một thẻ không bao giờ đổi góc nghiêng giữa các lần vẽ.
 

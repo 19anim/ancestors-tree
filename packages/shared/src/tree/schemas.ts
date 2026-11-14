@@ -57,7 +57,7 @@ export const BirthFamilySchema = z.object({
 
 /**
  * A person in the genealogy (spec §5). `clanId`, `createdAt` and `updatedAt` stay on the
- * server. `treeLink` (P10), `photo` (P6) and `cardStyle` (P6b) arrive with their features.
+ * server. `treeLink` (P10), `photo` (P6) and `cardStyle` (P6e, tree themes) arrive with their features.
  */
 export const PersonSchema = z.object({
   id: IdSchema,
