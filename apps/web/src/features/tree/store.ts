@@ -109,6 +109,8 @@ export interface TreeStoreState {
   undo: () => ApplyResult | null;
   /** Makes the latest undone change again; null when there is none. */
   redo: () => ApplyResult | null;
+  /** Reverts saved change `revertsSeq` by applying its inverse `op` (spec §6.4). */
+  revertChange: (op: Op, revertsSeq: number) => ApplyResult;
   dismissNotice: () => void;
 }
 
@@ -738,6 +740,15 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         set({ redoStack: get().redoStack.slice(0, -1) });
       }
       return toApplyResult(applied);
+    },
+
+    revertChange(op, revertsSeq) {
+      return toApplyResult(
+        applyChange(op, { reverts: { seq: revertsSeq } }, (entry, inverse, state) => ({
+          undoStack: pushCapped(state.undoStack, { op, inverse, ref: { pendingId: entry.id } }),
+          redoStack: [],
+        })),
+      );
     },
 
     dismissNotice() {

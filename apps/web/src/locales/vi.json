@@ -193,6 +193,7 @@
     "tabs": {
       "label": "Mục của cây gia phả",
       "tree": "Cây",
+      "history": "Lịch sử",
       "members": "Thành viên",
       "settings": "Cài đặt"
     },
@@ -246,6 +247,20 @@
       "home": "Về trang chủ",
       "forbidden": "Bạn không thể tham gia cây gia phả này bằng đường link này. Hãy nhờ người quản lý gửi lời mời mới."
     }
+  },
+  "history": {
+    "title": "Lịch sử thay đổi",
+    "empty": "Chưa có thay đổi nào.",
+    "more": "Xem thêm",
+    "entry": {
+      "summary": "{{author}}: {{action}}",
+      "number": "#{{seq}}",
+      "reverts": "Hoàn tác thay đổi #{{seq}}",
+      "revertsTo": "Quay về sau thay đổi #{{seq}}"
+    },
+    "revert": "Hoàn tác",
+    "revertLabel": "Hoàn tác thay đổi #{{seq}}",
+    "revertFailed": "Không hoàn tác được thay đổi #{{seq}}: {{reason}}"
   },
   "tree": {
     "loading": "Đang tải cây gia phả…",

@@ -193,6 +193,7 @@
     "tabs": {
       "label": "Family tree sections",
       "tree": "Tree",
+      "history": "History",
       "members": "Members",
       "settings": "Settings"
     },
@@ -246,6 +247,20 @@
       "home": "Back to home",
       "forbidden": "You cannot join this family tree with this link. Ask the manager for a new invitation."
     }
+  },
+  "history": {
+    "title": "Change history",
+    "empty": "Nothing has changed yet.",
+    "more": "Show more",
+    "entry": {
+      "summary": "{{author}}: {{action}}",
+      "number": "#{{seq}}",
+      "reverts": "Reverts change #{{seq}}",
+      "revertsTo": "Goes back to after change #{{seq}}"
+    },
+    "revert": "Revert",
+    "revertLabel": "Revert change #{{seq}}",
+    "revertFailed": "Could not revert change #{{seq}}: {{reason}}"
   },
   "tree": {
     "loading": "Loading the family tree…",

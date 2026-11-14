@@ -1681,4 +1681,32 @@ describe('undo and redo', () => {
     expect(store().undoStack).toHaveLength(MAX_UNDO_STEPS);
     expect(store().undoStack[0]?.op).toEqual(bio('Lần 1'));
   });
+
+  it('reverts a saved change as a new change that can be undone', async () => {
+    const bodies: unknown[] = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: ({ body }) => {
+        bodies.push(body);
+        return { body: { seq: 3 + bodies.length } };
+      },
+    });
+    await store().load(CLAN_ID);
+    const inverse: Op = { type: 'updatePerson', payload: { id: SON, changes: { bio: 'Cũ' } } };
+    expect(store().revertChange(inverse, 2)).toEqual({ ok: true });
+    expect(store().tree.persons[SON]?.bio).toBe('Cũ');
+    expect(store().pending[0]).toMatchObject({ op: inverse, reverts: { seq: 2 } });
+    expect(store().undoStack.at(-1)).toMatchObject({ op: inverse });
+    expect(store().redoStack).toEqual([]);
+    await vi.waitFor(() => expect(store().pending).toHaveLength(0));
+    expect(bodies[0]).toEqual({
+      op: inverse,
+      baseVersion: 3,
+      expectedUserId: ME.id,
+      revertsSeq: 2,
+    });
+
+    expect(store().undo()).toEqual({ ok: true });
+    expect(store().tree.persons[SON]?.bio).toBeUndefined();
+  });
 });

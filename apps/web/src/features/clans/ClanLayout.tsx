@@ -37,6 +37,9 @@ export function ClanLayout() {
         <NavLink to="tree" className={tabClass}>
           {t('clans.tabs.tree')}
         </NavLink>
+        <NavLink to="history" className={tabClass}>
+          {t('clans.tabs.history')}
+        </NavLink>
         <NavLink to="members" className={tabClass}>
           {t('clans.tabs.members')}
         </NavLink>
