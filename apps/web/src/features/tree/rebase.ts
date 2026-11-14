@@ -83,3 +83,69 @@ export function rebase(input: RebaseInput): RebaseResult {
     inverses: replayed.inverses,
   };
 }
+
+export interface RestoreInput {
+  /** The server's tree now, at `version`. */
+  tree: TreeState;
+  version: number;
+  /** The confirmed version the saved entries were made on. */
+  savedVersion: number;
+  pending: readonly PendingEntry[];
+  /** The log after savedVersion; entries past `version` are ignored. */
+  remote: readonly OperationEntry[];
+  userId: string;
+}
+
+export type RestoreResult =
+  | { ok: false }
+  | {
+      ok: true;
+      saved: SavedEntry | null;
+      tree: TreeState;
+      pending: PendingEntry[];
+      dropped: DroppedEntry[];
+      inverses: Map<number, Op>;
+    };
+
+/**
+ * A queue saved before a reload meets the server's tree as it is now. Like rebase(), it finds
+ * the first entry already saved by this account and replays the rest; `ok: false` when the log
+ * between the two versions has a gap.
+ */
+export function restoreQueue(input: RestoreInput): RestoreResult {
+  const missed = input.remote.filter((remote) => remote.seq <= input.version);
+  const contiguous =
+    input.version >= input.savedVersion &&
+    missed.length === input.version - input.savedVersion &&
+    missed.every((remote, index) => remote.seq === input.savedVersion + index + 1);
+  if (!contiguous) return { ok: false };
+  const head = input.pending[0];
+  let saved: SavedEntry | null = null;
+  let othersSaved = false;
+  for (const remote of missed) {
+    // As in rebase(): a lost answer was saved as the very first missed entry.
+    if (
+      saved === null &&
+      head &&
+      remote.seq === input.savedVersion + 1 &&
+      remote.userId === input.userId &&
+      sameOp(remote.op, head.op)
+    ) {
+      saved = { entry: head, seq: remote.seq };
+    } else {
+      othersSaved = true;
+    }
+  }
+  const rest = saved
+    ? resolveRefs(input.pending.slice(1), saved.entry.id, saved.seq)
+    : [...input.pending];
+  const replayed = replayPending(input.tree, rest, { othersSaved });
+  return {
+    ok: true,
+    saved,
+    tree: replayed.tree,
+    pending: replayed.kept,
+    dropped: replayed.dropped,
+    inverses: replayed.inverses,
+  };
+}

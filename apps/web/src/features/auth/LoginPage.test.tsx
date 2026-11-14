@@ -73,32 +73,15 @@ describe('LoginPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa đăng nhập được bằng Google');
   });
 
-  it('warns that Google sign-in drops unsaved tree changes, only while there are any', async () => {
+  it('says nothing about unsaved tree changes next to Google sign-in: they are kept', async () => {
     mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
     renderRoute('/login');
     await screen.findByRole('link', { name: 'Tiếp tục với Google' });
-    expect(
-      screen.queryByText(/Đăng nhập bằng Google sẽ rời khỏi trang này/),
-    ).not.toBeInTheDocument();
-
     act(() =>
       useTreeStore.setState({
         pending: [{ id: 1, op: { type: 'deletePerson', payload: { id: ID } } }],
       }),
     );
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ 1 thay đổi chưa lưu.',
-    );
-    act(() => useTreeStore.setState({ pending: [] }));
-    expect(
-      screen.queryByText(/Đăng nhập bằng Google sẽ rời khỏi trang này/),
-    ).not.toBeInTheDocument();
-  });
-
-  it('does not warn about unsaved changes when there are none to lose', async () => {
-    mockApi({ 'GET /auth/providers': () => ({ body: { google: true } }) });
-    renderRoute('/login');
-    await screen.findByRole('link', { name: 'Tiếp tục với Google' });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

@@ -7,7 +7,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { FAMILY, fixturePerson, LOOSE, ME, OTHER_USER_ID, remoteEntry, SON } from './fixtures';
 import type { PendingEntry } from './pending';
-import { rebase } from './rebase';
+import { rebase, restoreQueue } from './rebase';
 
 const NEW_ID = '64b7f0c2a1b2c3d4e5f6a0f1';
 const CHILD = '64b7f0c2a1b2c3d4e5f6a0f2';
@@ -109,5 +109,50 @@ describe('rebase', () => {
     if (!result.ok) throw new Error('expected a rebase');
     expect(result.pending).toEqual([]);
     expect(result.dropped[0]?.error).toMatchObject({ code: 'VERSION_CONFLICT' });
+  });
+});
+
+describe('restoreQueue', () => {
+  /** The server's tree now: version 4, with Bình's child added by someone else. */
+  const now = () => {
+    const result = rebase(input([]));
+    if (!result.ok) throw new Error('expected a rebase');
+    return result.confirmedTree;
+  };
+  const restoring = (pending: PendingEntry[], remote = [remoteEntry(4, looseChild)]) => ({
+    tree: now(),
+    version: 4,
+    savedVersion: 3,
+    pending,
+    remote,
+    userId: ME.id,
+  });
+
+  it('replays the saved entries on the tree as it is now', () => {
+    const result = restoreQueue(restoring([{ id: 1, op: bio('Con trưởng') }]));
+    if (!result.ok) throw new Error('expected a restore');
+    expect(result.tree.persons[CHILD]).toBeDefined();
+    expect(result.tree.persons[SON]?.bio).toBe('Con trưởng');
+    expect(result.pending).toHaveLength(1);
+  });
+
+  it('confirms a saved entry that reached the server before the reload', () => {
+    const remote = [remoteEntry(4, bio('Con trưởng'), ME.id)];
+    const tree = rebase(input([], remote));
+    if (!tree.ok) throw new Error('expected a rebase');
+    const result = restoreQueue({
+      ...restoring([{ id: 1, op: bio('Con trưởng') }], remote),
+      tree: tree.confirmedTree,
+    });
+    if (!result.ok) throw new Error('expected a restore');
+    expect(result.saved?.seq).toBe(4);
+    expect(result.pending).toEqual([]);
+  });
+
+  it('ignores log entries after the tree it was given, and refuses a gap', () => {
+    const later = [remoteEntry(4, looseChild), remoteEntry(5, bio('Sau'))];
+    expect(restoreQueue(restoring([], later)).ok).toBe(true);
+    expect(restoreQueue(restoring([], [])).ok).toBe(false);
+    expect(restoreQueue({ ...restoring([]), savedVersion: 5 }).ok).toBe(false);
   });
 });

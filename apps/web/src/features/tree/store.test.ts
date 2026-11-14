@@ -1,4 +1,4 @@
-import type { Op } from '@ancestors-tree/shared/tree';
+import type { Op, Person } from '@ancestors-tree/shared/tree';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiErrorReply, mockApi, UNAUTHENTICATED_REPLY, type MockRoutes } from '../../test/api';
 import {
@@ -14,6 +14,7 @@ import {
   SON,
   treeRoutes,
 } from './fixtures';
+import { SAVED_QUEUE_KEY, writeSavedQueue } from './persist';
 import {
   MAX_CONFLICTS_IN_A_ROW,
   RETRY_DELAYS_MS,
@@ -1164,5 +1165,167 @@ describe('the rebase and what happens around it', () => {
     expect(notice?.kind === 'rejected' && notice.dropped).toBeGreaterThan(0);
     expect(store().pending).toEqual([]);
     expect(store().tree.persons[NEW_ID]).toBeUndefined();
+  });
+});
+
+describe('keeping the queue across a reload of the tab', () => {
+  const saved = (overrides: Partial<Parameters<typeof writeSavedQueue>[0]> = {}) =>
+    writeSavedQueue({
+      format: 1,
+      userId: ME.id,
+      clanId: CLAN_ID,
+      version: 3,
+      entries: [{ id: 1, op: bio('Con trưởng') }],
+      ...overrides,
+    });
+  /** A fresh tab: no account yet, then the app shell learns it. */
+  const reloadTab = () => {
+    signOutTreeStore();
+  };
+  const savedQueue = () => JSON.parse(sessionStorage.getItem(SAVED_QUEUE_KEY) ?? 'null');
+
+  it('saves the queue with the account, the tree and the version', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    expect(savedQueue()).toEqual({
+      format: 1,
+      userId: ME.id,
+      clanId: CLAN_ID,
+      version: 3,
+      entries: [{ id: expect.any(Number), op: bio('Con trưởng') }],
+    });
+  });
+
+  it('restores it for the same account at the same version, and sends it', async () => {
+    const bodies: unknown[] = [];
+    mockApi({
+      ...treeRoutes(),
+      [OPS]: ({ body }) => {
+        bodies.push(body);
+        return { body: { seq: 4 } };
+      },
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    expect(store().clanId).toBe(CLAN_ID);
+    await vi.waitFor(() => expect(store().confirmedVersion).toBe(4));
+    expect(bodies).toEqual([{ op: bio('Con trưởng'), baseVersion: 3, expectedUserId: ME.id }]);
+    expect(store().pending).toEqual([]);
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
+  });
+
+  it('restores it through the log when the tree moved on', async () => {
+    const someoneElse = addPerson(OTHER_ID, 'Nguyễn Văn Sáu');
+    const bodies: unknown[] = [];
+    mockApi({
+      ...treeRoutes({
+        ...FAMILY,
+        version: 4,
+        persons: [...FAMILY.persons, someoneElse.payload as Person],
+      }),
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, someoneElse)] }),
+      [OPS]: ({ body }) => {
+        bodies.push(body);
+        return { body: { seq: 5 } };
+      },
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().confirmedVersion).toBe(5));
+    expect(bodies).toEqual([{ op: bio('Con trưởng'), baseVersion: 4, expectedUserId: ME.id }]);
+    expect(store().tree.persons[OTHER_ID]).toBeDefined();
+    expect(store().tree.persons[SON]?.bio).toBe('Con trưởng');
+  });
+
+  it('confirms a restored change that was saved just before the reload', async () => {
+    const api = mockApi({
+      ...treeRoutes({
+        ...FAMILY,
+        version: 4,
+        persons: FAMILY.persons.map((person) =>
+          person.id === SON ? { ...person, bio: 'Con trưởng' } : person,
+        ),
+      }),
+      [OPS_LOG]: () => ({ body: [remoteEntry(4, bio('Con trưởng'), ME.id)] }),
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().status).toBe('ready'));
+    expect(store().pending).toEqual([]);
+    expect(store().notice).toBeNull();
+    expect(api.calls.filter((call) => call.method === 'POST')).toEqual([]);
+  });
+
+  it('keeps it when the tree cannot be read yet, and restores it on the next load', async () => {
+    let up = false;
+    mockApi({
+      ...treeRoutes(),
+      [TREE]: () => (up ? { body: FAMILY } : { status: 503, body: {} }),
+      [OPS]: () => ({ body: { seq: 4 } }),
+    });
+    reloadTab();
+    saved();
+    store().setAccount(ME.id);
+    await vi.waitFor(() => expect(store().status).toBe('error'));
+    expect(store().pending).toHaveLength(1);
+    expect(savedQueue()?.entries).toHaveLength(1);
+
+    up = true;
+    await store().load(CLAN_ID);
+    await vi.waitFor(() => expect(store().confirmedVersion).toBe(4));
+    expect(store().pending).toEqual([]);
+  });
+
+  it('drops a queue another account saved, and says so', () => {
+    reloadTab();
+    saved({ userId: OTHER_USER_ID });
+    store().setAccount(ME.id);
+    expect(store().pending).toEqual([]);
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: false,
+    });
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
+  });
+
+  it('drops it when another family tree is already open, and says so', async () => {
+    mockApi({
+      ...treeRoutes(),
+      [`GET /clans/${OTHER_CLAN}/tree`]: () => ({ body: EMPTY_TREE_RESPONSE }),
+    });
+    reloadTab();
+    saved();
+    await store().load(OTHER_CLAN);
+    store().setAccount(ME.id);
+    expect(store().clanId).toBe(OTHER_CLAN);
+    expect(store().notice).toEqual({
+      kind: 'discarded',
+      clanId: CLAN_ID,
+      count: 1,
+      inFlight: false,
+    });
+  });
+
+  it('says so when the saved queue cannot be read', () => {
+    reloadTab();
+    sessionStorage.setItem(SAVED_QUEUE_KEY, '{broken');
+    store().setAccount(ME.id);
+    expect(store().notice).toEqual({ kind: 'savedUnreadable', clanId: null });
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
+  });
+
+  it('forgets the saved queue on sign-out', async () => {
+    mockApi({ ...treeRoutes(), [OPS]: () => new Promise(() => undefined) });
+    await store().load(CLAN_ID);
+    store().apply(bio('Con trưởng'));
+    expect(savedQueue()).not.toBeNull();
+    signOutTreeStore();
+    expect(sessionStorage.getItem(SAVED_QUEUE_KEY)).toBeNull();
   });
 });

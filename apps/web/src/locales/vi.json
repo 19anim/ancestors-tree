@@ -141,8 +141,7 @@
       "forgot": "Quên mật khẩu?",
       "noAccount": "Chưa có tài khoản?",
       "register": "Tạo tài khoản",
-      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu.",
-      "googleDropsChanges": "Đăng nhập bằng Google sẽ rời khỏi trang này và bỏ {{count}} thay đổi chưa lưu. Hãy đăng nhập bằng email và mật khẩu để giữ chúng."
+      "googleFailed": "Chưa đăng nhập được bằng Google. Hãy thử lại, hoặc dùng email và mật khẩu."
     },
     "register": {
       "title": "Tạo tài khoản",
@@ -299,7 +298,8 @@
       "rejected": "Không lưu được thay đổi: {{reason}}",
       "rejectedDependents": "Đồng thời bỏ {{count}} thay đổi chưa lưu khác.",
       "dismiss": "Đã hiểu",
-      "signedOut": "Phiên đăng nhập đã hết hạn. Thay đổi chưa lưu vẫn được giữ nếu bạn đăng nhập lại bằng email và mật khẩu; đăng nhập bằng Google sẽ bỏ chúng.",
+      "signedOut": "Phiên đăng nhập đã hết hạn. Thay đổi chưa lưu vẫn được giữ trong thẻ này: hãy đăng nhập lại bằng chính tài khoản này để lưu chúng.",
+      "savedUnreadable": "Không đọc được các thay đổi chưa lưu đã giữ trong thẻ này, nên chúng đã bị bỏ.",
       "otherAccount": "Chưa gửi được thay đổi: trang này giờ đang đăng nhập bằng một tài khoản khác. Hãy đăng nhập lại bằng tài khoản đã tạo các thay đổi để lưu chúng; đăng nhập bằng tài khoản khác sẽ bỏ chúng.",
       "signIn": "Đăng nhập lại",
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ.",

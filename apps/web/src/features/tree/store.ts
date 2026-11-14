@@ -11,35 +11,39 @@ import { create } from 'zustand';
 import { ApiError } from '../../shared/lib/apiError';
 import { fetchOpsSince, fetchTree, submitOp } from './api';
 import { replayPending, resolveRefs, revertFieldsOf, type PendingEntry } from './pending';
-import { rebase } from './rebase';
+import { clearSavedQueue, readSavedQueue, writeSavedQueue, type SavedQueueRead } from './persist';
+import { rebase, restoreQueue } from './rebase';
 
 export type TreeStatus = 'idle' | 'loading' | 'ready' | 'error';
 /**
  * What happened to the user's unsent changes. `clanId` is the family tree they belonged to: the
  * notice is shown app-wide and stays until dismissed, whatever tree is on screen.
  */
-export type TreeNotice = { clanId: string } &
-  /** The whole tree was read again (a third conflict in a row, or an answer it cannot read). */
-  (
-    | { kind: 'reloaded' }
-    /**
-     * A change was refused (by the server, or because the rebase found it no longer applies):
-     * rolled back, and `dropped` other unsent changes with it.
-     */
-    | { kind: 'rejected'; error: unknown; dropped: number }
-    /** The session expired: sending stopped, every unsent op is kept until the user signs in. */
-    | { kind: 'signedOut' }
-    /**
-     * The server says this tab's cookie is another account's (IDENTITY_MISMATCH): sending
-     * stopped, every unsent op is kept for the account that made them.
-     */
-    | { kind: 'otherAccount' }
-    /**
-     * `count` ops were still unsent when another tree opened or the account changed: dropped.
-     * `inFlight`: the first of them was on its way, so it may have been saved after all.
-     */
-    | { kind: 'discarded'; count: number; inFlight: boolean }
-  );
+export type TreeNotice =
+  | ({ clanId: string } &
+      /** The whole tree was read again (a third conflict in a row, or an answer it cannot read). */
+      (
+        | { kind: 'reloaded' }
+        /**
+         * A change was refused (by the server, or because the rebase found it no longer applies):
+         * rolled back, and `dropped` other unsent changes with it.
+         */
+        | { kind: 'rejected'; error: unknown; dropped: number }
+        /** The session expired: sending stopped, every unsent op is kept until the user signs in. */
+        | { kind: 'signedOut' }
+        /**
+         * The server says this tab's cookie is another account's (IDENTITY_MISMATCH): sending
+         * stopped, every unsent op is kept for the account that made them.
+         */
+        | { kind: 'otherAccount' }
+        /**
+         * `count` ops were still unsent when another tree opened or the account changed: dropped.
+         * `inFlight`: the first of them was on its way, so it may have been saved after all.
+         */
+        | { kind: 'discarded'; count: number; inFlight: boolean }
+      ))
+  /** The queue saved in this tab could not be read after a reload: it was dropped. */
+  | { kind: 'savedUnreadable'; clanId: null };
 /** Why apply() did nothing: a broken rule, or no tree to edit (loading or failed to load). */
 export type ApplyFailure = OpErrorCode | 'NOT_LOADED';
 export type ApplyResult = { ok: true } | { ok: false; reason: ApplyFailure };
@@ -72,6 +76,11 @@ export interface TreeStoreState {
   /** True after IDENTITY_MISMATCH: nothing is sent until the right account is back. */
   otherAccount: boolean;
   notice: TreeNotice | null;
+  /**
+   * The version a queue restored from sessionStorage was made on, until load() has replayed it
+   * on the server's tree; null otherwise.
+   */
+  restoredFrom: number | null;
   load: (clanId: string) => Promise<void>;
   /**
    * The app shell says who is signed in. The same account again resumes a stopped queue;
@@ -105,6 +114,7 @@ const INITIAL: TreeData = {
   signedOut: false,
   otherAccount: false,
   notice: null,
+  restoredFrom: null,
 };
 
 /** A new session per load(): answers that belong to an older one are ignored. */
@@ -399,6 +409,112 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     }
   }
 
+  /**
+   * load() of a tree whose queue came from sessionStorage: reads the tree, the log since the
+   * saved version when the tree moved on, and replays the queue (restoreQueue). A failure keeps
+   * the queue and `restoredFrom`, so the next load() tries again.
+   */
+  function restoreSession(clanId: string): Promise<void> {
+    session += 1;
+    const mine = session;
+    sending = false;
+    needsReload = false;
+    needsRebase = false;
+    resetConflicts();
+    clearRetry();
+    set({ status: 'loading', loadError: null });
+    const run = (async () => {
+      try {
+        const response = await fetchTree(clanId);
+        if (mine !== session) return;
+        const savedVersion = get().restoredFrom ?? response.version;
+        const remote =
+          response.version > savedVersion ? await fetchOpsSince(clanId, savedVersion) : [];
+        if (mine !== session) return;
+        const state = get();
+        const fetched = treeStateFromLists(
+          response.progenitorId,
+          response.persons,
+          response.unions,
+        );
+        const base = {
+          status: 'ready' as const,
+          confirmedTree: fetched,
+          confirmedVersion: response.version,
+          restoredFrom: null,
+        };
+        const result = restoreQueue({
+          tree: fetched,
+          version: response.version,
+          savedVersion,
+          pending: state.pending,
+          remote,
+          userId: state.userId ?? '',
+        });
+        if (!result.ok) {
+          // The saved queue does not fit the log: start from the server's tree and say so.
+          set({ ...base, tree: fetched, pending: [], notice: { kind: 'reloaded', clanId } });
+          return;
+        }
+        const [first, ...others] = result.dropped;
+        set({
+          ...base,
+          tree: result.tree,
+          pending: result.pending,
+          notice: first
+            ? { kind: 'rejected', clanId, error: first.error, dropped: others.length }
+            : state.notice,
+        });
+        void flush();
+      } catch (error) {
+        if (mine === session) set({ status: 'error', loadError: error });
+      } finally {
+        if (mine === session) loading = undefined;
+      }
+    })();
+    loading = run;
+    return run;
+  }
+
+  /**
+   * The first account this tab learns (after a reload or a sign-in redirect) picks up the queue
+   * saved before: restored for the same account (then loaded and sent, whatever page is open),
+   * dropped with a notice when another account made it or another tree is already open.
+   */
+  function restoreSaved(userId: string, saved: SavedQueueRead): void {
+    if (saved.kind === 'none') return;
+    if (saved.kind === 'unreadable') {
+      set({ notice: { kind: 'savedUnreadable', clanId: null } });
+      return;
+    }
+    const { queue } = saved;
+    const current = get();
+    if (queue.userId !== userId || (current.clanId !== null && current.clanId !== queue.clanId)) {
+      set({
+        notice: {
+          kind: 'discarded',
+          clanId: queue.clanId,
+          count: queue.entries.length,
+          inFlight: false,
+        },
+      });
+      return;
+    }
+    // A load of the same tree may be on its way: the restore replaces it.
+    stopSending();
+    nextPendingId = Math.max(nextPendingId, ...queue.entries.map((entry) => entry.id + 1));
+    set({
+      ...INITIAL,
+      userId,
+      clanId: queue.clanId,
+      pending: queue.entries,
+      confirmedVersion: queue.version,
+      restoredFrom: queue.version,
+      notice: current.notice,
+    });
+    void get().load(queue.clanId);
+  }
+
   return {
     ...INITIAL,
 
@@ -415,6 +531,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
           }
           return refresh(clanId);
         }
+        if (current.restoredFrom !== null) return restoreSession(clanId);
       }
 
       // A new session. Unsent entries of the previous one are dropped: say how many
@@ -469,8 +586,15 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         if (state.signedOut || state.otherAccount) resume();
         return;
       }
-      if (state.userId !== null) discardForAccountChange();
+      if (state.userId !== null) {
+        discardForAccountChange();
+        set({ userId });
+        return;
+      }
+      // Read before the account is set: setting it saves the (still empty) queue.
+      const saved = readSavedQueue();
       set({ userId });
+      restoreSaved(userId, saved);
     },
 
     apply(op) {
@@ -495,6 +619,31 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
       set({ notice: null });
     },
   };
+});
+
+// Mirrors the queue to sessionStorage, so a reload or a Google sign-in keeps it (spec §7.3).
+useTreeStore.subscribe((state, previous) => {
+  if (
+    state.pending === previous.pending &&
+    state.confirmedVersion === previous.confirmedVersion &&
+    state.userId === previous.userId &&
+    state.clanId === previous.clanId
+  ) {
+    return;
+  }
+  // No account yet (a reload before the app knows who is signed in): keep what is saved.
+  if (state.userId === null) return;
+  if (state.clanId === null || state.pending.length === 0) {
+    clearSavedQueue();
+    return;
+  }
+  writeSavedQueue({
+    format: 1,
+    userId: state.userId,
+    clanId: state.clanId,
+    version: state.confirmedVersion,
+    entries: state.pending,
+  });
 });
 
 /** Stops the queue and forgets every answer still on its way. */
@@ -522,6 +671,7 @@ export function resetTreeStore(): void {
 /** Sign-out: forgets everything, the account too. */
 export function signOutTreeStore(): void {
   stopSending();
+  clearSavedQueue();
   useTreeStore.setState(INITIAL);
 }
 

@@ -141,8 +141,7 @@
       "forgot": "Forgot your password?",
       "noAccount": "No account yet?",
       "register": "Create an account",
-      "googleFailed": "Google sign-in did not work. Try again, or use your email and password.",
-      "googleDropsChanges": "Signing in with Google leaves this page and drops your unsaved changes ({{count}}). Sign in with email and password to keep them."
+      "googleFailed": "Google sign-in did not work. Try again, or use your email and password."
     },
     "register": {
       "title": "Create an account",
@@ -299,7 +298,8 @@
       "rejected": "The change was not saved: {{reason}}",
       "rejectedDependents": "Other unsaved changes were dropped too: {{count}}.",
       "dismiss": "Got it",
-      "signedOut": "Your session has expired. Unsaved changes are kept if you sign in again with email and password; signing in with Google drops them.",
+      "signedOut": "Your session has expired. Unsaved changes are kept in this tab: sign in again with the same account to save them.",
+      "savedUnreadable": "The unsaved changes kept in this tab could not be read, so they were dropped.",
       "otherAccount": "Your changes were not sent: this tab is now signed in with another account. Sign in again with the account that made them to save them; signing in with another account drops them.",
       "signIn": "Sign in again",
       "discarded": "Unsaved changes were dropped: {{count}}.",

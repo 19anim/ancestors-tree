@@ -6,7 +6,6 @@ import { Button, TextField } from '../../shared/ui';
 import { useAuthProviders, useLogin } from './api';
 import { AuthCard } from './AuthCard';
 import { GoogleButton } from './GoogleButton';
-import { GoogleSignInWarning } from './GoogleSignInWarning';
 import { safeReturnTo } from './returnTo';
 
 export function LoginPage() {
@@ -40,7 +39,6 @@ export function LoginPage() {
       {providers.data?.google ? (
         <>
           <GoogleButton returnTo={returnTo} />
-          <GoogleSignInWarning />
           <p className="text-center text-sm text-ink-muted">{t('auth.or')}</p>
         </>
       ) : null}

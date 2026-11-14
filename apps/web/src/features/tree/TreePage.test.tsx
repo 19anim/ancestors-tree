@@ -94,6 +94,15 @@ describe('TreePage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Đã tải lại bản mới nhất');
   });
 
+  it('shows the unreadable saved queue notice plainly, without naming a tree', async () => {
+    mockApi();
+    useTreeStore.setState({ notice: { kind: 'savedUnreadable', clanId: null } });
+    renderRoute('/login');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Không đọc được các thay đổi chưa lưu');
+    expect(alert).not.toHaveTextContent('Về cây gia phả bạn vừa sửa');
+  });
+
   it('names the family tree a notice is about when another page is on screen', async () => {
     mockApi({
       ...treeRoutes(FAMILY, VIEWER),

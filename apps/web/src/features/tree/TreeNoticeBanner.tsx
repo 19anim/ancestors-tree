@@ -17,6 +17,8 @@ function noticeText(t: TFunction, notice: TreeNotice): string {
       return t('tree.notice.signedOut');
     case 'otherAccount':
       return t('tree.notice.otherAccount');
+    case 'savedUnreadable':
+      return t('tree.notice.savedUnreadable');
     case 'discarded':
       return notice.inFlight
         ? t('tree.notice.discardedInFlight', { count: notice.count })
@@ -48,7 +50,9 @@ export function TreeNoticeBanner() {
       className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-stamp bg-surface p-3"
     >
       <p className="font-medium text-stamp">
-        {notice.clanId === onScreenClanId ? text : t('tree.notice.otherTree', { message: text })}
+        {notice.clanId === null || notice.clanId === onScreenClanId
+          ? text
+          : t('tree.notice.otherTree', { message: text })}
       </p>
       <div className="flex items-center gap-2">
         {(notice.kind === 'signedOut' || notice.kind === 'otherAccount') &&
