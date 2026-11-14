@@ -259,7 +259,12 @@
     "empty": "Chưa có ai trong cây gia phả này.",
     "retry": "Thử lại",
     "actions": {
-      "addFirst": "Thêm người đầu tiên"
+      "addFirst": "Thêm người đầu tiên",
+      "description": "Bạn muốn làm gì với người này?",
+      "addChild": "Thêm con",
+      "addSpouse": "Thêm vợ/chồng",
+      "setProgenitor": "Chọn làm thuỷ tổ",
+      "delete": "Xoá người này"
     },
     "unlinked": {
       "title": "Chưa nối vào cây",
@@ -277,6 +282,36 @@
       "signedOut": "Phiên đăng nhập đã hết hạn. Đăng nhập lại để lưu các thay đổi.",
       "signIn": "Đăng nhập lại",
       "discarded": "{{count}} thay đổi chưa lưu đã bị bỏ."
+    },
+    "form": {
+      "firstTitle": "Thêm người đầu tiên",
+      "childTitle": "Thêm con của {{name}}",
+      "spouseTitle": "Thêm vợ/chồng của {{name}}",
+      "fullName": "Họ và tên",
+      "gender": "Giới tính",
+      "male": "Nam",
+      "female": "Nữ",
+      "status": "Tình trạng",
+      "living": "Còn sống",
+      "deceased": "Đã mất",
+      "union": "Con của",
+      "unionWith": "{{name}} và {{partner}}",
+      "unionAlone": "{{name}} (chưa rõ cha/mẹ còn lại)",
+      "submit": "Thêm vào cây",
+      "cancel": "Huỷ",
+      "notLoaded": "Cây gia phả chưa tải xong, thử lại sau giây lát."
+    },
+    "delete": {
+      "title": "Xoá {{name}}?",
+      "body": "{{name}} sẽ bị xoá khỏi cây gia phả.",
+      "confirm": "Xoá",
+      "cancel": "Huỷ"
+    },
+    "leave": {
+      "title": "Rời trang này?",
+      "body": "Còn thay đổi chưa lưu. Rời trang thì các thay đổi này sẽ bị bỏ.",
+      "stay": "Ở lại",
+      "leave": "Vẫn rời"
     }
   }
 }

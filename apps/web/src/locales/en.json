@@ -259,7 +259,12 @@
     "empty": "No one is in this family tree yet.",
     "retry": "Try again",
     "actions": {
-      "addFirst": "Add the first person"
+      "addFirst": "Add the first person",
+      "description": "What would you like to do with this person?",
+      "addChild": "Add a child",
+      "addSpouse": "Add a spouse",
+      "setProgenitor": "Set as progenitor",
+      "delete": "Delete this person"
     },
     "unlinked": {
       "title": "Not yet linked",
@@ -277,6 +282,36 @@
       "signedOut": "Your session has expired. Sign in again to save your changes.",
       "signIn": "Sign in again",
       "discarded": "Unsaved changes were dropped: {{count}}."
+    },
+    "form": {
+      "firstTitle": "Add the first person",
+      "childTitle": "Add a child of {{name}}",
+      "spouseTitle": "Add a spouse of {{name}}",
+      "fullName": "Full name",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "status": "Status",
+      "living": "Living",
+      "deceased": "Deceased",
+      "union": "Child of",
+      "unionWith": "{{name}} and {{partner}}",
+      "unionAlone": "{{name}} (other parent unknown)",
+      "submit": "Add to the tree",
+      "cancel": "Cancel",
+      "notLoaded": "The family tree has not finished loading, try again in a moment."
+    },
+    "delete": {
+      "title": "Delete {{name}}?",
+      "body": "{{name}} will be removed from the family tree.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "leave": {
+      "title": "Leave this page?",
+      "body": "Some changes are not saved yet. If you leave, they will be discarded.",
+      "stay": "Stay",
+      "leave": "Leave anyway"
     }
   }
 }

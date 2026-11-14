@@ -1,6 +1,7 @@
 import type { DateInfo, OpErrorCode, Person } from '@ancestors-tree/shared/tree';
 import type { TFunction } from 'i18next';
 import { ApiError, errorMessageKey } from '../../shared/lib/apiError';
+import type { ApplyFailure } from './store';
 
 /** The year on the side the user entered (approximate years are shown as plain years in P5). */
 export function yearOf(date: DateInfo | undefined): string | undefined {
@@ -38,6 +39,11 @@ export function cardLabel(
 
 export function ruleKey(reason: OpErrorCode): `tree.rules.${OpErrorCode}` {
   return `tree.rules.${reason}`;
+}
+
+/** Why apply() did nothing: the broken rule, or that the tree is not loaded. */
+export function applyFailureMessage(t: TFunction, reason: ApplyFailure): string {
+  return reason === 'NOT_LOADED' ? t('tree.form.notLoaded') : t(ruleKey(reason));
 }
 
 /** Why the server refused a change: the broken rule when it says which, else the error code. */
