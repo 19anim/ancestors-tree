@@ -3,7 +3,7 @@ import { Ellipsis } from 'lucide-react';
 import { useContext, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Polaroid, tiltFor } from '../../shared/ui';
-import { lifeYears } from './format';
+import { lifeYears, lifeYearsSpoken } from './format';
 import { useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
 
@@ -30,15 +30,16 @@ export function UnlinkedTray() {
       <ul className="flex flex-wrap gap-4">
         {people.map((person) => {
           const years = lifeYears(person);
+          const spokenYears = lifeYearsSpoken(t, person);
           return (
             <li key={person.id} className="flex items-center gap-2">
               <Polaroid
                 lod="label"
                 name={person.fullName}
                 label={
-                  years === undefined
+                  spokenYears === undefined
                     ? person.fullName
-                    : t('scrapbook.personLabel', { name: person.fullName, years })
+                    : t('scrapbook.personLabel', { name: person.fullName, years: spokenYears })
                 }
                 lifeYears={years}
                 tape="loose"

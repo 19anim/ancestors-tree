@@ -290,7 +290,17 @@
     "card": {
       "label": "{{name}}, {{years}}, đời thứ {{generation}}",
       "labelNoYears": "{{name}}, đời thứ {{generation}}",
-      "actions": "Thao tác với {{name}}"
+      "actions": "Thao tác với {{name}}",
+      "approxYear": "khoảng năm {{year}}",
+      "inLawLabel": "{{label}}, {{family}}"
+    },
+    "inLaw": {
+      "sonOfFather": "Con trai ông {{name}}",
+      "daughterOfFather": "Con gái ông {{name}}",
+      "sonOfMother": "Con trai bà {{name}}",
+      "daughterOfMother": "Con gái bà {{name}}",
+      "surname": "Họ {{surname}}",
+      "separator": " · "
     },
     "rules": {
       "INVALID_ID": "Mã định danh không hợp lệ. Hãy tải lại trang rồi thử lại.",

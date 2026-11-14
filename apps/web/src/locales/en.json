@@ -290,7 +290,17 @@
     "card": {
       "label": "{{name}}, {{years}}, generation {{generation}}",
       "labelNoYears": "{{name}}, generation {{generation}}",
-      "actions": "Actions for {{name}}"
+      "actions": "Actions for {{name}}",
+      "approxYear": "around {{year}}",
+      "inLawLabel": "{{label}}, {{family}}"
+    },
+    "inLaw": {
+      "sonOfFather": "Son of Mr. {{name}}",
+      "daughterOfFather": "Daughter of Mr. {{name}}",
+      "sonOfMother": "Son of Mrs. {{name}}",
+      "daughterOfMother": "Daughter of Mrs. {{name}}",
+      "surname": "{{surname}} family",
+      "separator": " · "
     },
     "rules": {
       "INVALID_ID": "An id is not valid. Reload the page and try again.",

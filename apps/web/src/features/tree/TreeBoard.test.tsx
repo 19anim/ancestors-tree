@@ -1,3 +1,4 @@
+import type { TreeResponse } from '@ancestors-tree/shared';
 import { treeStateFromLists, type TreeState } from '@ancestors-tree/shared/tree';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
-import { CLAN_ID, FAMILY, GRANDMA, ME, SON } from './fixtures';
+import { CLAN_ID, FAMILY, GRANDMA, GRANDPA, ME, SON } from './fixtures';
 import { PersonCard } from './PersonCard';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { TreeActionsContext } from './treeActions';
@@ -73,7 +74,9 @@ describe('TreeBoard', () => {
     renderWithProviders(<TreeBoard label="Cây gia phả: Họ Nguyễn" />);
     expect(screen.getByRole('group', { name: 'Cây gia phả: Họ Nguyễn' })).toBeInTheDocument();
     expect(
-      await screen.findByRole('figure', { name: 'Nguyễn Văn Tư, 1931–2004, đời thứ 1' }),
+      await screen.findByRole('figure', {
+        name: 'Nguyễn Văn Tư, khoảng năm 1931–khoảng năm 2004, đời thứ 1',
+      }),
     ).toHaveAttribute('data-tape', 'progenitor');
     expect(screen.getByRole('figure', { name: 'Lê Thị Hoa, đời thứ 1' })).toHaveAttribute(
       'data-tape',
@@ -85,6 +88,29 @@ describe('TreeBoard', () => {
     );
     // Not linked to the progenitor: listed in the tray, not drawn.
     expect(screen.queryByRole('figure', { name: /Trần Văn Bình/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the anniversary line and the birthday sticker', async () => {
+    const tree = {
+      ...FAMILY,
+      persons: FAMILY.persons.map((person) =>
+        person.id === GRANDPA
+          ? {
+              ...person,
+              death: {
+                isDeceased: true,
+                date: { source: 'lunar', lunar: { day: 15, month: 10, year: 2004, isLeap: false } },
+              },
+            }
+          : person.id === SON
+            ? { ...person, birth: { source: 'solar', solar: { day: 21, month: 11, year: 1990 } } }
+            : person,
+      ),
+    } satisfies TreeResponse;
+    showTree(treeStateFromLists(tree.progenitorId, tree.persons, tree.unions));
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    expect(await screen.findByText('Ngày giỗ 15/10 âm lịch')).toBeInTheDocument();
+    expect(screen.getByText('Sinh nhật 21/11')).toBeInTheDocument();
   });
 
   it('shows an edit at once', async () => {
