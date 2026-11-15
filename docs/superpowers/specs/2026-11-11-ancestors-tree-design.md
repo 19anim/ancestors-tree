@@ -550,6 +550,7 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
   - In Lunar mode a "leap month" checkbox can be ticked only when that year's leap month is the chosen month.
   - Errors show at the field, for example day 30 in a 29-day lunar month. A year alone in Lunar or Solar mode suggests "Year only".
   - The entered side and the derived side are stored (§5).
+- **The add-person form** (first person, Add child, Add spouse, Add parent): full name, gender, date of birth, living/deceased, and a date of death once "deceased" is chosen. Both dates use `DualDateInput` and may be left empty. A date of death typed and then hidden by choosing "living" is neither checked nor sent. Everything else is filled in later with **Edit**.
 - **Add parent** (if missing).
   - No parents yet: the new person, a new Union with them as its only partner, and `setParents` go out as one `batch`.
   - One known parent: the new person joins that parent's Union as the second partner. The form names any siblings who get the same parent ("also the parent of: Y, Z"), and the gender defaults to the other one.

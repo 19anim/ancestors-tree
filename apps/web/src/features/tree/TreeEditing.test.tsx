@@ -147,6 +147,76 @@ describe('editing the tree', () => {
     ]);
   });
 
+  it('adds a person with dates of birth and death, in one op', async () => {
+    const user = userEvent.setup();
+    const sent = editableTree(EMPTY_TREE_RESPONSE, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await user.click(await screen.findByRole('button', { name: 'Thêm người đầu tiên' }));
+    const dialog = screen.getByRole('dialog', { name: 'Thêm người đầu tiên' });
+    await user.type(within(dialog).getByLabelText('Họ và tên'), 'Lê Văn Cả');
+
+    const birth = within(dialog).getByRole('group', { name: 'Ngày sinh' });
+    await user.click(within(birth).getByRole('radio', { name: 'Chỉ biết năm' }));
+    await user.type(within(birth).getByLabelText('Năm'), '1931');
+    // The date of death is asked only once "Đã mất" is chosen.
+    expect(within(dialog).queryByRole('group', { name: 'Ngày mất' })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Đã mất' }));
+    const death = within(dialog).getByRole('group', { name: 'Ngày mất' });
+    await user.type(within(death).getByLabelText('Ngày'), '15');
+    await user.type(within(death).getByLabelText('Tháng'), '10');
+    await user.type(within(death).getByLabelText('Năm'), '1990');
+    await user.click(within(dialog).getByRole('button', { name: 'Thêm vào cây' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    const [request] = sent() as { op: Op }[];
+    expect(request?.op).toMatchObject({
+      type: 'addPerson',
+      payload: {
+        fullName: 'Lê Văn Cả',
+        birth: { source: 'approx', approxYear: 1931 },
+        death: {
+          isDeceased: true,
+          date: { source: 'lunar', lunar: { day: 15, month: 10, year: 1990, isLeap: false } },
+        },
+      },
+    });
+  });
+
+  it('keeps the form open on a half-typed date, and ignores a hidden date of death', async () => {
+    const user = userEvent.setup();
+    const sent = editableTree(EMPTY_TREE_RESPONSE, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await user.click(await screen.findByRole('button', { name: 'Thêm người đầu tiên' }));
+    const dialog = screen.getByRole('dialog', { name: 'Thêm người đầu tiên' });
+    await user.type(within(dialog).getByLabelText('Họ và tên'), 'Lê Văn Cả');
+
+    const birth = within(dialog).getByRole('group', { name: 'Ngày sinh' });
+    await user.type(within(birth).getByLabelText('Năm'), '1931');
+    await user.click(within(dialog).getByRole('button', { name: 'Thêm vào cây' }));
+    expect(
+      await within(birth).findByText('Chỉ biết năm? Hãy chọn “Chỉ biết năm”.'),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(within(birth).getByLabelText('Ngày')).toHaveFocus());
+    expect(sent()).toHaveLength(0);
+
+    await user.clear(within(birth).getByLabelText('Năm'));
+    await user.click(within(dialog).getByRole('radio', { name: 'Đã mất' }));
+    await user.type(
+      within(within(dialog).getByRole('group', { name: 'Ngày mất' })).getByLabelText('Ngày'),
+      '15',
+    );
+    await user.click(within(dialog).getByRole('radio', { name: 'Còn sống' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Thêm vào cây' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    const [request] = sent() as { op: Extract<Op, { type: 'addPerson' }> }[];
+    const payload = request!.op.payload;
+    expect(payload.death).toEqual({ isDeceased: false });
+    expect('birth' in payload).toBe(false);
+  });
+
   it('lets the Manager choose the progenitor from the people not yet linked', async () => {
     const user = userEvent.setup();
     const sent = editableTree(FAMILY);
@@ -431,7 +501,9 @@ describe('editing the tree', () => {
     // Grandpa is the known parent: the other one is preset.
     expect(within(form).getByRole('radio', { name: 'Nữ' })).toBeChecked();
     // Nam is not the progenitor, and an editor cannot choose one.
-    expect(within(form).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(
+      within(form).queryByRole('checkbox', { name: 'Đặt người này làm thuỷ tổ (đời thứ 1)' }),
+    ).not.toBeInTheDocument();
     await user.type(within(form).getByLabelText('Họ và tên'), 'Lê Thị Hoa');
     await user.click(within(form).getByRole('button', { name: 'Thêm vào cây' }));
 

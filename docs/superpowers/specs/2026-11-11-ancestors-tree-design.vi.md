@@ -552,6 +552,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
   - Ở chế độ Âm, ô "tháng nhuận" chỉ đánh dấu được khi tháng nhuận của năm đó đúng là tháng đã chọn.
   - Lỗi hiện ngay tại ô, VD ngày 30 trong tháng âm chỉ có 29 ngày. Chỉ nhập năm ở chế độ Âm hoặc Dương thì ứng dụng gợi ý chọn "Chỉ biết năm".
   - Lưu cả bên người dùng đã nhập lẫn bên tính ra (§5).
+- **Form thêm người** (người đầu tiên, Thêm con, Thêm vợ/chồng, Thêm cha/mẹ): họ tên, giới tính, ngày sinh, còn sống/đã mất, và ngày mất khi chọn "đã mất". Cả hai ngày dùng `DualDateInput` và có thể để trống. Ngày mất đã gõ rồi bị ẩn vì chọn "còn sống" thì không bị kiểm tra và không được gửi. Các thông tin khác điền sau bằng **Sửa**.
 - **Thêm cha/mẹ** (nếu chưa có).
   - Chưa có cha mẹ: người mới, một Union mới chỉ có người đó, và `setParents` được gửi trong một `batch`.
   - Đã có một người: người mới vào Union của người đó làm người thứ hai. Form ghi tên các anh chị em cũng có thêm cha/mẹ này ("cũng là cha/mẹ của: Y, Z"), và giới tính mặc định là giới tính còn lại.
