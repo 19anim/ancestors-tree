@@ -43,6 +43,22 @@ describe('looseStacks', () => {
     expect(looseStacks(tree)).toEqual([{ rootId: BINH, personIds: [BINH, AN, FIRST, SECOND] }]);
   });
 
+  it('leads with the partner who was there first when the couple ties, whatever the names', () => {
+    const BINH = testId(1);
+    const CUC = testId(2);
+    const DUNG = testId(3);
+    const tree = treeOf(
+      [
+        makePerson(BINH, { fullName: 'Trần Văn Bình' }),
+        // Sorts before Bình, but was added to his marriage second (partnerIds[1]).
+        makePerson(CUC, { fullName: 'Phạm Thị Cúc', gender: 'female' }),
+        makePerson(DUNG, { fullName: 'Trần Văn Dũng', parentUnionId: testId(101) }),
+      ],
+      [makeUnion(testId(101), [BINH, CUC])],
+    );
+    expect(looseStacks(tree)).toEqual([{ rootId: BINH, personIds: [BINH, CUC, DUNG] }]);
+  });
+
   it('puts members the walk down from the root does not reach last, by name', () => {
     const BAC = testId(1);
     const SON = testId(2);

@@ -13,7 +13,11 @@ function byName(a: Person, b: Person): number {
   return a.fullName.localeCompare(b.fullName, 'vi') || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 
-/** The unlinked people grouped by branch, each group led by its topmost person. */
+/**
+ * The unlinked people grouped by branch, each group led by its topmost person: someone with no
+ * parent in the group, with the most descendants in it; between tied partners, the one earlier
+ * in their union's `partnerIds` (the person who was there first); then by name, then id.
+ */
 export function looseStacks(tree: TreeState): LooseStack[] {
   const index = buildTreeIndex(tree);
   const lineage = classifyLineage(tree, index);
@@ -72,8 +76,24 @@ export function looseStacks(tree: TreeState): LooseStack[] {
     };
     const candidates = members.filter((person) => !hasParentInside(person));
     const pool = candidates.length > 0 ? candidates : members;
-    const root = [...pool].sort(
-      (a, b) => descendants(b.id, ids) - descendants(a.id, ids) || byName(a, b),
+    const counts = new Map(pool.map((person) => [person.id, descendants(person.id, ids)]));
+    const most = Math.max(...counts.values());
+    const top = pool.filter((person) => counts.get(person.id) === most);
+    const topIds = new Set(top.map((person) => person.id));
+    // relate puts the person already there first in partnerIds and the added spouse after, so a
+    // later partner of another top candidate gives way to them.
+    const addedLater = new Set(
+      top
+        .filter((person) =>
+          index.unionsOf(person.id).some((union) => {
+            const first = union.partnerIds[0];
+            return first !== undefined && first !== person.id && topIds.has(first);
+          }),
+        )
+        .map((person) => person.id),
+    );
+    const root = [...top].sort(
+      (a, b) => Number(addedLater.has(a.id)) - Number(addedLater.has(b.id)) || byName(a, b),
     )[0] as Person;
     // Spouses, then children, breadth first from the root; anyone left after, by name.
     const order = [root.id];

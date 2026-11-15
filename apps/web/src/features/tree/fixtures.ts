@@ -70,7 +70,7 @@ export const LOOSE_BRANCH: TreeResponse = {
   ...FAMILY,
   persons: [
     ...FAMILY.persons,
-    fixturePerson(LOOSE_WIFE, 'Vũ Thị Cúc', { gender: 'female' }),
+    fixturePerson(LOOSE_WIFE, 'Phạm Thị Cúc', { gender: 'female' }),
     fixturePerson(LOOSE_CHILD, 'Trần Văn Dũng', { parentUnionId: LOOSE_UNION }),
   ],
   unions: [

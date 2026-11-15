@@ -37,7 +37,7 @@ describe('Loose photos', () => {
     });
     expect(toggle).toHaveTextContent('+2 người');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(within(tray).queryByRole('button', { name: 'Vũ Thị Cúc' })).not.toBeInTheDocument();
+    expect(within(tray).queryByRole('button', { name: 'Phạm Thị Cúc' })).not.toBeInTheDocument();
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -47,7 +47,7 @@ describe('Loose photos', () => {
       within(stack)
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label')),
-    ).toEqual(['Vũ Thị Cúc', 'Trần Văn Dũng']);
+    ).toEqual(['Phạm Thị Cúc', 'Trần Văn Dũng']);
     await user.click(within(stack).getByRole('button', { name: 'Trần Văn Dũng' }));
     expect(screen.getByRole('complementary', { name: 'Trần Văn Dũng' })).toBeInTheDocument();
   });
