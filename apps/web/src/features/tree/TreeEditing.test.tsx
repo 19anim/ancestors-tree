@@ -126,7 +126,7 @@ describe('editing the tree', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Thêm vào cây' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    const tray = screen.getByRole('region', { name: 'Chưa nối vào cây' });
+    const tray = screen.getByRole('region', { name: 'Ảnh chưa dán' });
     expect(within(tray).getByText('Lê Thị Hoa')).toBeInTheDocument();
     // The button that opened the form is gone: focus goes to the new person's card.
     await waitFor(() => expect(card('Lê Thị Hoa')).toHaveFocus());
@@ -583,7 +583,7 @@ describe('editing the tree', () => {
       expectedUserId: ME.id,
       op: { type: 'deletePerson', payload: { id: LOOSE } },
     });
-    expect(screen.queryByRole('region', { name: 'Chưa nối vào cây' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Ảnh chưa dán' })).not.toBeInTheDocument();
     // The person, their profile and their card are gone: focus goes to the start of the page
     // content, and no notice says the profile closed (the user deleted them).
     await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());

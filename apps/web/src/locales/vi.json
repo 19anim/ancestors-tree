@@ -283,7 +283,7 @@
     "loading": "Đang tải cây gia phả…",
     "board": {
       "label": "Cây gia phả: {{name}}",
-      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới.",
+      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Ảnh chưa dán” bên dưới.",
       "zoomIn": "Phóng to",
       "zoomOut": "Thu nhỏ",
       "fitView": "Xem cả cây",
@@ -329,8 +329,11 @@
       "delete": "Xoá người này"
     },
     "unlinked": {
-      "title": "Chưa nối vào cây",
-      "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
+      "title": "Ảnh chưa dán",
+      "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ. Mỗi xấp là một nhánh.",
+      "more": "+{{count}} người",
+      "stackToggle": "+{{count}} người trong xấp của {{name}}",
+      "stackList": "Xấp của {{name}}"
     },
     "profile": {
       "close": "Đóng hồ sơ",

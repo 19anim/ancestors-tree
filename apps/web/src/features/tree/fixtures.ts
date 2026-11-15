@@ -61,6 +61,24 @@ export const FAMILY: TreeResponse = {
   unions: [{ id: PARENTS_UNION, partnerIds: [GRANDPA, GRANDMA], order: 1, status: 'married' }],
 };
 
+export const LOOSE_WIFE = '64b7f0c2a1b2c3d4e5f6a00b';
+export const LOOSE_CHILD = '64b7f0c2a1b2c3d4e5f6a00c';
+export const LOOSE_UNION = '64b7f0c2a1b2c3d4e5f6b00a';
+
+/** FAMILY, where Bình (not linked) has a wife and a son: one loose branch of three. */
+export const LOOSE_BRANCH: TreeResponse = {
+  ...FAMILY,
+  persons: [
+    ...FAMILY.persons,
+    fixturePerson(LOOSE_WIFE, 'Vũ Thị Cúc', { gender: 'female' }),
+    fixturePerson(LOOSE_CHILD, 'Trần Văn Dũng', { parentUnionId: LOOSE_UNION }),
+  ],
+  unions: [
+    ...FAMILY.unions,
+    { id: LOOSE_UNION, partnerIds: [LOOSE, LOOSE_WIFE], order: 1, status: 'married' },
+  ],
+};
+
 export const EMPTY_TREE_RESPONSE: TreeResponse = {
   version: 0,
   progenitorId: null,

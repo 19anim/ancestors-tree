@@ -283,7 +283,7 @@
     "loading": "Loading the family tree…",
     "board": {
       "label": "Family tree: {{name}}",
-      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below.",
+      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Loose photos” below.",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fitView": "Show the whole tree",
@@ -329,8 +329,11 @@
       "delete": "Delete this person"
     },
     "unlinked": {
-      "title": "Not yet linked",
-      "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
+      "title": "Loose photos",
+      "hint": "These people are not linked to the progenitor yet, so they are not on the chart. Each stack is one branch.",
+      "more": "+{{count}} more",
+      "stackToggle": "+{{count}} more in {{name}}’s stack",
+      "stackList": "{{name}}’s stack"
     },
     "profile": {
       "close": "Close the profile",

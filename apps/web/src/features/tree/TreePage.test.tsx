@@ -30,7 +30,7 @@ describe('TreePage', () => {
     ).toBeInTheDocument();
     // The footer's server status is also a status region, so find ours by its text.
     expect(screen.getByText('Đã lưu')).toHaveAttribute('role', 'status');
-    const tray = screen.getByRole('region', { name: 'Chưa nối vào cây' });
+    const tray = screen.getByRole('region', { name: 'Ảnh chưa dán' });
     expect(within(tray).getByText('Trần Văn Bình')).toBeInTheDocument();
     // The photo is drawn under the tray's buttons: no text in them that their names lack
     // (WCAG 2.5.3, axe's label-content-name-mismatch).
