@@ -10,6 +10,7 @@ import {
   addChildOp,
   addParentOp,
   addFirstPersonOp,
+  addSeveralOp,
   addSpouseOp,
   deletePersonOp,
   parentSlot,
@@ -123,6 +124,21 @@ describe('op builders', () => {
   it('deletes and chooses the progenitor', () => {
     expect(deletePersonOp(GRANDMA)).toEqual({ type: 'deletePerson', payload: { id: GRANDMA } });
     expect(setProgenitorOp(SON)).toEqual({ type: 'setProgenitor', payload: { personId: SON } });
+  });
+
+  it('adds several people in one batch, without relationships', () => {
+    const op = addSeveralOp([
+      input,
+      { fullName: 'Lê Thị Mai', gender: 'female', isDeceased: true },
+    ]);
+    expect(op.type).toBe('batch');
+    const next = applyOp(tree, op).tree;
+    const added = Object.values(next.persons).filter((person) => !tree.persons[person.id]);
+    expect(added.map((person) => [person.fullName, person.parentUnionId])).toEqual([
+      ['Nguyễn Văn Út', undefined],
+      ['Lê Thị Mai', undefined],
+    ]);
+    expect(Object.keys(next.unions)).toEqual(Object.keys(tree.unions));
   });
 });
 

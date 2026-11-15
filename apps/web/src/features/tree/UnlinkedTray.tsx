@@ -1,4 +1,5 @@
 import { looseStacks, type LooseStack, type Person } from '@ancestors-tree/shared/tree';
+import { UsersRound } from 'lucide-react';
 import { useContext, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Polaroid, tiltFor } from '../../shared/ui';
@@ -103,7 +104,7 @@ function TrayStack({ stack }: { stack: LooseStack }) {
 }
 
 /** People not linked to the progenitor (spec §8 "unlinked"), one stack per branch (§7.6). */
-export function UnlinkedTray() {
+export function UnlinkedTray({ onAddSeveral }: { onAddSeveral?: () => void }) {
   const { t } = useTranslation();
   const headingId = useId();
   const tree = useTreeStore((state) => state.tree);
@@ -116,6 +117,12 @@ export function UnlinkedTray() {
         {t('tree.unlinked.title')}
       </h2>
       <p className="text-sm text-ink-muted">{t('tree.unlinked.hint')}</p>
+      {onAddSeveral ? (
+        <Button variant="secondary" size="sm" className="self-start" onClick={onAddSeveral}>
+          <UsersRound aria-hidden="true" strokeWidth={1.75} className="size-4" />
+          {t('tree.several.open')}
+        </Button>
+      ) : null}
       <ul className="flex flex-wrap items-start gap-4">
         {stacks.map((stack) => (
           <TrayStack key={stack.rootId} stack={stack} />

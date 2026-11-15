@@ -434,6 +434,14 @@
       "couple": "two people",
       "pair": "{{first}} and {{second}}"
     },
+    "several": {
+      "open": "Add several people",
+      "title": "Add several people",
+      "hint": "One person per row. They go to Loose photos; then drag each onto the tree or use “Change relationship…”.",
+      "row": "Person {{n}}",
+      "none": "Enter at least one full name.",
+      "full": "You can add up to 500 people at a time."
+    },
     "form": {
       "firstTitle": "Add the first person",
       "childTitle": "Add a child of {{name}}",

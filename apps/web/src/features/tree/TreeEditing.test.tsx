@@ -24,34 +24,17 @@ import {
   treeRoutes,
 } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
+import { batchOps, card, cardName, EDITOR, editableTree, OPS } from './testKit';
 
-const OPS = `POST /clans/${CLAN_ID}/ops`;
-const EDITOR = { ...CLAN, role: 'editor' as const };
 const SECOND_WIFE = '64b7f0c2a1b2c3d4e5f6a004';
 const SECOND_UNION = '64b7f0c2a1b2c3d4e5f6b002';
 const NAM_ALONE_UNION = '64b7f0c2a1b2c3d4e5f6b003';
 const GRANDCHILD = '64b7f0c2a1b2c3d4e5f6a005';
 const SISTER = '64b7f0c2a1b2c3d4e5f6a006';
 
-/** The ops inside the op of a sent request, which must be a batch. */
-function batchOps(request: unknown): Op[] {
-  const { op } = request as { op: Op };
-  if (op.type !== 'batch') throw new Error(`Expected a batch, got ${op.type}`);
-  return op.payload.ops;
-}
-
 /** The id of the person or union an op adds. */
 function idOf(op: Op | undefined): string | undefined {
   return op?.type === 'addPerson' || op?.type === 'addUnion' ? op.payload.id : undefined;
-}
-
-/** A person's card button, named by their label: the name, then the years and generation. */
-function cardName(name: string): RegExp {
-  return new RegExp(`^${name}(,|$)`);
-}
-
-function card(name: string): HTMLElement {
-  return screen.getByRole('button', { name: cardName(name) });
 }
 
 /** The Polaroid beside a card button, under it; it is hidden from screen readers. */
@@ -59,19 +42,6 @@ function figureOf(button: HTMLElement): HTMLElement {
   const figure = button.parentElement?.querySelector('figure');
   if (!figure) throw new Error('no Polaroid in the card');
   return figure;
-}
-
-/** Mocks the tree and accepts every op; returns the ops the page sent. */
-function editableTree(tree: TreeResponse, clan = CLAN) {
-  let seq = tree.version;
-  const api = mockApi({
-    ...treeRoutes(tree, clan),
-    [OPS]: () => {
-      seq += 1;
-      return { body: { seq } };
-    },
-  });
-  return () => api.calls.filter((call) => call.method === 'POST').map((call) => call.body);
 }
 
 /** Opens the person's profile from their card; its actions replace P5's actions dialog. */

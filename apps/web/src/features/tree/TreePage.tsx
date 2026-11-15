@@ -44,6 +44,7 @@ export function TreePage() {
   }, [personId, openName]);
   const canEdit = hasRoleAtLeast(clan.role, 'editor');
   const isOwner = clan.role === 'owner';
+  const addSeveral = canEdit ? () => changeDialog({ kind: 'several' }) : undefined;
 
   const actions = useMemo<PersonActionsApi | null>(() => {
     if (!canEdit) return null;
@@ -148,7 +149,7 @@ export function TreePage() {
         {/* From md up the profile is a column beside the content, so nothing hides under it. */}
         <div className="md:flex md:items-start md:gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <TreeToolbar canEdit={canEdit} />
+            <TreeToolbar canEdit={canEdit} onAddSeveral={addSeveral} />
             {/* Always in the accessibility tree, so a later message is announced; while empty,
               sr-only takes it out of the layout without hiding it from screen readers. */}
             <p role="status" className="font-medium text-ink empty:sr-only">
@@ -167,7 +168,7 @@ export function TreePage() {
                   label={t('tree.board.label', { name: clan.name })}
                   openPersonId={personId}
                 />
-                <UnlinkedTray />
+                <UnlinkedTray onAddSeveral={addSeveral} />
               </>
             )}
           </div>

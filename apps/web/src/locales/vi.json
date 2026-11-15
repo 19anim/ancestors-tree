@@ -434,6 +434,14 @@
       "couple": "hai người",
       "pair": "{{first}} và {{second}}"
     },
+    "several": {
+      "open": "Thêm nhiều người",
+      "title": "Thêm nhiều người",
+      "hint": "Mỗi dòng một người. Họ sẽ vào mục Ảnh chưa dán, rồi bạn kéo từng người lên cây hoặc dùng “Đổi quan hệ…”.",
+      "row": "Người thứ {{n}}",
+      "none": "Nhập ít nhất một họ tên.",
+      "full": "Mỗi lần thêm được tối đa 500 người."
+    },
     "form": {
       "firstTitle": "Thêm người đầu tiên",
       "childTitle": "Thêm con của {{name}}",
