@@ -19,7 +19,9 @@ import {
   deathAnniversaryOf,
   lifeYears,
 } from './format';
-import { OpenPersonContext } from './profileParams';
+import { OpenPersonContext, personCardButton } from './profileParams';
+import { isRelativeKey, relativeTarget } from './relativeNav';
+import { useTreeStore } from './store';
 
 /**
  * React Flow turns pointer events off on nodes that are not draggable, not selectable and have
@@ -100,6 +102,19 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
           // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
           data-person-open={person.id}
           onClick={() => openPerson?.(person.id)}
+          // On the button, not the wrapper: keys in an open card menu bubble to the wrapper
+          // through the portal, never to the button, so the menu keeps its own arrows.
+          onKeyDown={(event) => {
+            if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+            if (!isRelativeKey(event.key)) return;
+            // Arrows on a card never scroll the page or pan the board (spec §7.8).
+            event.preventDefault();
+            // Read on the key press, not subscribed: the card re-renders only for its person.
+            const target = relativeTarget(useTreeStore.getState().tree, person.id, event.key);
+            // A board person is never in the tray, so this is their card; the board's onFocus
+            // centres it when it is off screen (WCAG 2.4.11).
+            if (target !== null) personCardButton(target)?.focus();
+          }}
         >
           <Polaroid
             aria-hidden="true"

@@ -287,7 +287,7 @@
       "zoomIn": "Phóng to",
       "zoomOut": "Thu nhỏ",
       "fitView": "Xem cả cây",
-      "keyboardHint": "Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây."
+      "keyboardHint": "Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây. Trên một thẻ: Enter mở hồ sơ, phím mũi tên đi tới người thân."
     },
     "card": {
       "label": "{{name}}, {{years}}, đời thứ {{generation}}",

@@ -287,7 +287,7 @@
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fitView": "Show the whole tree",
-      "keyboardHint": "Use the arrow keys to move, + and − to zoom in and out, and 0 to show the whole tree."
+      "keyboardHint": "Use the arrow keys to move, + and − to zoom in and out, and 0 to show the whole tree. On a card: Enter opens the profile, the arrow keys move to relatives."
     },
     "card": {
       "label": "{{name}}, {{years}}, generation {{generation}}",

@@ -6,7 +6,7 @@ import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute, renderWithProviders } from '../../test/render';
 import { CardMenu } from './CardMenu';
-import { CLAN, CLAN_ID, FAMILY, ME, SON, treeRoutes } from './fixtures';
+import { CLAN, CLAN_ID, FAMILY, LOOSE, ME, SON, treeRoutes } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { PersonActionsContext, type PersonActionsApi } from './usePersonActions';
 
@@ -135,6 +135,43 @@ describe('the card menu on the board', () => {
     await waitFor(() =>
       expect(document.querySelector(`[data-person-open="${SON}"]`)).toHaveFocus(),
     );
+  });
+
+  it('moves between relatives with the arrows, and between items while the menu is open', async () => {
+    mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const card = await cardOf('Nguyễn Văn Nam');
+    card.focus();
+    fireEvent.contextMenu(card);
+    const menu = await screen.findByRole('menu');
+    await user.keyboard('{ArrowDown}');
+    const first = within(menu).getAllByRole('menuitem')[0];
+    await waitFor(() => expect(first).toHaveFocus());
+    await user.keyboard('{ArrowDown}');
+    await waitFor(() => expect(within(menu).getAllByRole('menuitem')[1]).toHaveFocus());
+    // The menu is portalled out of the card's button, so ↑ is the menu's, not a move to Tư.
+    await user.keyboard('{ArrowUp}');
+    await waitFor(() => expect(first).toHaveFocus());
+    expect(menu).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(card).toHaveFocus());
+    await user.keyboard('{ArrowUp}');
+    expect(await cardOf('Nguyễn Văn Tư')).toHaveFocus();
+  });
+
+  it('moves only between board cards, never from the Loose photos tray', async () => {
+    mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await cardOf('Nguyễn Văn Nam');
+    const loose = document.querySelector<HTMLElement>(`[data-person-open="${LOOSE}"]`);
+    expect(loose?.closest('.react-flow')).toBeNull();
+    loose?.focus();
+    for (const key of ['{ArrowUp}', '{ArrowDown}', '{ArrowLeft}', '{ArrowRight}']) {
+      await user.keyboard(key);
+      expect(loose).toHaveFocus();
+    }
   });
 
   it('leaves the browser’s own menu to viewers', async () => {

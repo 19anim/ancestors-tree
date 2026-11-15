@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
+import { personRect, type Rect } from './boardView';
 import { CLAN_ID, FAMILY, GRANDMA, GRANDPA, ME, SON } from './fixtures';
+import { layoutTree } from './layout';
 import { PersonCard } from './PersonCard';
 import { OpenPersonContext } from './profileParams';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
@@ -292,7 +294,8 @@ describe('TreeBoard', () => {
     const board = screen.getByRole('group', { name: 'Cây gia phả' });
     expect(board).toHaveAttribute('tabindex', '0');
     expect(board).toHaveAccessibleDescription(
-      'Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây.',
+      'Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây. ' +
+        'Trên một thẻ: Enter mở hồ sơ, phím mũi tên đi tới người thân.',
     );
     // No node or edge wrapper is a tab stop; the only buttons are the cards (a viewer opens
     // profiles too) and the zoom buttons.
@@ -331,6 +334,53 @@ describe('TreeBoard', () => {
     const onCard = viewportOf(board);
     await user.keyboard('{ArrowLeft}');
     expect(viewportOf(board).x).toBeCloseTo(onCard.x);
+  });
+
+  it('moves focus to a relative with the arrow keys and centres the card it lands on', async () => {
+    // Reduced motion: the view jumps. In jsdom, a d3 transition started while another is still
+    // running (Nam's centring, then Tư's) sometimes never advances.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const user = userEvent.setup();
+    showTree(family);
+    renderWithProviders(
+      <OpenPersonContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" />
+      </OpenPersonContext>,
+    );
+    const son = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    // jsdom boards are 1×1 pixel (test/reactFlow.ts): every card is off screen, so a card that
+    // gets focus is centred in React Flow's own view, which fills the board.
+    const flow = board.querySelector<HTMLElement>('.react-flow') as HTMLElement;
+    const rect = personRect(layoutTree(family), GRANDPA) as Rect;
+    const grandpaCentre = () => {
+      const { x, y, zoom } = viewportOf(board);
+      return { x: x + (rect.x + rect.width / 2) * zoom, y: y + (rect.y + rect.height / 2) * zoom };
+    };
+    act(() => son.focus());
+    await user.keyboard('{ArrowUp}');
+    const grandpa = screen.getByRole('button', { name: /^Nguyễn Văn Tư,/ });
+    expect(grandpa).toHaveFocus();
+    await waitFor(() => {
+      expect(grandpaCentre().x).toBeCloseTo(flow.offsetWidth / 2);
+      expect(grandpaCentre().y).toBeCloseTo(flow.offsetHeight / 2);
+    });
+    // No parent, no sibling: the key does nothing.
+    await user.keyboard('{ArrowUp}');
+    expect(grandpa).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(grandpa).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(son).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(son).toHaveFocus();
+    // A modified arrow is not a move.
+    await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
+    expect(son).toHaveFocus();
   });
 
   it('brings a card into view when its button gets focus', async () => {
