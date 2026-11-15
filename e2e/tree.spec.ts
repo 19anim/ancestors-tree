@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   addPerson,
   cardOf,
+  createTree,
   expectNoSeriousA11yViolations,
   openProfile,
   register,
@@ -106,4 +107,33 @@ test('the Manager deletes the family tree', async ({ page }) => {
   await page.goto(treeUrl);
   await expect(page.getByRole('alert')).toHaveText('Không tìm thấy nội dung bạn cần.');
   await expect(page.getByRole('link', { name: 'Về danh sách cây gia phả' })).toBeVisible();
+});
+
+test('on a phone, the board that appears behind the profile sheet stays out of reach', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'A phone layout check');
+  await page.goto('/register');
+  await register(page, 'Minh', 'sheet');
+  await createTree(page, 'Họ Phạm');
+  await page.getByRole('button', { name: 'Thêm người đầu tiên' }).click();
+  await addPerson(page, 'Phạm Văn Cả');
+  // From the tray: once chosen, the board mounts behind the open sheet.
+  const panel = await openProfile(page, 'Phạm Văn Cả');
+  await panel.getByRole('button', { name: 'Chọn làm thuỷ tổ' }).click();
+  await expect(cardOf(page, 'Phạm Văn Cả')).toHaveAccessibleName('Phạm Văn Cả, đời thứ 1');
+  await expect(panel).toBeVisible();
+
+  const stops = await panel.locator('button, a[href], input, textarea, select').count();
+  await panel.getByRole('button', { name: 'Đóng hồ sơ' }).focus();
+  for (let press = 0; press < stops + 2; press += 1) {
+    await page.keyboard.press('Shift+Tab');
+    // In the sheet, or out to the browser itself; never on the board behind it.
+    const where = await panel.evaluate((element) => {
+      const active = document.activeElement;
+      if (active === null || active === document.body) return 'browser';
+      return element.contains(active) ? 'sheet' : active.outerHTML.slice(0, 80);
+    });
+    expect(['sheet', 'browser'], `Shift+Tab #${press + 1}`).toContain(where);
+  }
 });

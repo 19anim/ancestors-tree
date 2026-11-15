@@ -7,6 +7,8 @@ afterEach(() => {
 
 const byId = (id: string) => document.getElementById(id) as HTMLElement;
 const isInert = (id: string) => byId(id).hasAttribute('inert');
+/** MutationObserver callbacks run in a microtask after the change. */
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('inertOthers', () => {
   it('makes the rest of the page inert, keeps live regions announced, and undoes it all', () => {
@@ -37,5 +39,46 @@ describe('inertOthers', () => {
     expect(document.querySelectorAll('[inert]')).toHaveLength(1);
     // Inert before, so not ours to undo.
     expect(isInert('footer')).toBe(true);
+  });
+
+  it('makes what mounts later inert too, but not a dialog on top, and undoes only its own', async () => {
+    document.body.innerHTML = `
+      <header id="header"><button>Menu</button></header>
+      <main id="main">
+        <div id="column">
+          <p id="status" role="status"></p>
+          <p id="no-progenitor">Chưa chọn thuỷ tổ</p>
+        </div>
+        <aside id="sheet"><button>Close</button></aside>
+      </main>`;
+    const undo = inertOthers(byId('sheet'));
+    const mount = (parent: HTMLElement, id: string, html = '') => {
+      const element = document.createElement('div');
+      element.id = id;
+      element.innerHTML = html;
+      parent.append(element);
+      return element;
+    };
+    // The board replaces the text once a progenitor is chosen; a notice and a tray appear.
+    byId('no-progenitor').remove();
+    mount(byId('column'), 'board', '<button>Nguyễn Văn Nam, đời thứ 2</button>').tabIndex = 0;
+    mount(byId('main'), 'tray', '<button>Trần Văn Bình</button>');
+    mount(document.body, 'banner', '<div role="alert"><button>Đóng</button></div>');
+    // A dialog opened from the sheet, portalled to the body: it must stay usable.
+    mount(document.body, 'portal', '<div role="dialog"><button>Xoá</button></div>');
+    await flush();
+
+    expect(isInert('board')).toBe(true);
+    expect(isInert('tray')).toBe(true);
+    // A live region stays operable on purpose (TreeNoticeBanner's dismiss button).
+    expect(byId('banner').closest('[inert]')).toBeNull();
+    expect(byId('portal').closest('[inert]')).toBeNull();
+
+    undo();
+    expect(document.querySelectorAll('[inert]')).toHaveLength(0);
+    // Not watching any more.
+    mount(byId('column'), 'later', '<button>Sau</button>');
+    await flush();
+    expect(isInert('later')).toBe(false);
   });
 });

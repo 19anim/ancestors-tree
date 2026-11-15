@@ -30,13 +30,29 @@ afterEach(() => {
 
 const NOBODY = '64b7f0c2a1b2c3d4e5f6ffff';
 
-/** Wide (md and up, a column beside the board) or narrow (a bottom sheet). */
+/**
+ * Wide (md and up, a column beside the board) or narrow (a bottom sheet). Returns a way to
+ * change the width later, as a window resized across md.
+ */
 function stubWidth(wide: boolean) {
+  const width = { wide };
+  const matches = (query: string) => width.wide && query === '(min-width: 48rem)';
+  const listeners = new Map<(event: { matches: boolean }) => void, string>();
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: wide && query === '(min-width: 768px)',
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
+    get matches() {
+      return matches(query);
+    },
+    addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+      listeners.set(listener, query),
+    removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+      listeners.delete(listener),
   }));
+  return (next: boolean) => {
+    width.wide = next;
+    act(() => {
+      for (const [listener, query] of [...listeners]) listener({ matches: matches(query) });
+    });
+  };
 }
 
 const cardOf = (name: string) => screen.findByRole('button', { name: new RegExp(`^${name},`) });
@@ -317,5 +333,44 @@ describe('the profile panel', () => {
     expect(
       await screen.findByText('Nguyễn Văn Nam không còn trong cây nên hồ sơ đã đóng.'),
     ).toBeInTheDocument();
+  });
+
+  it('keeps the board that appears behind the sheet out of reach (first progenitor)', async () => {
+    stubWidth(false);
+    const firstTree = {
+      version: 1,
+      progenitorId: null,
+      persons: FAMILY.persons.filter((person) => person.id === LOOSE),
+      unions: [],
+    };
+    mockApi({
+      ...treeRoutes(firstTree),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 2 } }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${LOOSE}`);
+    const panel = await screen.findByRole('complementary', { name: 'Trần Văn Bình' });
+    await user.click(within(panel).getByRole('button', { name: 'Chọn làm thuỷ tổ' }));
+    // The board mounts in place of the "no progenitor" text, after the sheet made the page inert.
+    const card = await screen.findByRole('button', { name: /^Trần Văn Bình,/ });
+    // findByRole resolves after the observer's microtask: no wait needed.
+    expect(card.closest('[inert]')).not.toBeNull();
+    expect(screen.getByRole('group', { name: /^Cây gia phả/ }).closest('[inert]')).not.toBeNull();
+    expect(panel.closest('[inert]')).toBeNull();
+  });
+
+  it('takes focus into the sheet when the window narrows with focus behind it', async () => {
+    const setWide = stubWidth(true);
+    mockApi(treeRoutes(FAMILY));
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
+    const panel = await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    const card = await cardOf('Lê Thị Hoa');
+    act(() => card.focus());
+    setWide(false);
+    expect(card.closest('[inert]')).not.toBeNull();
+    expect(within(panel).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
+    // Wide again: the page is back as it was.
+    setWide(true);
+    expect(document.querySelector('[inert]')).toBeNull();
   });
 });

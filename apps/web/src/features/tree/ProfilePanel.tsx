@@ -34,8 +34,8 @@ interface ProfilePanelProps {
 }
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
-/** Tailwind's md: from here up the panel is a column beside the board, not a sheet over it. */
-const WIDE_QUERY = '(min-width: 768px)';
+/** Tailwind's md (48rem): from here up the panel is a column beside the board, not a sheet. */
+const WIDE_QUERY = '(min-width: 48rem)';
 
 /** The profile (spec §7.6): a side panel on wide screens, a bottom sheet on small ones. */
 export function ProfilePanel({
@@ -79,13 +79,19 @@ export function ProfilePanel({
   // Below md the panel is a bottom sheet over the board: a modal one, so neither Tab nor a tap
   // reaches the cards and controls it hides (WCAG 2.4.11). Esc, Back and the close button close
   // it. From md up it is a column beside the board, and the page stays as it is. The cleanup
-  // runs before the page puts focus back on the card.
+  // runs before the page puts focus back on the card. The notice banner (`role="alert"`) stays
+  // operable on purpose (see inertOthers).
   const wide = useMediaQuery(WIDE_QUERY);
   const modal = shown && !wide;
   useEffect(() => {
     const element = panel.current;
     if (!modal || element === null) return;
-    return inertOthers(element);
+    const undo = inertOthers(element);
+    // The window narrowed across md with focus behind the sheet (a card, the toolbar): that
+    // element is inert now, so focus would drop to the page. It moves into the sheet instead.
+    const active = document.activeElement;
+    if (active === null || !element.contains(active)) heading.current?.focus();
+    return undo;
   }, [modal]);
 
   // Edit mode (spec §7.6). TreePage keys the panel by person, so another person opens in read mode.
