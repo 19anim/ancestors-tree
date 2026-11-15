@@ -1,14 +1,23 @@
+import type { Clan } from '@ancestors-tree/shared';
 import { buildTreeIndex } from '@ancestors-tree/shared/tree';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOutletContext } from 'react-router';
 import { DeletePersonDialog } from './DeletePersonDialog';
-import { addChildOp, addFirstPersonOp, addSpouseOp, deletePersonOp } from './ops';
+import {
+  addChildOp,
+  addFirstPersonOp,
+  addParentOp,
+  addSpouseOp,
+  deletePersonOp,
+  parentSlot,
+} from './ops';
 import { PersonFormDialog, type UnionChoice } from './PersonFormDialog';
 import { personCardButton } from './profileParams';
 import { useTreeStore } from './store';
 
 export type TreeDialog =
-  { kind: 'first' } | { kind: 'child' | 'spouse' | 'delete'; personId: string } | null;
+  { kind: 'first' } | { kind: 'child' | 'spouse' | 'parent' | 'delete'; personId: string } | null;
 
 /**
  * The tree page's dialog, and where focus goes when the last one closes (WCAG 2.4.3). The
@@ -73,10 +82,13 @@ export function TreeDialogs({
   onCloseAutoFocus,
 }: TreeDialogsProps) {
   const { t } = useTranslation();
+  // The page's family tree, as TreePage reads it: only its Manager may move the progenitor.
+  const isOwner = useOutletContext<Clan>().role === 'owner';
   const tree = useTreeStore((state) => state.tree);
   const apply = useTreeStore((state) => state.apply);
   // Only the forms that link people read the index; building it on every edit is wasted work.
-  const needsIndex = dialog?.kind === 'child' || dialog?.kind === 'spouse';
+  const needsIndex =
+    dialog?.kind === 'child' || dialog?.kind === 'spouse' || dialog?.kind === 'parent';
   const index = useMemo(() => (needsIndex ? buildTreeIndex(tree) : null), [needsIndex, tree]);
   const close = () => onDialogChange(null);
   // A dialog whose person is gone (deleted meanwhile, for example by a reload after a conflict)
@@ -140,6 +152,38 @@ export function TreeDialogs({
           onCloseAutoFocus={onCloseAutoFocus}
         />
       );
+    case 'parent': {
+      if (index === null) return null;
+      const slot = parentSlot(tree, index, person.id);
+      const offerProgenitor = isOwner && tree.progenitorId === person.id;
+      return (
+        <PersonFormDialog
+          title={t('tree.form.parentTitle', { name: person.fullName })}
+          defaultGender={slot.kind === 'one' && slot.parent.gender === 'male' ? 'female' : 'male'}
+          note={
+            slot.kind === 'one' && slot.siblings.length > 0
+              ? t('tree.form.parentAlsoOf', {
+                  names: slot.siblings.map((sibling) => sibling.fullName).join(', '),
+                })
+              : undefined
+          }
+          checkbox={
+            offerProgenitor
+              ? { label: t('tree.form.makeProgenitor'), defaultChecked: true }
+              : undefined
+          }
+          onSubmit={(input, _unionId, checked) =>
+            // Both parents became known while the form was open (another device, an undo):
+            // a new union would take the child away from them, so the form says to look again.
+            slot.kind === 'full'
+              ? { ok: false, reason: 'OUT_OF_DATE' }
+              : apply(addParentOp(tree, index, person.id, input, offerProgenitor && checked))
+          }
+          onClose={close}
+          onCloseAutoFocus={onCloseAutoFocus}
+        />
+      );
+    }
     case 'delete':
       return (
         <DeletePersonDialog

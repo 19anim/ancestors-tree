@@ -66,7 +66,7 @@ export function TreePage() {
             return;
           }
           case 'addParent':
-            // availableActions does not offer it yet: nothing to open.
+            changeDialog({ kind: 'parent', personId: id });
             return;
           default: {
             const unknown: never = action;

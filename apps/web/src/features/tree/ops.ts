@@ -5,6 +5,7 @@ import {
   type Person,
   type SingleOp,
   type TreeIndex,
+  type TreeState,
   type Union,
 } from '@ancestors-tree/shared/tree';
 
@@ -116,4 +117,58 @@ export function deletePersonOp(id: string): Op {
 
 export function setProgenitorOp(personId: string | null): Op {
   return { type: 'setProgenitor', payload: { personId } };
+}
+
+export type ParentSlot =
+  | { kind: 'none' }
+  | { kind: 'one'; union: Union; parent: Person; siblings: readonly Person[] }
+  | { kind: 'full' };
+
+/** Where a new parent of `childId` goes (spec §7.6 "Add parent"). */
+export function parentSlot(tree: TreeState, index: TreeIndex, childId: string): ParentSlot {
+  const unionId = tree.persons[childId]?.parentUnionId;
+  const union = unionId === undefined ? undefined : tree.unions[unionId];
+  if (union === undefined) return { kind: 'none' };
+  const parent =
+    union.partnerIds.length === 1 ? tree.persons[union.partnerIds[0] ?? ''] : undefined;
+  if (parent === undefined) return { kind: 'full' };
+  const siblings = index.childrenOf(union.id).filter((child) => child.id !== childId);
+  return { kind: 'one', union, parent, siblings };
+}
+
+/**
+ * A parent of `childId`, as one op: with no parents, a one-parent union and setParents; with
+ * one, the second partner of that union. `makeProgenitor` ends the batch with setProgenitor.
+ * Not for a child with two parents: availableActions does not offer it then, and the form
+ * refuses it when both became known while it was open.
+ */
+export function addParentOp(
+  tree: TreeState,
+  index: TreeIndex,
+  childId: string,
+  input: NewPersonInput,
+  makeProgenitor: boolean,
+): Op {
+  const parent = buildPerson(input);
+  const slot = parentSlot(tree, index, childId);
+  const ops: SingleOp[] = [{ type: 'addPerson', payload: parent }];
+  if (slot.kind === 'one') {
+    ops.push({
+      type: 'updateUnion',
+      payload: { id: slot.union.id, changes: { partnerIds: [slot.parent.id, parent.id] } },
+    });
+  } else {
+    const union: Union = {
+      id: newObjectId(),
+      partnerIds: [parent.id],
+      order: 1,
+      status: 'married',
+    };
+    ops.push(
+      { type: 'addUnion', payload: union },
+      { type: 'setParents', payload: { personId: childId, parentUnionId: union.id } },
+    );
+  }
+  if (makeProgenitor) ops.push({ type: 'setProgenitor', payload: { personId: parent.id } });
+  return { type: 'batch', payload: { ops } };
 }

@@ -1,6 +1,7 @@
-import type { TreeState } from '@ancestors-tree/shared/tree';
+import { buildTreeIndex, classifyLineage, type TreeState } from '@ancestors-tree/shared/tree';
 import { Baby, Crown, HeartPlus, Trash2, UserRoundPlus, type LucideIcon } from 'lucide-react';
 import { createContext } from 'react';
+import { parentSlot } from './ops';
 
 export type PersonActionId = 'addChild' | 'addSpouse' | 'addParent' | 'setProgenitor' | 'delete';
 
@@ -12,7 +13,13 @@ export function availableActions(
 ): PersonActionId[] {
   if (!tree.persons[personId]) return [];
   const actions: PersonActionId[] = ['addChild', 'addSpouse'];
-  if (isOwner && tree.progenitorId !== personId) actions.push('setProgenitor');
+  const isProgenitor = tree.progenitorId === personId;
+  const index = buildTreeIndex(tree);
+  // In-laws' parents belong in their birth family (spec §7.6, §8).
+  const inLaw = classifyLineage(tree, index).get(personId) === 'in-law';
+  const slot = parentSlot(tree, index, personId).kind;
+  if (!inLaw && slot !== 'full' && (!isProgenitor || isOwner)) actions.push('addParent');
+  if (isOwner && !isProgenitor) actions.push('setProgenitor');
   actions.push('delete');
   return actions;
 }

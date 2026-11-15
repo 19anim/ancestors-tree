@@ -1,6 +1,6 @@
 import type { TreeResponse } from '@ancestors-tree/shared';
 import type { Op } from '@ancestors-tree/shared/tree';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -15,9 +15,11 @@ import {
   EMPTY_TREE_RESPONSE,
   FAMILY,
   fixturePerson,
+  GRANDMA,
   GRANDPA,
   LOOSE,
   ME,
+  PARENTS_UNION,
   SON,
   treeRoutes,
 } from './fixtures';
@@ -29,6 +31,7 @@ const SECOND_WIFE = '64b7f0c2a1b2c3d4e5f6a004';
 const SECOND_UNION = '64b7f0c2a1b2c3d4e5f6b002';
 const NAM_ALONE_UNION = '64b7f0c2a1b2c3d4e5f6b003';
 const GRANDCHILD = '64b7f0c2a1b2c3d4e5f6a005';
+const SISTER = '64b7f0c2a1b2c3d4e5f6a006';
 
 /** The ops inside the op of a sent request, which must be a batch. */
 function batchOps(request: unknown): Op[] {
@@ -376,6 +379,107 @@ describe('editing the tree', () => {
       type: 'updateUnion',
       payload: { id: NAM_ALONE_UNION, changes: { partnerIds: [SON, idOf(spouse)] } },
     });
+  });
+
+  it('adds a parent above the progenitor, who becomes the progenitor in the same change', async () => {
+    const user = userEvent.setup();
+    const sent = editableTree(FAMILY);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const actions = await openActions(user, 'Nguyễn Văn Tư');
+    await user.click(within(actions).getByRole('button', { name: 'Thêm cha/mẹ' }));
+
+    const form = screen.getByRole('dialog', { name: 'Thêm cha/mẹ của Nguyễn Văn Tư' });
+    expect(
+      within(form).getByRole('checkbox', { name: 'Đặt người này làm thuỷ tổ (đời thứ 1)' }),
+    ).toBeChecked();
+    await user.type(within(form).getByLabelText('Họ và tên'), 'Nguyễn Văn Cố');
+    await user.click(within(form).getByRole('button', { name: 'Thêm vào cây' }));
+
+    expect(
+      await screen.findByRole('button', { name: /^Nguyễn Văn Cố,.*đời thứ 1$/ }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(actions).getByRole('button', { name: 'Thêm cha/mẹ' })).toHaveFocus(),
+    );
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    const ops = batchOps(sent()[0]);
+    expect(ops.at(-1)).toMatchObject({
+      type: 'setProgenitor',
+      payload: { personId: idOf(ops[0]) },
+    });
+  });
+
+  it('adds the missing parent from the card menu, naming the siblings who share them', async () => {
+    const user = userEvent.setup();
+    const oneParent: TreeResponse = {
+      ...FAMILY,
+      persons: [
+        ...FAMILY.persons,
+        fixturePerson(SISTER, 'Nguyễn Thị Ba', { gender: 'female', parentUnionId: PARENTS_UNION }),
+      ],
+      unions: [{ id: PARENTS_UNION, partnerIds: [GRANDPA], order: 1, status: 'married' }],
+    };
+    const sent = editableTree(oneParent, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const namCard = await screen.findByRole('button', { name: cardName('Nguyễn Văn Nam') });
+    fireEvent.contextMenu(namCard);
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Thêm cha/mẹ' }));
+
+    const form = await screen.findByRole('dialog', { name: 'Thêm cha/mẹ của Nguyễn Văn Nam' });
+    expect(form).toHaveTextContent('Người này cũng sẽ là cha/mẹ của: Nguyễn Thị Ba.');
+    // Grandpa is the known parent: the other one is preset.
+    expect(within(form).getByRole('radio', { name: 'Nữ' })).toBeChecked();
+    // Nam is not the progenitor, and an editor cannot choose one.
+    expect(within(form).queryByRole('checkbox')).not.toBeInTheDocument();
+    await user.type(within(form).getByLabelText('Họ và tên'), 'Lê Thị Hoa');
+    await user.click(within(form).getByRole('button', { name: 'Thêm vào cây' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(card('Nguyễn Văn Nam')).toHaveFocus());
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    const ops = batchOps(sent()[0]);
+    expect(ops).toHaveLength(2);
+    const [parent, link] = ops;
+    expect(parent).toMatchObject({
+      type: 'addPerson',
+      payload: { fullName: 'Lê Thị Hoa', gender: 'female' },
+    });
+    expect(link).toEqual({
+      type: 'updateUnion',
+      payload: { id: PARENTS_UNION, changes: { partnerIds: [GRANDPA, idOf(parent)] } },
+    });
+  });
+
+  it('adds no parent when both became known while the form was open, and keeps the form', async () => {
+    const user = userEvent.setup();
+    const oneParent: TreeResponse = {
+      ...FAMILY,
+      unions: [{ id: PARENTS_UNION, partnerIds: [GRANDPA], order: 1, status: 'married' }],
+    };
+    const sent = editableTree(oneParent);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const actions = await openActions(user, 'Nguyễn Văn Nam');
+    await user.click(within(actions).getByRole('button', { name: 'Thêm cha/mẹ' }));
+    const form = screen.getByRole('dialog', { name: 'Thêm cha/mẹ của Nguyễn Văn Nam' });
+    await user.type(within(form).getByLabelText('Họ và tên'), 'Đỗ Thị Lan');
+    // Meanwhile Nam's mother is filled in (here, as another change of this device).
+    act(() => {
+      useTreeStore.getState().apply({
+        type: 'updateUnion',
+        payload: { id: PARENTS_UNION, changes: { partnerIds: [GRANDPA, GRANDMA] } },
+      });
+    });
+    await user.click(within(form).getByRole('button', { name: 'Thêm vào cây' }));
+
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Cây gia phả vừa có thay đổi mới. Hãy xem lại rồi thử lại.',
+    );
+    expect(within(form).getByLabelText('Họ và tên')).toHaveValue('Đỗ Thị Lan');
+    // Nam keeps both parents: no new union took him away from them.
+    expect(useTreeStore.getState().tree.persons[SON]?.parentUnionId).toBe(PARENTS_UNION);
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    expect(sent()[0]).toMatchObject({ op: { type: 'updateUnion' } });
   });
 
   it('explains why someone cannot be deleted, and deletes someone who can be', async () => {
