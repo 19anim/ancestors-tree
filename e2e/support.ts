@@ -26,9 +26,21 @@ export async function addPerson(page: Page, fullName: string, gender: 'Nam' | 'N
   await expect(dialog).toBeHidden();
 }
 
-export async function openActions(page: Page, name: string) {
-  await page.getByRole('button', { name: `Thao tác với ${name}` }).click();
-  return page.getByRole('dialog', { name });
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** A person's card on the board or in the tray: its name starts with the person's name. */
+export function cardOf(page: Page, name: string) {
+  return page.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}(,|$)`) });
+}
+
+/** Opens a person's profile panel; returns it. */
+export async function openProfile(page: Page, name: string) {
+  await cardOf(page, name).click();
+  const panel = page.getByRole('complementary', { name });
+  await expect(panel).toBeVisible();
+  return panel;
 }
 
 /** Signs in on the login page that is open. */

@@ -1,31 +1,33 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   addPerson,
+  cardOf,
   createTree,
   expectNoSeriousA11yViolations,
-  openActions,
+  openProfile,
   register,
   serverCounts,
   signIn,
 } from './support.ts';
 
-/** A new account with a tree whose progenitor is Phạm Văn Cả (changes #1 and #2). */
+/**
+ * A new account with a tree whose progenitor is Phạm Văn Cả (changes #1 and #2). His profile
+ * stays open: `panel`.
+ */
 async function treeWithProgenitor(
   page: Page,
   slug: string,
-): Promise<{ email: string; clanId: string }> {
+): Promise<{ email: string; clanId: string; panel: Locator }> {
   await page.goto('/register');
   const email = await register(page, 'Minh', slug);
   const clanId = await createTree(page, 'Họ Phạm');
   await page.getByRole('button', { name: 'Thêm người đầu tiên' }).click();
   await addPerson(page, 'Phạm Văn Cả');
-  await (
-    await openActions(page, 'Phạm Văn Cả')
-  )
-    .getByRole('button', { name: 'Chọn làm thuỷ tổ' })
-    .click();
-  await expect(page.getByRole('figure', { name: 'Phạm Văn Cả, đời thứ 1' })).toBeVisible();
-  return { email, clanId };
+  const panel = await openProfile(page, 'Phạm Văn Cả');
+  await panel.getByRole('button', { name: 'Chọn làm thuỷ tổ' }).click();
+  await expect(cardOf(page, 'Phạm Văn Cả')).toHaveAccessibleName('Phạm Văn Cả, đời thứ 1');
+  await expect(panel).toBeVisible();
+  return { email, clanId, panel };
 }
 
 test('two tabs edit at once: the second one rebases and keeps its change', async ({
@@ -33,12 +35,8 @@ test('two tabs edit at once: the second one rebases and keeps its change', async
   browser,
   baseURL,
 }) => {
-  const { email, clanId } = await treeWithProgenitor(page, 'rebase');
-  await (
-    await openActions(page, 'Phạm Văn Cả')
-  )
-    .getByRole('button', { name: 'Thêm vợ/chồng' })
-    .click();
+  const { email, clanId, panel } = await treeWithProgenitor(page, 'rebase');
+  await panel.getByRole('button', { name: 'Thêm vợ/chồng' }).click();
   await addPerson(page, 'Nguyễn Thị Ba', 'Nữ');
   await expect
     .poll(() => serverCounts(page, clanId))
@@ -50,10 +48,10 @@ test('two tabs edit at once: the second one rebases and keeps its change', async
   const other = await second.newPage();
   await other.goto(`/login?returnTo=${encodeURIComponent(`/clans/${clanId}/tree`)}`);
   await signIn(other, email);
-  await expect(other.getByRole('figure', { name: 'Nguyễn Thị Ba, đời thứ 1' })).toBeVisible();
+  await expect(cardOf(other, 'Nguyễn Thị Ba')).toHaveAccessibleName('Nguyễn Thị Ba, đời thứ 1');
 
   // The first tab saves a child; the second does not know yet.
-  await (await openActions(page, 'Phạm Văn Cả')).getByRole('button', { name: 'Thêm con' }).click();
+  await panel.getByRole('button', { name: 'Thêm con' }).click();
   await addPerson(page, 'Phạm Văn Hai');
   await expect
     .poll(() => serverCounts(page, clanId))
@@ -74,15 +72,15 @@ test('two tabs edit at once: the second one rebases and keeps its change', async
       new URL(response.url()).searchParams.has('since'),
   );
   await (
-    await openActions(other, 'Nguyễn Thị Ba')
+    await openProfile(other, 'Nguyễn Thị Ba')
   )
     .getByRole('button', { name: 'Thêm con' })
     .click();
   await addPerson(other, 'Phạm Văn Tư');
   await conflict;
   expect((await newOps).status()).toBe(200);
-  await expect(other.getByRole('figure', { name: 'Phạm Văn Hai, đời thứ 2' })).toBeVisible();
-  await expect(other.getByRole('figure', { name: 'Phạm Văn Tư, đời thứ 2' })).toBeVisible();
+  await expect(cardOf(other, 'Phạm Văn Hai')).toHaveAccessibleName('Phạm Văn Hai, đời thứ 2');
+  await expect(cardOf(other, 'Phạm Văn Tư')).toHaveAccessibleName('Phạm Văn Tư, đời thứ 2');
   await expect
     .poll(() => serverCounts(page, clanId))
     .toEqual({ status: 200, persons: 4, unions: 1 });
@@ -93,28 +91,25 @@ test('two tabs edit at once: the second one rebases and keeps its change', async
 });
 
 test('an undo is saved, and the Manager goes back to a point and undoes that', async ({ page }) => {
-  const { clanId } = await treeWithProgenitor(page, 'undo');
+  const { clanId, panel } = await treeWithProgenitor(page, 'undo');
   // #3: a child (with a one-parent union); #4: a spouse who joins that union.
-  await (await openActions(page, 'Phạm Văn Cả')).getByRole('button', { name: 'Thêm con' }).click();
+  await panel.getByRole('button', { name: 'Thêm con' }).click();
   await addPerson(page, 'Phạm Văn Hai');
-  await (
-    await openActions(page, 'Phạm Văn Cả')
-  )
-    .getByRole('button', { name: 'Thêm vợ/chồng' })
-    .click();
+  await expect(panel).toBeVisible();
+  await panel.getByRole('button', { name: 'Thêm vợ/chồng' }).click();
   await addPerson(page, 'Nguyễn Thị Ba', 'Nữ');
   await expect(page.getByText('Hoàn tác: thêm Nguyễn Thị Ba')).toBeVisible();
 
   // #5: the undo.
   await page.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
-  await expect(page.getByRole('figure', { name: /Nguyễn Thị Ba/ })).toHaveCount(0);
+  await expect(cardOf(page, 'Nguyễn Thị Ba')).toHaveCount(0);
   await expect
     .poll(() => serverCounts(page, clanId))
     .toEqual({ status: 200, persons: 2, unions: 1 });
 
   await page.reload();
-  await expect(page.getByRole('figure', { name: 'Phạm Văn Hai, đời thứ 2' })).toBeVisible();
-  await expect(page.getByRole('figure', { name: /Nguyễn Thị Ba/ })).toHaveCount(0);
+  await expect(cardOf(page, 'Phạm Văn Hai')).toHaveAccessibleName('Phạm Văn Hai, đời thứ 2');
+  await expect(cardOf(page, 'Nguyễn Thị Ba')).toHaveCount(0);
   // The undo steps belong to the page session: none after a reload. The button stays
   // focusable, so it is marked with aria-disabled rather than disabled.
   await expect(page.getByRole('button', { name: 'Hoàn tác', exact: true })).toHaveAttribute(
@@ -144,10 +139,10 @@ test('an undo is saved, and the Manager goes back to a point and undoes that', a
 
   // One undo brings everything back.
   await page.getByRole('link', { name: 'Cây', exact: true }).click();
-  await expect(page.getByRole('figure', { name: 'Phạm Văn Cả, đời thứ 1' })).toBeVisible();
-  await expect(page.getByRole('figure', { name: /Phạm Văn Hai/ })).toHaveCount(0);
+  await expect(cardOf(page, 'Phạm Văn Cả')).toHaveAccessibleName('Phạm Văn Cả, đời thứ 1');
+  await expect(cardOf(page, 'Phạm Văn Hai')).toHaveCount(0);
   await page.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
-  await expect(page.getByRole('figure', { name: 'Phạm Văn Hai, đời thứ 2' })).toBeVisible();
+  await expect(cardOf(page, 'Phạm Văn Hai')).toHaveAccessibleName('Phạm Văn Hai, đời thứ 2');
   await expect
     .poll(() => serverCounts(page, clanId))
     .toEqual({ status: 200, persons: 2, unions: 1 });
