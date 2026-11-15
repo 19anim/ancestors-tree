@@ -1,13 +1,15 @@
 import type { TreeResponse } from '@ancestors-tree/shared';
 import type { Op } from '@ancestors-tree/shared/tree';
 import { act, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
-import { renderRoute } from '../../test/render';
+import { routes } from '../../app/routes';
+import { renderRoute, renderWithProviders } from '../../test/render';
 import { CLAN, CLAN_ID, FAMILY, ME, SON, treeRoutes } from './fixtures';
-import { useProfileDraft } from './profileDraft';
+import { discardProfileDraft, useProfileDraft } from './profileDraft';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 
 const OPS = `POST /clans/${CLAN_ID}/ops`;
@@ -35,6 +37,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetTreeStore();
+  discardProfileDraft();
   vi.unstubAllGlobals();
 });
 
@@ -207,5 +210,128 @@ describe('editing a profile', () => {
     expect(
       screen.queryByText('Cây vừa được tải lại nên các thay đổi chưa lưu trong hồ sơ đã bị bỏ.'),
     ).not.toBeInTheDocument();
+  });
+
+  it('neither checks nor saves the death fields hidden by "living"', async () => {
+    const sent = editableTree(FAMILY);
+    const user = userEvent.setup();
+    const panel = await editSon(user);
+    await user.click(within(panel).getByRole('radio', { name: 'Đã mất' }));
+    const death = within(panel).getByRole('group', { name: 'Ngày mất' });
+    await user.type(within(death).getByLabelText('Ngày'), '15');
+    await user.type(within(panel).getByLabelText('Nơi an táng'), 'Nghĩa trang làng');
+    await user.click(within(panel).getByRole('radio', { name: 'Còn sống' }));
+    await renameSon(user, panel);
+    await user.click(within(panel).getByRole('button', { name: 'Lưu' }));
+    await waitFor(() =>
+      expect(within(panel).queryByRole('button', { name: 'Lưu' })).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    const op = sent()[0] as Extract<Op, { type: 'updatePerson' }>;
+    expect(op.payload.changes).toEqual({ fullName: 'Nguyễn Văn Năm' });
+  });
+
+  it('moves focus to a date that is wrong on save', async () => {
+    editableTree(FAMILY);
+    const user = userEvent.setup();
+    const panel = await editSon(user);
+    const birth = within(panel).getByRole('group', { name: 'Ngày sinh' });
+    await user.type(within(birth).getByLabelText('Năm'), '1950');
+    await user.click(within(panel).getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(within(birth).getByLabelText('Ngày')).toHaveFocus());
+  });
+});
+
+describe('unsaved profile changes and the rest of the app', () => {
+  const OTHER_ID = '64b7f0c2a1b2c3d4e5f60002';
+  const OTHER_CLAN = { ...CLAN, id: OTHER_ID, name: 'Họ Trần' };
+
+  function beforeUnloadPrevented(): boolean {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  it('asks the browser before the tab unloads while only the profile is dirty', async () => {
+    editableTree(FAMILY);
+    const user = userEvent.setup();
+    const panel = await editSon(user);
+    expect(beforeUnloadPrevented()).toBe(false);
+    await renameSon(user, panel);
+    expect(useTreeStore.getState().pending).toHaveLength(0);
+    expect(beforeUnloadPrevented()).toBe(true);
+  });
+
+  it('asks before another person opens from a card', async () => {
+    editableTree(FAMILY);
+    const user = userEvent.setup();
+    const panel = await editSon(user);
+    await renameSon(user, panel);
+    await user.click(screen.getByRole('button', { name: /^Lê Thị Hoa,/ }));
+    const ask = await screen.findByRole('dialog', { name: DRAFT_TITLE });
+    await user.click(within(ask).getByRole('button', { name: 'Ở lại sửa tiếp' }));
+    expect(within(panel).getByLabelText('Họ và tên')).toHaveValue('Nguyễn Văn Năm');
+    await user.click(screen.getByRole('button', { name: /^Lê Thị Hoa,/ }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: DRAFT_TITLE })).getByRole('button', {
+        name: 'Bỏ thay đổi',
+      }),
+    );
+    expect(await screen.findByRole('complementary', { name: 'Lê Thị Hoa' })).toBeInTheDocument();
+  });
+
+  it('says the profile changes go too when another tree opens with unsent changes', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY),
+      // Never answers: the saved change stays unsent.
+      [OPS]: () => new Promise(() => undefined),
+      [`GET /clans/${OTHER_ID}`]: () => ({ body: OTHER_CLAN }),
+      [`GET /clans/${OTHER_ID}/tree`]: () => ({ body: FAMILY }),
+    });
+    const user = userEvent.setup();
+    const router = createMemoryRouter(routes, {
+      initialEntries: [`/clans/${CLAN_ID}/tree?person=${SON}`],
+    });
+    renderWithProviders(<RouterProvider router={router} />);
+    const panel = await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    await user.click(within(panel).getByRole('button', { name: 'Sửa' }));
+    await user.type(within(panel).getByLabelText('Chi, nhánh'), 'Chi hai');
+    await user.click(within(panel).getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(useTreeStore.getState().pending).toHaveLength(1));
+    await user.click(within(panel).getByRole('button', { name: 'Sửa' }));
+    await renameSon(user, panel);
+    await act(() => router.navigate(`/clans/${OTHER_ID}/tree`));
+    const ask = await screen.findByRole('dialog', { name: 'Mở cây gia phả khác?' });
+    expect(ask).toHaveTextContent(
+      'Còn 1 thay đổi chưa lưu ở cây gia phả bạn vừa sửa. Mở cây khác thì các thay đổi này sẽ bị bỏ. Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất.',
+    );
+    await user.click(within(ask).getByRole('button', { name: 'Ở lại' }));
+    expect(within(panel).getByLabelText('Họ và tên')).toHaveValue('Nguyễn Văn Năm');
+  });
+
+  it('asks before signing out with only profile changes, and keeps them on "stay"', async () => {
+    const api = mockApi({
+      ...treeRoutes(FAMILY),
+      'POST /auth/logout': () => ({ status: 204 }),
+    });
+    const user = userEvent.setup();
+    const panel = await editSon(user);
+    await renameSon(user, panel);
+    await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    const ask = await screen.findByRole('dialog', { name: 'Đăng xuất?' });
+    expect(ask).toHaveTextContent(
+      'Bạn đã sửa hồ sơ nhưng chưa lưu. Đăng xuất thì những thay đổi này sẽ mất.',
+    );
+    await user.click(within(ask).getByRole('button', { name: 'Ở lại' }));
+    expect(within(panel).getByLabelText('Họ và tên')).toHaveValue('Nguyễn Văn Năm');
+    expect(api.calls.some((call) => call.path === '/auth/logout')).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Đăng xuất?' })).getByRole('button', {
+        name: 'Vẫn đăng xuất',
+      }),
+    );
+    expect(await screen.findByRole('link', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(useProfileDraft.getState().dirty).toBe(false);
   });
 });

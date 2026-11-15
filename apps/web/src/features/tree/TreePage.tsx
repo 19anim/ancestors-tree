@@ -7,7 +7,6 @@ import { Button } from '../../shared/ui';
 import { EmptyTree } from './EmptyTree';
 import { applyFailureMessage } from './format';
 import { setProgenitorOp } from './ops';
-import { discardProfileDraft } from './profileDraft';
 import { ProfilePanel } from './ProfilePanel';
 import { OpenPersonContext, personCardButton, useProfileParam } from './profileParams';
 import { useTreeStore } from './store';
@@ -92,9 +91,9 @@ export function TreePage() {
     const known = knownName.current;
     const name = known !== null && known.personId === personId ? known.name : undefined;
     const hadDraft = draftLost.current;
+    // No draft to drop here: the form unmounted first and its cleanup cleared it, so the guard
+    // does not ask about someone who is gone.
     draftLost.current = false;
-    // The form is gone already; dropped before closing, so the guard does not ask about it.
-    discardProfileDraft();
     if (!silent) {
       setNotice(
         name === undefined

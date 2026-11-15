@@ -4,15 +4,24 @@ import { Link, NavLink, Outlet } from 'react-router';
 import { UserMenu, useCurrentUser } from '../features/auth';
 import { ServerStatus } from '../features/system';
 import {
+  discardProfileDraft,
   signOutTreeStore,
   TreeNoticeBanner,
   UnsentChangesGuard,
+  useProfileDraft,
   useTreeAccount,
   useUnsentChangeCount,
 } from '../features/tree';
 import { useDocumentLanguage } from '../shared/i18n/useDocumentLanguage';
 import { cn } from '../shared/lib/cn';
 import { ThemeToggle } from '../shared/ui';
+
+/** The user chose to sign out: unsent tree changes and an unsaved profile form both go. */
+function signOutTree(): void {
+  // Cleared first, so the form that unmounts does not report its changes as lost.
+  discardProfileDraft();
+  signOutTreeStore();
+}
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return cn(
@@ -26,6 +35,7 @@ export function AppShell() {
   useDocumentLanguage();
   const me = useCurrentUser();
   const unsentChanges = useUnsentChangeCount();
+  const profileDirty = useProfileDraft((state) => state.dirty);
   // Unsent tree changes belong to the account that made them (spec §7.3): the store drops them
   // when another account signs in and resumes them when the same one signs in again.
   useTreeAccount(me.data?.id, me.dataUpdatedAt);
@@ -73,7 +83,11 @@ export function AppShell() {
             </ul>
           </nav>
           <div className="flex items-center gap-2">
-            <UserMenu unsentChanges={unsentChanges} onSignedOut={signOutTreeStore} />
+            <UserMenu
+              unsentChanges={unsentChanges}
+              unsavedProfile={profileDirty}
+              onSignedOut={signOutTree}
+            />
             <ThemeToggle />
           </div>
         </div>

@@ -7,6 +7,7 @@ export {
   useTreeStore,
   useUnsentChangeCount,
 } from './store';
+export { discardProfileDraft, useProfileDraft } from './profileDraft';
 export { describeAction, describeOp, lookupIn, lookupWith } from './describeOp';
 export type { NameLookup } from './describeOp';
 export { applyFailureMessage } from './format';

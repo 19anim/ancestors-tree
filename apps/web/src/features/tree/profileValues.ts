@@ -69,8 +69,8 @@ const BirthFamilyField = z
     return Object.keys(kept).length === 0 ? null : kept;
   });
 
-/** The profile form (spec §7.6): what the fields hold in, the values ops are built from out. */
-export const ProfileFormSchema = z
+/** The checked fields: hidden ones are already set aside by ProfileFormSchema. */
+const ProfileFieldsSchema = z
   .object({
     fullName: PersonSchema.shape.fullName,
     aliases: z
@@ -93,9 +93,10 @@ export const ProfileFormSchema = z
     bio: optionalText(PersonSchema.shape.bio.unwrap()),
     birthFamily: BirthFamilyField,
   })
-  .transform(({ status, death, ...rest }) => ({
+  .transform(({ status, death, burialPlace, ...rest }) => ({
     ...rest,
-    // The death fields stay in the form while "living" is picked; only the deceased keep a date.
+    // Only the deceased have a burial place and a date of death to send.
+    ...(status === 'deceased' ? { burialPlace } : {}),
     death:
       status === 'living'
         ? { isDeceased: false }
@@ -103,6 +104,38 @@ export const ProfileFormSchema = z
           ? { isDeceased: true }
           : { isDeceased: true, date: death },
   }));
+
+/** What the fields hold: strings, drafts and booleans, before any rule is checked. */
+const ProfileInputSchema = z.object({
+  fullName: z.string(),
+  aliases: z.string(),
+  gender: PersonSchema.shape.gender,
+  status: z.enum(['living', 'deceased']),
+  birth: DateDraftSchema,
+  death: DateDraftSchema,
+  isAdopted: z.boolean(),
+  siblingOrder: z.string(),
+  branch: z.string(),
+  burialPlace: z.string(),
+  bio: z.string(),
+  birthFamily: z.object({
+    surname: z.string(),
+    fatherName: z.string(),
+    motherName: z.string(),
+    hometown: z.string(),
+    note: z.string(),
+  }),
+});
+
+/**
+ * The profile form (spec §7.6): what the fields hold in, the values ops are built from out.
+ * While "living" is picked the death fields are hidden but keep what was typed (switching back
+ * loses nothing): they are neither checked, so a half-typed date cannot block Save unseen, nor
+ * sent.
+ */
+export const ProfileFormSchema = ProfileInputSchema.transform((values) =>
+  values.status === 'living' ? { ...values, death: EMPTY_DATE_DRAFT, burialPlace: '' } : values,
+).pipe(ProfileFieldsSchema);
 
 export type ProfileFormValues = z.input<typeof ProfileFormSchema>;
 export type ProfileValues = z.output<typeof ProfileFormSchema>;
@@ -147,7 +180,8 @@ export function personChanges(
 ): PersonChanges | null {
   const changes: Partial<Record<keyof ProfileValues, unknown>> = {};
   for (const key of Object.keys(next) as (keyof ProfileValues)[]) {
-    if (base !== null && same(base[key], next[key])) continue;
+    // A field one side leaves out (the burial place of the living) counts as empty.
+    if (base !== null && same(base[key] ?? null, next[key] ?? null)) continue;
     changes[key] = next[key];
   }
   return Object.keys(changes).length === 0 ? null : (changes as PersonChanges);

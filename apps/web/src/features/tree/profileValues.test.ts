@@ -104,4 +104,30 @@ describe('personChanges', () => {
     const paths = bad.error?.issues.map((issue) => issue.path.join('.'));
     expect(paths).toEqual(expect.arrayContaining(['birth', 'siblingOrder']));
   });
+
+  it('neither checks nor sends the death fields while "living" is picked', () => {
+    const values = formValuesFromPerson(person);
+    const next = ProfileFormSchema.safeParse({
+      ...values,
+      death: { mode: 'solar', day: '15', month: '', year: '', isLeap: false },
+      burialPlace: 'Nghĩa trang làng',
+    });
+    expect(next.success).toBe(true);
+    expect(next.success ? personChanges(base, next.data) : 'invalid').toBeNull();
+  });
+
+  it('keeps the burial place it opened with when someone deceased is marked living', () => {
+    const deceased = { ...person, death: { isDeceased: true }, burialPlace: 'Nghĩa trang làng' };
+    const values = formValuesFromPerson(deceased);
+    const start = parse(values);
+    const living = parse({ ...values, status: 'living', burialPlace: 'Đồi thông' });
+    expect(personChanges(start, living)).toEqual({ death: { isDeceased: false } });
+  });
+
+  it('sends no emptied burial place for someone just marked deceased', () => {
+    const values = formValuesFromPerson(person);
+    expect(personChanges(base, parse({ ...values, status: 'deceased' }))).toEqual({
+      death: { isDeceased: true },
+    });
+  });
 });

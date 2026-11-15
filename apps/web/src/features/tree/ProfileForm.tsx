@@ -133,6 +133,7 @@ export function ProfileForm({ person, inLaw, onDone, onDraftLost }: ProfileFormP
           value={field.value}
           onChange={field.onChange}
           onBlur={field.onBlur}
+          ref={field.ref}
           error={fieldState.error?.message}
         />
       )}

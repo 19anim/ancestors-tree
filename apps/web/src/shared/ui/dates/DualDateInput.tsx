@@ -1,6 +1,6 @@
 import { canChiYear, MAX_YEAR, MIN_YEAR } from '@ancestors-tree/shared/lunar';
 import { X } from 'lucide-react';
-import { useId, type FocusEvent } from 'react';
+import { useId, type FocusEvent, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../Button';
 import {
@@ -19,6 +19,8 @@ interface DualDateInputProps {
   error?: string;
   /** Called when focus leaves the whole date, not when it moves between its fields. */
   onBlur?: () => void;
+  /** Set on the first field shown (the day, or the year alone), so a form can focus the date. */
+  ref?: Ref<HTMLInputElement>;
 }
 
 const MODES: DateMode[] = ['lunar', 'solar', 'approx'];
@@ -26,7 +28,7 @@ const FIELD =
   'h-10 w-full rounded-control border border-line-strong bg-surface px-2 text-base text-ink aria-invalid:border-stamp';
 
 /** Lunar / Solar / Year only (spec §7.6): one side is typed, the other is shown converted. */
-export function DualDateInput({ legend, value, onChange, error, onBlur }: DualDateInputProps) {
+export function DualDateInput({ legend, value, onChange, error, onBlur, ref }: DualDateInputProps) {
   const { t } = useTranslation();
   const id = useId();
   const errorId = `${id}-error`;
@@ -80,6 +82,7 @@ export function DualDateInput({ legend, value, onChange, error, onBlur }: DualDa
     <label className={`flex flex-col gap-1 text-sm font-medium text-ink ${width}`}>
       {label}
       <input
+        ref={name === (value.mode === 'approx' ? 'year' : 'day') ? ref : undefined}
         inputMode="numeric"
         autoComplete="off"
         className={FIELD}

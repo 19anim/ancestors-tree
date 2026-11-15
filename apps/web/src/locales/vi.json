@@ -168,6 +168,8 @@
       "signedInAs": "Đang đăng nhập với tên {{name}}",
       "signOutTitle": "Đăng xuất?",
       "signOutBody": "Còn {{count}} thay đổi chưa lưu. Đăng xuất thì các thay đổi này sẽ bị bỏ.",
+      "signOutProfileBody": "Bạn đã sửa hồ sơ nhưng chưa lưu. Đăng xuất thì những thay đổi này sẽ mất.",
+      "signOutProfileToo": "Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất.",
       "signOutStay": "Ở lại",
       "signOutAnyway": "Vẫn đăng xuất"
     }

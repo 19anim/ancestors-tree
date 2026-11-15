@@ -168,6 +168,8 @@
       "signedInAs": "Signed in as {{name}}",
       "signOutTitle": "Sign out?",
       "signOutBody": "Unsaved changes: {{count}}. If you sign out, they will be discarded.",
+      "signOutProfileBody": "You edited the profile but did not save. If you sign out, those changes are lost.",
+      "signOutProfileToo": "Your unsaved profile changes will be lost too.",
       "signOutStay": "Stay",
       "signOutAnyway": "Sign out anyway"
     }
