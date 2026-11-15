@@ -42,32 +42,43 @@ describe('relate (properties)', () => {
   });
 
   it('never blocks with an OpError code that applyOp would not raise', () => {
+    let cycles = 0;
     fc.assert(
-      fc.property(arbitraryTree(), fc.nat(), fc.nat(), (tree, i, j) => {
+      fc.property(arbitraryTree(), (tree) => {
+        // Every pair: a cycle needs A to be B's grandparent or older, which few trees have.
         const ids = Object.keys(tree.persons);
-        if (ids.length < 2) return;
-        const a = ids[i % ids.length] as string;
-        const b = ids[j % ids.length] as string;
-        const result = relate(tree, a, b, 'child', { union: ALONE });
-        if (result.kind === 'blocked' && result.reason === 'CYCLE') {
-          // Directly: putting A under B alone is a cycle exactly when A is B's ancestor.
-          const attempt = () =>
-            applyOp(tree, {
-              type: 'batch',
-              payload: {
-                ops: [
-                  {
-                    type: 'addUnion',
-                    payload: { id: 'f'.repeat(24), partnerIds: [b], order: 99, status: 'married' },
-                  },
-                  { type: 'setParents', payload: { personId: a, parentUnionId: 'f'.repeat(24) } },
-                ],
-              },
-            });
-          expect(attempt).toThrow(OpError);
+        for (const a of ids) {
+          for (const b of ids) {
+            const result = relate(tree, a, b, 'child', { union: ALONE });
+            if (result.kind !== 'blocked' || result.reason !== 'CYCLE') continue;
+            cycles += 1;
+            // Directly: putting A under B alone is a cycle exactly when A is B's ancestor.
+            const attempt = () =>
+              applyOp(tree, {
+                type: 'batch',
+                payload: {
+                  ops: [
+                    {
+                      type: 'addUnion',
+                      payload: {
+                        id: 'f'.repeat(24),
+                        partnerIds: [b],
+                        order: 99,
+                        status: 'married',
+                      },
+                    },
+                    { type: 'setParents', payload: { personId: a, parentUnionId: 'f'.repeat(24) } },
+                  ],
+                },
+              });
+            expect(attempt).toThrow(OpError);
+            expect(attempt).toThrow(expect.objectContaining({ code: 'CYCLE' }));
+          }
         }
       }),
-      { numRuns: 300 },
+      { numRuns: 1000 },
     );
+    // The property really met the cycles it is about.
+    expect(cycles).toBeGreaterThan(0);
   });
 });

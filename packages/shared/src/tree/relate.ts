@@ -260,6 +260,13 @@ function makeChild(draft: Draft, a: string, b: string, answers: RelateAnswers): 
   return done(withId);
 }
 
+/** The two-person union of exactly these two people, if they have one. */
+function coupleUnion(tree: TreeState, x: string, y: string): Union | undefined {
+  return buildTreeIndex(tree)
+    .unionsOf(x)
+    .find((candidate) => candidate.partnerIds.length === 2 && candidate.partnerIds.includes(y));
+}
+
 function makeParent(draft: Draft, a: string, b: string, answers: RelateAnswers): Step {
   const unionId = draft.tree.persons[b]?.parentUnionId;
   if (unionId === undefined) {
@@ -270,10 +277,23 @@ function makeParent(draft: Draft, a: string, b: string, answers: RelateAnswers):
   const union = draft.tree.unions[unionId] as Union;
   if (union.partnerIds.length === 1) {
     const kept = union.partnerIds[0] as string;
-    draft.push({
-      type: 'updateUnion',
-      payload: { id: unionId, changes: { partnerIds: [kept, a] } },
-    });
+    const marriage = coupleUnion(draft.tree, kept, a);
+    if (marriage === undefined) {
+      draft.push({
+        type: 'updateUnion',
+        payload: { id: unionId, changes: { partnerIds: [kept, a] } },
+      });
+      return done(kept);
+    }
+    // Replace, don't stack: the children join the couple's marriage, not a second one.
+    for (const child of buildTreeIndex(draft.tree).childrenOf(unionId)) {
+      draft.push({
+        type: 'setParents',
+        payload: { personId: child.id, parentUnionId: marriage.id },
+      });
+      numberLast(draft, child.id, marriage.id);
+    }
+    draft.push({ type: 'deleteUnion', payload: { id: unionId } });
     return done(kept);
   }
   const [first, second] = union.partnerIds as [string, string];
@@ -281,10 +301,7 @@ function makeParent(draft: Draft, a: string, b: string, answers: RelateAnswers):
     return ask({ kind: 'replaceParent', parentIds: [first, second] });
   }
   const kept = answers.replaces === first ? second : first;
-  const existing = buildTreeIndex(draft.tree)
-    .unionsOf(kept)
-    .find((candidate) => candidate.partnerIds.length === 2 && candidate.partnerIds.includes(a));
-  const target = existing?.id ?? newUnion(draft, [kept, a]);
+  const target = coupleUnion(draft.tree, kept, a)?.id ?? newUnion(draft, [kept, a]);
   draft.push({ type: 'setParents', payload: { personId: b, parentUnionId: target } });
   numberLast(draft, b, target);
   return done(kept);

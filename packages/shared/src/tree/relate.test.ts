@@ -128,8 +128,27 @@ describe('relate: parent', () => {
   it('adds A beside a single known parent, for B’s siblings too', () => {
     const tree = family();
     const solo = after(tree, relate(tree, LOOSE, DAUGHTER, 'child'));
-    const next = after(solo, relate(solo, SON, LOOSE, 'parent'));
+    const SIBLING = testId(8);
+    const withSibling = applyOp(solo, {
+      type: 'addPerson',
+      payload: makePerson(SIBLING, { parentUnionId: solo.persons[LOOSE]?.parentUnionId }),
+    }).tree;
+    const next = after(withSibling, relate(withSibling, SON, LOOSE, 'parent'));
     expect(parentsOf(next, LOOSE)).toEqual([DAUGHTER, SON].sort());
+    expect(parentsOf(next, SIBLING)).toEqual([DAUGHTER, SON].sort());
+  });
+
+  it('joins A and the single parent’s existing marriage instead of making a second one', () => {
+    const tree = family();
+    const solo = after(tree, relate(tree, LOOSE, DAUGHTER, 'child'));
+    const married = after(solo, relate(solo, SON, DAUGHTER, 'spouse', { shareChildren: false }));
+    const result = relate(married, SON, LOOSE, 'parent');
+    expect(result).toMatchObject({ kind: 'ok', effect: { withId: DAUGHTER } });
+    const next = after(married, result);
+    expect(parentsOf(next, LOOSE)).toEqual([DAUGHTER, SON].sort());
+    // One union for the couple, and Daughter's emptied one-person union is gone.
+    expect(spousesOf(next, DAUGHTER)).toEqual([SON]);
+    expect(buildTreeIndex(next).unionsOf(DAUGHTER)).toHaveLength(1);
   });
 
   it('gives B without parents a one-person union of A', () => {
