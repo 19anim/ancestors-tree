@@ -1,5 +1,7 @@
 import type { TreeResponse } from '@ancestors-tree/shared';
 import { treeStateFromLists, type TreeState } from '@ancestors-tree/shared/tree';
+import type * as XyFlow from '@xyflow/react';
+import type { ReactFlowInstance, Viewport } from '@xyflow/react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
@@ -7,8 +9,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
-import { personRect, type Rect } from './boardView';
-import { CLAN_ID, FAMILY, GRANDMA, GRANDPA, ME, SON } from './fixtures';
+import { centredOn, isRectVisible, personRect, type Rect } from './boardView';
+import {
+  CLAN_ID,
+  FAMILY,
+  fixturePerson,
+  GRANDMA,
+  GRANDPA,
+  ME,
+  PARENTS_UNION,
+  SON,
+} from './fixtures';
 import { layoutTree } from './layout';
 import { PersonCard } from './PersonCard';
 import { OpenPersonContext } from './profileParams';
@@ -56,7 +67,25 @@ vi.mock('./PersonCard', async (importOriginal) => {
   return { ...original, PersonCard: vi.fn(original.PersonCard as typeof PersonCard) };
 });
 
+/**
+ * Methods of React Flow's instance a test replaces, to watch the board's view calls without
+ * jsdom running the transitions; null uses the real instance.
+ */
+const flowOverride = vi.hoisted(() => ({ current: null as Partial<ReactFlowInstance> | null }));
+vi.mock('@xyflow/react', async (importOriginal) => {
+  const original = await importOriginal<typeof XyFlow>();
+  return {
+    ...original,
+    useReactFlow: () => {
+      const real = original.useReactFlow();
+      return flowOverride.current === null ? real : { ...real, ...flowOverride.current };
+    },
+  };
+});
+
 const family = treeStateFromLists(FAMILY.progenitorId, FAMILY.persons, FAMILY.unions);
+/** Út, Nam's younger sister in the tests that need siblings. */
+const DAUGHTER = '64b7f0c2a1b2c3d4e5f6a004';
 
 beforeEach(() => {
   mockReactFlow();
@@ -67,6 +96,8 @@ beforeEach(() => {
 afterEach(() => {
   resetTreeStore();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  flowOverride.current = null;
 });
 
 describe('TreeBoard', () => {
@@ -381,6 +412,90 @@ describe('TreeBoard', () => {
     // A modified arrow is not a move.
     await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
     expect(son).toHaveFocus();
+  });
+
+  /**
+   * Nam, then Út, side by side under Tư, on a narrow board as on a phone. The view reports
+   * whatever `viewport` holds, and setCenter starts a flight that never lands; time stands still
+   * until the test moves `clock.now`.
+   */
+  async function renderMidFlight() {
+    const siblings = treeStateFromLists(
+      FAMILY.progenitorId,
+      [
+        ...FAMILY.persons,
+        fixturePerson(DAUGHTER, 'Nguyễn Thị Út', {
+          gender: 'female',
+          parentUnionId: PARENTS_UNION,
+        }),
+      ],
+      FAMILY.unions,
+    );
+    const size = { width: 375, height: 420 };
+    const layout = layoutTree(siblings);
+    const rectOf = (id: string) => personRect(layout, id) as Rect;
+    const view = { current: { x: -5000, y: -5000, zoom: 1 } as Viewport };
+    const setCenter = vi.fn(() => new Promise<boolean>(() => undefined));
+    flowOverride.current = { getViewport: () => view.current, setCenter };
+    const clock = { now: 1000 };
+    vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
+    showTree(siblings);
+    renderWithProviders(
+      <OpenPersonContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" />
+      </OpenPersonContext>,
+    );
+    const son = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const daughter = screen.getByRole('button', { name: /^Nguyễn Thị Út,/ });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    board.style.width = `${size.width}px`;
+    board.style.height = `${size.height}px`;
+    // Centred on Nam, Út is cut off by the board's right edge; centred on Út, she is whole.
+    const onSon = centredOn(rectOf(SON), 1, size);
+    const onDaughter = centredOn(rectOf(DAUGHTER), 1, size);
+    expect(isRectVisible(rectOf(DAUGHTER), onSon, size)).toBe(false);
+    expect(isRectVisible(rectOf(DAUGHTER), onDaughter, size)).toBe(true);
+    const centreOf = (id: string) => {
+      const rect = rectOf(id);
+      return [rect.x + rect.width / 2, rect.y + rect.height / 2, expect.anything()];
+    };
+    return { son, daughter, board, view, clock, setCenter, onSon, onDaughter, centreOf };
+  }
+
+  it('keeps a card reached while a centring is under way on screen once the view lands', async () => {
+    const user = userEvent.setup();
+    const { son, daughter, view, clock, setCenter, onSon, onDaughter, centreOf } =
+      await renderMidFlight();
+
+    act(() => son.focus());
+    expect(setCenter).toHaveBeenLastCalledWith(...centreOf(SON));
+    // Halfway to Nam the view happens to show Út whole, but it lands with her off screen.
+    view.current = onDaughter;
+    await user.keyboard('{ArrowRight}');
+    expect(daughter).toHaveFocus();
+    expect(setCenter).toHaveBeenCalledTimes(2);
+    expect(setCenter).toHaveBeenLastCalledWith(...centreOf(DAUGHTER));
+
+    // Long after the flight, the view is where it reports: Nam is already in view there.
+    clock.now += 1000;
+    view.current = onSon;
+    await user.keyboard('{ArrowLeft}');
+    expect(son).toHaveFocus();
+    expect(setCenter).toHaveBeenCalledTimes(2);
+  });
+
+  it('forgets where a centring lands once the user moves the view', async () => {
+    const user = userEvent.setup();
+    const { son, daughter, board, view, setCenter, onDaughter } = await renderMidFlight();
+
+    act(() => son.focus());
+    expect(setCenter).toHaveBeenCalledTimes(1);
+    act(() => board.focus());
+    await user.keyboard('{ArrowLeft}');
+    // The pan took over: the view is where it reports, and Út is in it.
+    view.current = onDaughter;
+    act(() => daughter.focus());
+    expect(setCenter).toHaveBeenCalledTimes(1);
   });
 
   it('brings a card into view when its button gets focus', async () => {

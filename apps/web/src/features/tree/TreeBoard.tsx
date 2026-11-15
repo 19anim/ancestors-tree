@@ -1,4 +1,4 @@
-import { ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, useReactFlow, type Viewport } from '@xyflow/react';
 import '@xyflow/react/dist/base.css';
 import { Maximize, ZoomIn, ZoomOut, type LucideIcon } from 'lucide-react';
 import {
@@ -13,7 +13,14 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, useReducedMotion } from '../../shared/ui';
-import { firstNewPerson, isRectVisible, panned, pannedToShow, personRect } from './boardView';
+import {
+  centredOn,
+  firstNewPerson,
+  isRectVisible,
+  panned,
+  pannedToShow,
+  personRect,
+} from './boardView';
 import { toFlowElements, type FlowElements } from './flowElements';
 import { layoutTree, type TreeLayout } from './layout';
 import { PersonNode } from './PersonNode';
@@ -26,14 +33,24 @@ const nodeTypes = { person: PersonNode, union: UnionNode };
 const edgeTypes = { thread: ThreadEdge };
 const FIT_VIEW_OPTIONS = { maxZoom: 1, padding: 0.1 };
 
+/** Where a reveal's animated move leaves the view, and until when it runs (`performance.now()`). */
+interface Landing {
+  viewport: Viewport;
+  until: number;
+}
+
 /**
  * Shows a card at the current zoom when it is not fully on screen: centred (a card that gets
  * focus), or by the smallest pan (a new person), so the relative it was added from stays in view.
+ * While an earlier reveal is still moving the view, "on screen" means where that move lands, not
+ * where the view is mid-flight: two quick arrow presses must not leave the second card off
+ * screen (WCAG 2.4.11).
  */
 function useReveal(
   layout: TreeLayout,
   surface: RefObject<HTMLDivElement | null>,
   how: 'centre' | 'nearest',
+  landing: RefObject<Landing | null>,
 ) {
   const { getViewport, setCenter, setViewport } = useReactFlow();
   const reducedMotion = useReducedMotion();
@@ -42,21 +59,26 @@ function useReveal(
       const rect = personRect(layout, personId);
       const element = surface.current;
       if (rect === null || element === null) return;
-      const viewport = getViewport();
+      const now = performance.now();
+      const flight = landing.current;
+      const viewport = flight !== null && now < flight.until ? flight.viewport : getViewport();
       const size = { width: element.offsetWidth, height: element.offsetHeight };
       const duration = reducedMotion ? 0 : 300;
       if (how === 'nearest') {
         const next = pannedToShow(rect, viewport, size);
-        if (next !== null) void setViewport(next, { duration });
+        if (next === null) return;
+        landing.current = { viewport: next, until: now + duration };
+        void setViewport(next, { duration });
         return;
       }
       if (isRectVisible(rect, viewport, size)) return;
+      landing.current = { viewport: centredOn(rect, viewport.zoom, size), until: now + duration };
       void setCenter(rect.x + rect.width / 2, rect.y + rect.height / 2, {
         zoom: viewport.zoom,
         duration,
       });
     },
-    [getViewport, how, layout, reducedMotion, setCenter, setViewport, surface],
+    [getViewport, how, landing, layout, reducedMotion, setCenter, setViewport, surface],
   );
 }
 
@@ -108,10 +130,15 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
   const { getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const reducedMotion = useReducedMotion();
   const surface = useRef<HTMLDivElement>(null);
-  const reveal = useReveal(layout, surface, 'centre');
-  const bringIntoView = useReveal(layout, surface, 'nearest');
+  const landing = useRef<Landing | null>(null);
+  const reveal = useReveal(layout, surface, 'centre', landing);
+  const bringIntoView = useReveal(layout, surface, 'nearest', landing);
   const hintId = useId();
   const duration = reducedMotion ? 0 : 200;
+  // The user moved the view: a reveal's landing no longer says where it will be.
+  const userMoved = () => {
+    landing.current = null;
+  };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // Keys on a card's own button belong to the card (spec §7.8 reserves the arrows there).
@@ -123,6 +150,7 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
     else if (event.key === '-') void zoomOut({ duration });
     else if (event.key === '0') void fitView({ ...FIT_VIEW_OPTIONS, duration });
     else return;
+    userMoved();
     event.preventDefault();
   };
 
@@ -163,6 +191,10 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
         // The small credit link keeps clear of the zoom buttons, which take the bottom right
         // (WCAG 2.5.8: a target under 24 px needs the space around it).
         attributionPosition="bottom-left"
+        // A pointer or wheel move has an event; the reveals' own moves have none.
+        onMoveStart={(event) => {
+          if (event) userMoved();
+        }}
       >
         <RevealNewPeople layout={layout} reveal={bringIntoView} />
       </ReactFlow>
@@ -171,17 +203,26 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
         <ZoomButton
           label={t('tree.board.zoomIn')}
           icon={ZoomIn}
-          onClick={() => void zoomIn({ duration })}
+          onClick={() => {
+            userMoved();
+            void zoomIn({ duration });
+          }}
         />
         <ZoomButton
           label={t('tree.board.zoomOut')}
           icon={ZoomOut}
-          onClick={() => void zoomOut({ duration })}
+          onClick={() => {
+            userMoved();
+            void zoomOut({ duration });
+          }}
         />
         <ZoomButton
           label={t('tree.board.fitView')}
           icon={Maximize}
-          onClick={() => void fitView({ ...FIT_VIEW_OPTIONS, duration })}
+          onClick={() => {
+            userMoved();
+            void fitView({ ...FIT_VIEW_OPTIONS, duration });
+          }}
         />
       </div>
     </div>

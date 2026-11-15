@@ -53,3 +53,4 @@ export {
   type Lineage,
   type TreeIndex,
 } from './lineage.ts';
+export { relativeOf, type RelativeDirection } from './relatives.ts';

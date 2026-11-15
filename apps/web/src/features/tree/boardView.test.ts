@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  centredOn,
   firstNewPerson,
   isRectVisible,
   PAN_STEP,
@@ -85,6 +86,17 @@ describe('pannedToShow', () => {
       y: REVEAL_MARGIN - 100,
       zoom: 1,
     });
+  });
+});
+
+describe('centredOn', () => {
+  it('puts the middle of the rectangle in the middle of the board', () => {
+    const rect = { x: 100, y: 40, width: 100, height: 60 };
+    const size = { width: 400, height: 300 };
+    expect(centredOn(rect, 1, size)).toEqual({ x: 50, y: 80, zoom: 1 });
+    const zoomed = centredOn(rect, 2, size);
+    expect(zoomed).toEqual({ x: -100, y: 10, zoom: 2 });
+    expect(isRectVisible(rect, zoomed, size)).toBe(true);
   });
 });
 

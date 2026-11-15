@@ -6,7 +6,7 @@ import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute, renderWithProviders } from '../../test/render';
 import { CardMenu } from './CardMenu';
-import { CLAN, CLAN_ID, FAMILY, LOOSE, ME, SON, treeRoutes } from './fixtures';
+import { CLAN, CLAN_ID, FAMILY, GRANDPA, LOOSE, ME, SON, treeRoutes } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { PersonActionsContext, type PersonActionsApi } from './usePersonActions';
 
@@ -151,9 +151,19 @@ describe('the card menu on the board', () => {
     await user.keyboard('{ArrowDown}');
     await waitFor(() => expect(within(menu).getAllByRole('menuitem')[1]).toHaveFocus());
     // The menu is portalled out of the card's button, so ↑ is the menu's, not a move to Tư.
+    // Radix's focus trap would pull focus straight back into the menu: watch the attempt too.
+    // The open menu hides the rest of the page from screen readers, so no role query here.
+    const tu = document.querySelector<HTMLElement>(
+      `[data-person-open="${GRANDPA}"]`,
+    ) as HTMLElement;
+    const focusTu = vi.spyOn(tu, 'focus');
+    const tuFocused = vi.fn();
+    tu.addEventListener('focus', tuFocused);
     await user.keyboard('{ArrowUp}');
     await waitFor(() => expect(first).toHaveFocus());
     expect(menu).toBeInTheDocument();
+    expect(focusTu).not.toHaveBeenCalled();
+    expect(tuFocused).not.toHaveBeenCalled();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(card).toHaveFocus());
     await user.keyboard('{ArrowUp}');
