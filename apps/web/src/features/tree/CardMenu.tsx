@@ -1,6 +1,7 @@
 import { ContextMenu } from 'radix-ui';
 import { useContext, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import { personCardButton } from './profileParams';
 import {
   ACTION_ICONS,
   actionLabelKey,
@@ -25,17 +26,35 @@ const TONE = {
 export function CardMenu({ personId, children }: { personId: string; children: ReactElement }) {
   const { t } = useTranslation();
   const api = useContext(PersonActionsContext);
+  const [open, setOpen] = useState(false);
   const [items, setItems] = useState<PersonActionId[]>([]);
   if (api === null) return children;
   return (
     <ContextMenu.Root
-      onOpenChange={(open) => {
-        if (open) setItems(api.actionsFor(personId));
+      open={open}
+      onOpenChange={(next) => {
+        if (next) {
+          const actions = api.actionsFor(personId);
+          // Nothing to offer (the person is gone): no empty menu.
+          if (actions.length === 0) return;
+          setItems(actions);
+        }
+        setOpen(next);
       }}
     >
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Content className="z-50 flex min-w-48 flex-col gap-1 rounded-control border border-line bg-paper p-1 shadow-lift">
+        <ContextMenu.Content
+          // Radix would focus what had focus when the menu opened, often nothing after a
+          // pointer right-click (WCAG 2.4.3). A dialog the item opened has focus by now and
+          // keeps it; otherwise the card takes it.
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const active = document.activeElement;
+            if (active === null || active === document.body) personCardButton(personId)?.focus();
+          }}
+          className="z-50 flex min-w-48 flex-col gap-1 rounded-control border border-line bg-paper p-1 shadow-lift"
+        >
           {items.map((action) => {
             const Icon = ACTION_ICONS[action];
             return (

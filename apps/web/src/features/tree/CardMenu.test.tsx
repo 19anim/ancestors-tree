@@ -40,6 +40,12 @@ describe('CardMenu', () => {
     expect(menu).not.toBeInTheDocument();
   });
 
+  it('opens no empty menu', () => {
+    renderMenu({ actionsFor: () => [], run: vi.fn() });
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Nguyễn Văn Nam/ }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
   it('adds no menu for viewers', () => {
     renderMenu(null);
     fireEvent.contextMenu(screen.getByRole('button', { name: /Nguyễn Văn Nam/ }));
@@ -97,16 +103,38 @@ describe('the card menu on the board', () => {
     await waitFor(() => expect(card).toHaveFocus());
   });
 
-  it('closes the menu only on Escape, not the profile', async () => {
+  it('closes the menu only on Escape, not the profile, back to the card', async () => {
     mockApi(treeRoutes(FAMILY));
     const user = userEvent.setup();
     renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
     await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
-    fireEvent.contextMenu(await cardOf('Nguyễn Văn Tư'));
+    const card = await cardOf('Nguyễn Văn Tư');
+    fireEvent.contextMenu(card);
     await screen.findByRole('menu');
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' })).toBeInTheDocument();
+    await waitFor(() => expect(card).toHaveFocus());
+  });
+
+  it('keeps focus on the card after an action that opens no dialog', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 4 } }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const card = await cardOf('Nguyễn Văn Nam');
+    // A pointer right-click need not focus the card (Safari never focuses buttons on click).
+    expect(document.body).toHaveFocus();
+    fireEvent.contextMenu(card);
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Chọn làm thuỷ tổ' }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(useTreeStore.getState().tree.progenitorId).toBe(SON));
+    await waitFor(() =>
+      expect(document.querySelector(`[data-person-open="${SON}"]`)).toHaveFocus(),
+    );
   });
 
   it('leaves the browser’s own menu to viewers', async () => {
