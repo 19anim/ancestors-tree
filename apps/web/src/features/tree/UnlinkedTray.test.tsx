@@ -51,4 +51,39 @@ describe('Loose photos', () => {
     await user.click(within(stack).getByRole('button', { name: 'Trần Văn Dũng' }));
     expect(screen.getByRole('complementary', { name: 'Trần Văn Dũng' })).toBeInTheDocument();
   });
+
+  it('closes the stack again', async () => {
+    const user = userEvent.setup();
+    mockApi(treeRoutes(LOOSE_BRANCH));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const tray = await screen.findByRole('region', { name: 'Ảnh chưa dán' });
+    const toggle = within(tray).getByRole('button', {
+      name: '+2 người trong xấp của Trần Văn Bình',
+    });
+    await user.click(toggle);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      within(tray).queryByRole('list', { name: 'Xấp của Trần Văn Bình' }),
+    ).not.toBeInTheDocument();
+    expect(within(tray).queryByRole('button', { name: 'Trần Văn Dũng' })).not.toBeInTheDocument();
+  });
+
+  it('returns focus to the stack when the closed profile belongs to a collapsed stack', async () => {
+    const user = userEvent.setup();
+    mockApi(treeRoutes(LOOSE_BRANCH));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const tray = await screen.findByRole('region', { name: 'Ảnh chưa dán' });
+    const toggle = within(tray).getByRole('button', {
+      name: '+2 người trong xấp của Trần Văn Bình',
+    });
+    await user.click(toggle);
+    await user.click(within(tray).getByRole('button', { name: 'Trần Văn Dũng' }));
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(screen.getByRole('button', { name: 'Đóng hồ sơ' }));
+    expect(screen.queryByRole('complementary', { name: 'Trần Văn Dũng' })).not.toBeInTheDocument();
+    expect(toggle).toHaveFocus();
+  });
 });

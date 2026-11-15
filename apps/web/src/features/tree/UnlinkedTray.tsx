@@ -77,6 +77,8 @@ function TrayStack({ stack }: { stack: LooseStack }) {
               count: others.length,
               name: root.fullName,
             })}
+            // Focus returns here for a member while the stack is collapsed (personCardButton).
+            data-stack-toggle={stack.rootId}
             onClick={() => setOpen((was) => !was)}
           >
             {t('tree.unlinked.more', { count: others.length })}
@@ -84,6 +86,7 @@ function TrayStack({ stack }: { stack: LooseStack }) {
           <ul
             id={listId}
             hidden={!open}
+            data-stack-of={stack.rootId}
             aria-label={t('tree.unlinked.stackList', { name: root.fullName })}
             className="flex flex-wrap gap-3 border-l-2 border-line pl-3"
           >
