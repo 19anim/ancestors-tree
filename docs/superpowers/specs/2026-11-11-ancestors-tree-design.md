@@ -555,6 +555,7 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
   - One known parent: the new person joins that parent's Union as the second partner. The form names any siblings who get the same parent ("also the parent of: Y, Z"), and the gender defaults to the other one.
   - Two known parents: the action is not offered.
   - On the progenitor, only the Owner sees it, with "Make this person the progenitor (generation 1)" ticked by default; the batch then ends with `setProgenitor`, still one undo step. Editors do not see it on the progenitor.
+  - Not offered on in-laws: their parents belong in the birth family (§8), not in this tree.
 - Context menu (and the panel's buttons on touch devices), the full list as features arrive: Add child · Add spouse · Add parent (if missing) · Change relationship… (P6c) · Link to another family tree (P10) · Decorate this card… (§13.4) · Delete.
 - People are created through forms and AI import (§10), never by dragging. Dragging only **changes relationships**.
 - **Add several people** (editors only), from the board's toolbar and from the **Loose photos** tray. It is for families who know names before they know who belongs where.

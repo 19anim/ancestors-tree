@@ -557,6 +557,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
   - Đã có một người: người mới vào Union của người đó làm người thứ hai. Form ghi tên các anh chị em cũng có thêm cha/mẹ này ("cũng là cha/mẹ của: Y, Z"), và giới tính mặc định là giới tính còn lại.
   - Đã có đủ hai người: không có thao tác này.
   - Trên thuỷ tổ, chỉ Quản lý thấy thao tác này, với ô "Đặt người này làm thuỷ tổ (đời thứ 1)" đánh dấu sẵn; batch khi đó kết thúc bằng `setProgenitor`, vẫn là một bước hoàn tác. Người có quyền sửa không thấy thao tác này trên thuỷ tổ.
+  - Không có trên thẻ dâu/rể: cha mẹ của họ thuộc gia đình gốc (§8), không thuộc cây này.
 - Menu chuột phải (và các nút trong panel trên thiết bị cảm ứng), danh sách đầy đủ khi các tính năng lần lượt có: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… (P6c) · Nối với cây gia phả khác (P10) · Trang trí thẻ này… (§13.4) · Xoá.
 - Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
 - **Thêm nhiều người** (chỉ người có quyền sửa), mở từ thanh công cụ của cây và từ cột **Ảnh chưa dán**. Dành cho gia đình biết tên trước khi biết ai ở đâu trong cây.
