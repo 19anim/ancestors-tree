@@ -10,7 +10,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../../shared/ui';
+import { Button, inertOthers, useMediaQuery } from '../../shared/ui';
 import { ProfileDetails } from './ProfileDetails';
 import { ProfileForm } from './ProfileForm';
 import { useTreeStore } from './store';
@@ -34,6 +34,8 @@ interface ProfilePanelProps {
 }
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
+/** Tailwind's md: from here up the panel is a column beside the board, not a sheet over it. */
+const WIDE_QUERY = '(min-width: 768px)';
 
 /** The profile (spec §7.6): a side panel on wide screens, a bottom sheet on small ones. */
 export function ProfilePanel({
@@ -47,6 +49,7 @@ export function ProfilePanel({
   const { t } = useTranslation();
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
+  const panel = useRef<HTMLElement>(null);
   const tree = useTreeStore((state) => state.tree);
   const status = useTreeStore((state) => state.status);
   const person = tree.persons[personId];
@@ -72,6 +75,18 @@ export function ProfilePanel({
   useEffect(() => {
     if (shown) heading.current?.focus();
   }, [shown]);
+
+  // Below md the panel is a bottom sheet over the board: a modal one, so neither Tab nor a tap
+  // reaches the cards and controls it hides (WCAG 2.4.11). Esc, Back and the close button close
+  // it. From md up it is a column beside the board, and the page stays as it is. The cleanup
+  // runs before the page puts focus back on the card.
+  const wide = useMediaQuery(WIDE_QUERY);
+  const modal = shown && !wide;
+  useEffect(() => {
+    const element = panel.current;
+    if (!modal || element === null) return;
+    return inertOthers(element);
+  }, [modal]);
 
   // Edit mode (spec §7.6). TreePage keys the panel by person, so another person opens in read mode.
   const [editing, setEditing] = useState(false);
@@ -103,7 +118,8 @@ export function ProfilePanel({
     if (next instanceof Node && !event.currentTarget.contains(next)) lastFocused.current = null;
   };
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key !== 'Escape') return;
+    // The Escape that ends an IME composition belongs to the input method.
+    if (event.key !== 'Escape' || event.nativeEvent.isComposing) return;
     event.preventDefault();
     onClose();
   };
@@ -111,6 +127,7 @@ export function ProfilePanel({
 
   return (
     <aside
+      ref={panel}
       aria-labelledby={headingId}
       onKeyDown={onKeyDown}
       onFocus={onFocus}

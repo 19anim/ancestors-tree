@@ -366,7 +366,7 @@
       "status": "Status",
       "siblingOrderHint": "From 1 to 99. Leave empty if unknown.",
       "siblingOrderError": "Enter a number from 1 to 99.",
-      "changedElsewhere": "Someone else just changed this person. Saving sends only the fields you edited.",
+      "changedElsewhere": "This person was just changed. Saving sends only the fields you edited.",
       "missingWithDraft": "{{name}} is no longer in the tree, so the profile closed. Your unsaved changes were dropped.",
       "reloadedWithDraft": "The tree was reloaded, so your unsaved profile changes were dropped."
     },

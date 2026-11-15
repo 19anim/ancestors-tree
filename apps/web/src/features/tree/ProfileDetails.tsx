@@ -68,7 +68,8 @@ export function ProfileDetails({ person, inLaw }: { person: Person; inLaw: boole
             : t('tree.profile.deceasedNoDate')}
       </Fact>
       {anniversaryText ? <Fact term={t('tree.profile.anniversary')}>{anniversaryText}</Fact> : null}
-      {person.burialPlace ? (
+      {/* Only for someone who has died: a living person's stored place stays out of view. */}
+      {person.death.isDeceased && person.burialPlace ? (
         <Fact term={t('tree.profile.burialPlace')}>{person.burialPlace}</Fact>
       ) : null}
       {person.siblingOrder !== undefined ? (

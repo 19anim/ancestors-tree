@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,6 +29,15 @@ afterEach(() => {
 });
 
 const NOBODY = '64b7f0c2a1b2c3d4e5f6ffff';
+
+/** Wide (md and up, a column beside the board) or narrow (a bottom sheet). */
+function stubWidth(wide: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: wide && query === '(min-width: 768px)',
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
 
 const cardOf = (name: string) => screen.findByRole('button', { name: new RegExp(`^${name},`) });
 
@@ -211,5 +220,102 @@ describe('the profile panel', () => {
     expect(panel).toHaveClass('fixed', 'bottom-0', 'md:sticky', 'md:top-4');
     expect(panel).not.toHaveClass('md:top-0');
     expect(screen.getByRole('main')).toContainElement(panel);
+  });
+
+  it('is a modal sheet on small screens: the rest of the page is inert until it closes', async () => {
+    stubWidth(false);
+    mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await user.click(await cardOf('Nguyễn Văn Nam'));
+    const panel = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    // Nothing under or around the sheet takes focus or clicks (WCAG 2.4.11).
+    expect(panel.closest('[inert]')).toBeNull();
+    expect(screen.getByRole('banner').closest('[inert]')).not.toBeNull();
+    expect(screen.getByRole('group', { name: /^Cây gia phả/ }).closest('[inert]')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /^Lê Thị Hoa,/ }).closest('[inert]')).not.toBeNull();
+    // The page's messages are still announced.
+    for (const live of screen.getAllByRole('status')) expect(live.closest('[inert]')).toBeNull();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    expect(document.querySelector('[inert]')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ })).toHaveFocus(),
+    );
+  });
+
+  it('leaves the page alone beside the board on wide screens', async () => {
+    stubWidth(true);
+    mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await user.click(await cardOf('Nguyễn Văn Nam'));
+    expect(screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' })).toBeInTheDocument();
+    expect(document.querySelector('[inert]')).toBeNull();
+  });
+
+  it('does not close on the Escape that ends an IME composition', async () => {
+    mockApi(treeRoutes(FAMILY));
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
+    const panel = await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    fireEvent.keyDown(within(panel).getByRole('heading'), { key: 'Escape', isComposing: true });
+    expect(screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' })).toBeInTheDocument();
+    fireEvent.keyDown(within(panel).getByRole('heading'), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('complementary')).not.toBeInTheDocument());
+  });
+
+  it('shows no burial place for someone living', async () => {
+    const tree = {
+      ...FAMILY,
+      persons: FAMILY.persons.map((person) =>
+        person.id === SON
+          ? { ...person, burialPlace: 'Nghĩa trang làng' }
+          : person.id === GRANDPA
+            ? { ...person, burialPlace: 'Đồi Thông' }
+            : person,
+      ),
+    };
+    mockApi(treeRoutes(tree));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
+    const son = await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    expect(within(son).queryByText('Nơi an táng')).not.toBeInTheDocument();
+    expect(within(son).queryByText('Nghĩa trang làng')).not.toBeInTheDocument();
+    await user.click(await cardOf('Nguyễn Văn Tư'));
+    const grandpa = screen.getByRole('complementary', { name: 'Nguyễn Văn Tư' });
+    expect(within(grandpa).getByText('Nơi an táng')).toBeInTheDocument();
+    expect(within(grandpa).getByText('Đồi Thông')).toBeInTheDocument();
+  });
+
+  it('still says so when someone deleted earlier, and brought back, leaves the tree', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 4 } }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    // Deleted from the card menu, with no profile open; then undone.
+    fireEvent.contextMenu(await cardOf('Nguyễn Văn Nam'));
+    await user.click(await screen.findByRole('menuitem', { name: 'Xoá người này' }));
+    const confirm = screen.getByRole('dialog', { name: 'Xoá Nguyễn Văn Nam?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Xoá' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /^Nguyễn Văn Nam,/ })).not.toBeInTheDocument(),
+    );
+    act(() => {
+      useTreeStore.getState().undo();
+    });
+    await user.click(await cardOf('Nguyễn Văn Nam'));
+    await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    // Then someone else removes him.
+    act(() => {
+      useTreeStore.setState((state) => {
+        const { [SON]: _gone, ...persons } = state.tree.persons;
+        return { tree: { ...state.tree, persons } };
+      });
+    });
+    expect(
+      await screen.findByText('Nguyễn Văn Nam không còn trong cây nên hồ sơ đã đóng.'),
+    ).toBeInTheDocument();
   });
 });

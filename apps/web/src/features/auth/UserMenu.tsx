@@ -23,6 +23,9 @@ export function UserMenu({
   const me = useCurrentUser();
   const logout = useLogout();
   const [asking, setAsking] = useState(false);
+  // Fixed when the question opens: the unsent changes can go out while it is on screen, and the
+  // profile wording must not take over then, with nothing unsaved in the profile.
+  const [description, setDescription] = useState('');
   const signOutButton = useRef<HTMLButtonElement>(null);
 
   if (!me.data) {
@@ -33,15 +36,19 @@ export function UserMenu({
     );
   }
 
-  const description =
-    unsentChanges > 0
-      ? [
-          t('auth.menu.signOutBody', { count: unsentChanges }),
-          unsavedProfile ? t('auth.menu.signOutProfileToo') : null,
-        ]
-          .filter(Boolean)
-          .join(' ')
-      : t('auth.menu.signOutProfileBody');
+  const ask = () => {
+    setDescription(
+      unsentChanges > 0
+        ? [
+            t('auth.menu.signOutBody', { count: unsentChanges }),
+            unsavedProfile ? t('auth.menu.signOutProfileToo') : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        : t('auth.menu.signOutProfileBody'),
+    );
+    setAsking(true);
+  };
   const signOut = () => {
     setAsking(false);
     // Before the request: the dialog says unsent changes are discarded, so stop sending them now
@@ -61,7 +68,7 @@ export function UserMenu({
         ref={signOutButton}
         variant="ghost"
         disabled={logout.isPending}
-        onClick={() => (unsentChanges > 0 || unsavedProfile ? setAsking(true) : signOut())}
+        onClick={() => (unsentChanges > 0 || unsavedProfile ? ask() : signOut())}
       >
         {t('auth.menu.signOut')}
       </Button>

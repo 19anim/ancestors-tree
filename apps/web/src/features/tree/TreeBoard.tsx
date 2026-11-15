@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   type FocusEvent,
@@ -120,13 +121,45 @@ function ZoomButton({
   );
 }
 
+/**
+ * The board narrowed or grew (the profile column opening beside it, the window resizing) while a
+ * profile is open: React Flow keeps the view where it was, so the open person's card can end up
+ * past the new edge. Focus is in the panel, so no focus reveal runs: the smallest pan brings the
+ * card back (WCAG 2.4.11), through the same reveal and landing as the other moves.
+ */
+function useRevealOpenPersonOnResize(
+  surface: RefObject<HTMLDivElement | null>,
+  openPersonId: string | null,
+  bringIntoView: (personId: string) => void,
+) {
+  const latest = useRef({ openPersonId, bringIntoView });
+  useLayoutEffect(() => {
+    latest.current = { openPersonId, bringIntoView };
+  });
+  useEffect(() => {
+    const element = surface.current;
+    if (element === null) return;
+    let size = { width: element.offsetWidth, height: element.offsetHeight };
+    const observer = new ResizeObserver(() => {
+      const next = { width: element.offsetWidth, height: element.offsetHeight };
+      if (next.width === size.width && next.height === size.height) return;
+      size = next;
+      const { openPersonId: personId, bringIntoView: reveal } = latest.current;
+      if (personId !== null) reveal(personId);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [surface]);
+}
+
 interface BoardSurfaceProps {
   label: string;
   layout: TreeLayout;
   elements: FlowElements;
+  openPersonId: string | null;
 }
 
-function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
+function BoardSurface({ label, layout, elements, openPersonId }: BoardSurfaceProps) {
   const { t } = useTranslation();
   const { getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const reducedMotion = useReducedMotion();
@@ -134,6 +167,7 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
   const landing = useRef<Landing | null>(null);
   const reveal = useReveal(layout, surface, 'centre', landing);
   const bringIntoView = useReveal(layout, surface, 'nearest', landing);
+  useRevealOpenPersonOnResize(surface, openPersonId, bringIntoView);
   const hintId = useId();
   const duration = reducedMotion ? 0 : 200;
   // The user moved the view: a reveal's landing no longer says where it will be.
@@ -230,7 +264,13 @@ function BoardSurface({ label, layout, elements }: BoardSurfaceProps) {
   );
 }
 
-export function TreeBoard({ label }: { label: string }) {
+interface TreeBoardProps {
+  label: string;
+  /** The person whose profile is open: kept in view when the board's size changes. */
+  openPersonId?: string | null;
+}
+
+export function TreeBoard({ label, openPersonId = null }: TreeBoardProps) {
   const { t } = useTranslation();
   const tree = useTreeStore((state) => state.tree);
   const layout = useMemo(() => layoutTree(tree), [tree]);
@@ -245,7 +285,7 @@ export function TreeBoard({ label }: { label: string }) {
   }
   return (
     <ReactFlowProvider>
-      <BoardSurface label={label} layout={layout} elements={elements} />
+      <BoardSurface label={label} layout={layout} elements={elements} openPersonId={openPersonId} />
     </ReactFlowProvider>
   );
 }

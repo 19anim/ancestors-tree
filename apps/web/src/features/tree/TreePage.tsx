@@ -29,7 +29,8 @@ export function TreePage() {
   const { personId, openPerson, closeProfile } = useProfileParam();
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
-  // A person this page deleted: their panel closes without a notice.
+  // The open person, deleted on this page: their panel closes without a notice. Set only for
+  // the open person, so an earlier deletion (undone since) cannot silence a later removal.
   const removedHere = useRef<string | null>(null);
   // The open person's last known name, kept here because the panel unmounts while the tree
   // reloads (the skeleton shows): the notice can still name someone deleted meanwhile.
@@ -162,7 +163,10 @@ export function TreePage() {
               <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
             ) : (
               <>
-                <TreeBoard label={t('tree.board.label', { name: clan.name })} />
+                <TreeBoard
+                  label={t('tree.board.label', { name: clan.name })}
+                  openPersonId={personId}
+                />
                 <UnlinkedTray />
               </>
             )}
@@ -185,7 +189,7 @@ export function TreePage() {
             onDialogChange={changeDialog}
             onFirstPersonAdded={firstPersonAdded}
             onPersonDeleted={(id) => {
-              removedHere.current = id;
+              if (id === personId) removedHere.current = id;
             }}
             onCloseAutoFocus={returnFocus}
           />

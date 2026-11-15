@@ -99,6 +99,9 @@ test('an undo is saved, and the Manager goes back to a point and undoes that', a
   await panel.getByRole('button', { name: 'Thêm vợ/chồng' }).click();
   await addPerson(page, 'Nguyễn Thị Ba', 'Nữ');
   await expect(page.getByText('Hoàn tác: thêm Nguyễn Thị Ba')).toBeVisible();
+  // On a phone the profile is a modal sheet: the toolbar is out of reach until it closes.
+  await panel.getByRole('button', { name: 'Đóng hồ sơ' }).click();
+  await expect(panel).toBeHidden();
 
   // #5: the undo.
   await page.getByRole('button', { name: 'Hoàn tác', exact: true }).click();

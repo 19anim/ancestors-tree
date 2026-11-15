@@ -139,6 +139,25 @@ describe('editing a profile', () => {
     expect(await within(birth).findByText('Nhập đủ ngày, tháng và năm.')).toBeInTheDocument();
   });
 
+  it('says the person changed meanwhile without blaming anyone (an undo can do it)', async () => {
+    editableTree(FAMILY);
+    const user = userEvent.setup();
+    const panel = await editSon(user);
+    act(() => {
+      useTreeStore.setState((state) => {
+        const son = state.tree.persons[SON];
+        if (!son) throw new Error('no son');
+        const persons = { ...state.tree.persons, [SON]: { ...son, branch: 'Chi hai' } };
+        return { tree: { ...state.tree, persons } };
+      });
+    });
+    expect(
+      await within(panel).findByText(
+        'Người này vừa được thay đổi. Khi lưu, chỉ những ô bạn đã sửa được gửi đi.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('says the unsaved changes went when the person leaves the tree', async () => {
     editableTree(FAMILY);
     const user = userEvent.setup();

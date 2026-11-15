@@ -164,6 +164,9 @@ test('the Owner adds a parent above the progenitor, and arrows move between them
   await addPerson(page, 'Phạm Văn Tổ');
   await expect(cardOf(page, 'Phạm Văn Tổ')).toHaveAccessibleName(/đời thứ 1$/);
   await expect(cardOf(page, 'Phạm Văn Cả')).toHaveAccessibleName(/đời thứ 2$/);
+  // On a phone the profile is a modal sheet: the cards are out of reach until it closes.
+  await panel.getByRole('button', { name: 'Đóng hồ sơ' }).click();
+  await expect(panel).toBeHidden();
 
   await cardOf(page, 'Phạm Văn Cả').focus();
   await page.keyboard.press('ArrowUp');
@@ -298,5 +301,50 @@ test.describe('with the profile open at 768 px', () => {
       expect(box).not.toBeNull();
       if (panelBox !== null && box !== null) expect(overlaps(panelBox, box)).toBe(false);
     }
+  });
+});
+
+test.describe('the profile on a phone', () => {
+  test('is a modal sheet: Tab and Shift+Tab stay inside it', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'A phone layout check');
+    const panel = await openProfile(page, 'Phạm Văn Cả');
+    const stops = await panel.locator('button, a[href], input, textarea, select').count();
+    /** Focus is in the sheet, or has left the page for the browser itself; never behind it. */
+    const focusStaysInSheet = () =>
+      panel.evaluate((element) => {
+        const active = document.activeElement;
+        return active === null || active === document.body || element.contains(active);
+      });
+    for (const key of ['Tab', 'Shift+Tab']) {
+      await panel.getByRole('button', { name: 'Đóng hồ sơ' }).focus();
+      // Round the sheet and past both ends.
+      for (let press = 0; press < stops + 2; press += 1) {
+        await page.keyboard.press(key);
+        expect(await focusStaysInSheet(), `${key} #${press + 1}`).toBe(true);
+      }
+    }
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(cardOf(page, 'Phạm Văn Cả')).toBeFocused();
+  });
+});
+
+test.describe('the profile on a wide screen', () => {
+  test('opening it keeps the clicked card on the narrowed board', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'A wide layout check');
+    await addChildren(page, 'Phạm Văn Cả', CHILDREN);
+    await page.getByRole('button', { name: 'Xem cả cây' }).click();
+    await waitForViewToSettle(page);
+    const last = cardOf(page, CHILDREN[4]);
+    // On the full-width board, the card sits where the 400 px profile column will be.
+    const board = await page.getByRole('group', { name: BOARD }).boundingBox();
+    const before = await last.boundingBox();
+    expect(board).not.toBeNull();
+    expect(before).not.toBeNull();
+    if (board !== null && before !== null) {
+      expect(before.x + before.width).toBeGreaterThan(board.x + board.width - 416);
+    }
+    await openProfile(page, CHILDREN[4]);
+    await expectFullyOnBoard(page, last);
   });
 });

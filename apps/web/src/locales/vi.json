@@ -366,7 +366,7 @@
       "status": "Tình trạng",
       "siblingOrderHint": "Từ 1 đến 99. Để trống nếu chưa rõ.",
       "siblingOrderError": "Nhập một số từ 1 đến 99.",
-      "changedElsewhere": "Người này vừa được sửa ở nơi khác. Khi lưu, chỉ những ô bạn đã sửa được gửi đi.",
+      "changedElsewhere": "Người này vừa được thay đổi. Khi lưu, chỉ những ô bạn đã sửa được gửi đi.",
       "missingWithDraft": "{{name}} không còn trong cây nên hồ sơ đã đóng. Các thay đổi chưa lưu đã bị bỏ.",
       "reloadedWithDraft": "Cây vừa được tải lại nên các thay đổi chưa lưu trong hồ sơ đã bị bỏ."
     },

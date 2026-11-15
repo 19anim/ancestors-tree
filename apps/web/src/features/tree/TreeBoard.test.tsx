@@ -7,9 +7,9 @@ import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
-import { mockReactFlow } from '../../test/reactFlow';
+import { mockReactFlow, resizeObserved } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
-import { centredOn, isRectVisible, personRect, type Rect } from './boardView';
+import { centredOn, isRectVisible, pannedToShow, personRect, type Rect } from './boardView';
 import {
   CLAN_ID,
   FAMILY,
@@ -547,5 +547,81 @@ describe('TreeBoard', () => {
     const before = viewportOf(board);
     act(() => screen.getByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' }).focus());
     await waitFor(() => expect(viewportOf(board)).not.toEqual(before));
+  });
+
+  it('brings the open person’s card back into view when the board narrows', async () => {
+    const layout = layoutTree(family);
+    const rect = personRect(layout, SON) as Rect;
+    // Nam whole on a wide board, at its right edge; then the profile column opens beside it.
+    const view = { current: { x: 700 - rect.x - rect.width, y: 40 - rect.y, zoom: 1 } };
+    const setViewport = vi.fn(() => new Promise<boolean>(() => undefined));
+    flowOverride.current = { getViewport: () => view.current, setViewport };
+    const clock = { now: 1000 };
+    vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
+    showTree(family);
+    const { rerender } = renderWithProviders(
+      <OpenPersonContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" openPersonId={SON} />
+      </OpenPersonContext>,
+    );
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    const resize = (width: number) => {
+      board.style.width = `${width}px`;
+      board.style.height = '420px';
+      act(() => resizeObserved(board));
+    };
+    resize(800);
+    expect(setViewport).not.toHaveBeenCalled();
+
+    // The smallest pan, so the cards next to Nam stay in view.
+    resize(500);
+    const first = pannedToShow(rect, view.current, { width: 500, height: 420 });
+    expect(first).not.toBeNull();
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(setViewport).toHaveBeenLastCalledWith(first, { duration: 300 });
+
+    // Narrower again while that pan still moves: measured from where it lands, not from the
+    // view mid-flight, which happens to show Nam whole on the narrower board.
+    view.current = centredOn(rect, 1, { width: 450, height: 420 });
+    resize(450);
+    expect(setViewport).toHaveBeenCalledTimes(2);
+    expect(setViewport).toHaveBeenLastCalledWith(
+      pannedToShow(rect, first as Viewport, { width: 450, height: 420 }),
+      { duration: 300 },
+    );
+
+    // No profile open: a resize leaves the view alone.
+    clock.now += 1000;
+    rerender(
+      <OpenPersonContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" openPersonId={null} />
+      </OpenPersonContext>,
+    );
+    resize(300);
+    expect(setViewport).toHaveBeenCalledTimes(2);
+  });
+
+  it('jumps rather than glides to the open person with reduced motion', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const setViewport = vi.fn(() => Promise.resolve(true));
+    flowOverride.current = { getViewport: () => ({ x: -5000, y: -5000, zoom: 1 }), setViewport };
+    showTree(family);
+    renderWithProviders(
+      <OpenPersonContext value={vi.fn()}>
+        <TreeBoard label="Cây gia phả" openPersonId={SON} />
+      </OpenPersonContext>,
+    );
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    board.style.width = '375px';
+    board.style.height = '420px';
+    act(() => resizeObserved(board));
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(setViewport).toHaveBeenLastCalledWith(expect.anything(), { duration: 0 });
   });
 });
