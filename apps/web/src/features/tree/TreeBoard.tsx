@@ -52,7 +52,7 @@ function useReveal(
   how: 'centre' | 'nearest',
   landing: RefObject<Landing | null>,
 ) {
-  const { getViewport, setCenter, setViewport } = useReactFlow();
+  const { getViewport, setViewport } = useReactFlow();
   const reducedMotion = useReducedMotion();
   return useCallback(
     (personId: string) => {
@@ -72,13 +72,14 @@ function useReveal(
         return;
       }
       if (isRectVisible(rect, viewport, size)) return;
-      landing.current = { viewport: centredOn(rect, viewport.zoom, size), until: now + duration };
-      void setCenter(rect.x + rect.width / 2, rect.y + rect.height / 2, {
-        zoom: viewport.zoom,
-        duration,
-      });
+      // Not setCenter: it centres for React Flow's stored board size, which its ResizeObserver
+      // updates a frame later. A card focused as the board narrows (the profile column opening)
+      // would be centred for the old width, off the board. The size measured here decides both.
+      const next = centredOn(rect, viewport.zoom, size);
+      landing.current = { viewport: next, until: now + duration };
+      void setViewport(next, { duration });
     },
-    [getViewport, how, landing, layout, reducedMotion, setCenter, setViewport, surface],
+    [getViewport, how, landing, layout, reducedMotion, setViewport, surface],
   );
 }
 

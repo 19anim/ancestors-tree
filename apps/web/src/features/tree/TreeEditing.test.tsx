@@ -54,9 +54,9 @@ function card(name: string): HTMLElement {
   return screen.getByRole('button', { name: cardName(name) });
 }
 
-/** The Polaroid inside a card button; it is hidden from screen readers. */
+/** The Polaroid beside a card button, under it; it is hidden from screen readers. */
 function figureOf(button: HTMLElement): HTMLElement {
-  const figure = button.querySelector('figure');
+  const figure = button.parentElement?.querySelector('figure');
   if (!figure) throw new Error('no Polaroid in the card');
   return figure;
 }

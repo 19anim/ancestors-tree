@@ -65,9 +65,9 @@ test('build a small family tree and find it again after a reload', async ({ page
 
   await page.reload();
   await expect(cardOf(page, 'Phạm Văn Cả')).toHaveAccessibleName('Phạm Văn Cả, đời thứ 1');
-  // The photo is hidden from screen readers inside the card's button, which says its name.
+  // The photo, under the card's button, is hidden from screen readers; the button says the name.
   await expect(cardOf(page, 'Nguyễn Thị Ba')).toHaveAccessibleName('Nguyễn Thị Ba, đời thứ 1');
-  await expect(cardOf(page, 'Nguyễn Thị Ba').locator('figure')).toHaveAttribute(
+  await expect(cardOf(page, 'Nguyễn Thị Ba').locator('..').locator('figure')).toHaveAttribute(
     'data-tape',
     'in-law',
   );
@@ -78,11 +78,6 @@ test('build a small family tree and find it again after a reload', async ({ page
   // The threads are decoration: React Flow must not expose them as images.
   await expect(page.getByRole('img', { name: /^Edge from/ })).toHaveCount(0);
 
-  // Everything above still runs; only the page-wide axe check waits for the app fix.
-  test.fixme(
-    true,
-    'App bug: board card buttons fail axe label-content-name-mismatch (photo initials not in the name)',
-  );
   await expectNoSeriousA11yViolations(page);
 });
 

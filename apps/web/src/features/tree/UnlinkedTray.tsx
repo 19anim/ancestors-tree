@@ -35,26 +35,27 @@ export function UnlinkedTray() {
               ? person.fullName
               : t('scrapbook.personLabel', { name: person.fullName, years: spokenYears });
           return (
-            <li key={person.id}>
+            <li key={person.id} className="relative">
+              <Polaroid
+                aria-hidden="true"
+                lod="label"
+                name={person.fullName}
+                label={label}
+                lifeYears={years}
+                tape="loose"
+                tilt={tiltFor(person.id)}
+              />
               <button
                 type="button"
-                // The outline is the app's :focus-visible rule (styles/index.css).
-                className="block cursor-pointer rounded-photo text-left"
+                // Over the photo, not around it: its caption ("~1931") is not the spoken name, and
+                // a button's text must be part of its name (WCAG 2.5.3). The outline is the app's
+                // :focus-visible rule (styles/index.css).
+                className="absolute inset-0 cursor-pointer rounded-photo"
                 aria-label={label}
                 // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
                 data-person-open={person.id}
                 onClick={() => openPerson?.(person.id)}
-              >
-                <Polaroid
-                  aria-hidden="true"
-                  lod="label"
-                  name={person.fullName}
-                  label={label}
-                  lifeYears={years}
-                  tape="loose"
-                  tilt={tiltFor(person.id)}
-                />
-              </button>
+              />
             </li>
           );
         })}

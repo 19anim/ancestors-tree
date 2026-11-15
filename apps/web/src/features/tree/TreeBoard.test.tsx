@@ -26,11 +26,17 @@ import { OpenPersonContext } from './profileParams';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { TreeBoard } from './TreeBoard';
 
-/** The Polaroid inside a card button; it is hidden from screen readers. */
+/** The Polaroid beside a card button, under it; it is hidden from screen readers. */
 function figureOf(card: HTMLElement): HTMLElement {
-  const figure = card.querySelector('figure');
+  const figure = card.parentElement?.querySelector('figure');
   if (!figure) throw new Error('no Polaroid in the card');
   return figure;
+}
+
+/** WCAG 2.5.3: any text a card button holds is part of its accessible name. */
+function expectTextInName(card: HTMLElement): void {
+  const text = (card.textContent ?? '').replace(/\s+/g, ' ').trim();
+  expect(card.getAttribute('aria-label') ?? '').toContain(text);
 }
 
 function showTree(tree: TreeState): void {
@@ -132,7 +138,7 @@ describe('TreeBoard', () => {
     expect(
       figureOf(screen.getByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' })),
     ).toHaveAttribute('data-tape', 'branch-1');
-    // The card is the button: the Polaroid inside it is not read a second time.
+    // The card is the button: the Polaroid under it is not read a second time.
     expect(figureOf(grandpa)).toHaveAttribute('aria-hidden', 'true');
     expect(screen.queryByRole('figure')).not.toBeInTheDocument();
     // Not linked to the progenitor: listed in the tray, not drawn.
@@ -158,7 +164,7 @@ describe('TreeBoard', () => {
     } satisfies TreeResponse;
     showTree(treeStateFromLists(tree.progenitorId, tree.persons, tree.unions));
     renderWithProviders(<TreeBoard label="Cây gia phả" />);
-    // The marks are inside the hidden Polaroid: the card buttons describe them.
+    // The marks are on the hidden Polaroid: the card buttons describe them.
     expect(
       await screen.findByRole('button', { name: /^Nguyễn Văn Tư,/ }),
     ).toHaveAccessibleDescription('Ngày giỗ 15/10 âm lịch');
@@ -168,6 +174,31 @@ describe('TreeBoard', () => {
     expect(screen.getByRole('button', { name: /^Lê Thị Hoa,/ })).not.toHaveAttribute(
       'aria-describedby',
     );
+  });
+
+  it('puts no text in a card button that its name lacks (WCAG 2.5.3)', async () => {
+    const tree = {
+      ...FAMILY,
+      persons: FAMILY.persons.map((person) =>
+        person.id === GRANDPA
+          ? {
+              ...person,
+              death: {
+                isDeceased: true,
+                date: { source: 'lunar', lunar: { day: 15, month: 10, year: 2004, isLeap: false } },
+              },
+            }
+          : person,
+      ),
+    } satisfies TreeResponse;
+    showTree(treeStateFromLists(tree.progenitorId, tree.persons, tree.unions));
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    await screen.findByRole('button', { name: /^Nguyễn Văn Tư,/ });
+    // The photo's initials, the "~1931" years and the anniversary line are drawn on the card,
+    // but none of them may be text inside the button: axe's label-content-name-mismatch.
+    const cards = document.querySelectorAll<HTMLElement>('[data-person-open]');
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) expectTextInName(card);
   });
 
   it('names an in-law card’s birth family and shows it as the card’s tooltip', async () => {
@@ -385,8 +416,7 @@ describe('TreeBoard', () => {
     const son = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     const board = screen.getByRole('group', { name: 'Cây gia phả' });
     // jsdom boards are 1×1 pixel (test/reactFlow.ts): every card is off screen, so a card that
-    // gets focus is centred in React Flow's own view, which fills the board.
-    const flow = board.querySelector<HTMLElement>('.react-flow') as HTMLElement;
+    // gets focus is centred on the board as measured (React Flow's own pane reads as 100 × 100).
     const rect = personRect(layoutTree(family), GRANDPA) as Rect;
     const grandpaCentre = () => {
       const { x, y, zoom } = viewportOf(board);
@@ -397,8 +427,8 @@ describe('TreeBoard', () => {
     const grandpa = screen.getByRole('button', { name: /^Nguyễn Văn Tư,/ });
     expect(grandpa).toHaveFocus();
     await waitFor(() => {
-      expect(grandpaCentre().x).toBeCloseTo(flow.offsetWidth / 2);
-      expect(grandpaCentre().y).toBeCloseTo(flow.offsetHeight / 2);
+      expect(grandpaCentre().x).toBeCloseTo(board.offsetWidth / 2);
+      expect(grandpaCentre().y).toBeCloseTo(board.offsetHeight / 2);
     });
     // No parent, no sibling: the key does nothing.
     await user.keyboard('{ArrowUp}');
@@ -416,8 +446,9 @@ describe('TreeBoard', () => {
 
   /**
    * Nam, then Út, side by side under Tư, on a narrow board as on a phone. The view reports
-   * whatever `viewport` holds, and setCenter starts a flight that never lands; time stands still
-   * until the test moves `clock.now`.
+   * whatever `viewport` holds, and setViewport starts a flight that never lands; time stands still
+   * until the test moves `clock.now`. React Flow measured the board before the test sized it, so
+   * its own idea of the board's size is stale, as just after the profile column opens.
    */
   async function renderMidFlight() {
     const siblings = treeStateFromLists(
@@ -435,8 +466,8 @@ describe('TreeBoard', () => {
     const layout = layoutTree(siblings);
     const rectOf = (id: string) => personRect(layout, id) as Rect;
     const view = { current: { x: -5000, y: -5000, zoom: 1 } as Viewport };
-    const setCenter = vi.fn(() => new Promise<boolean>(() => undefined));
-    flowOverride.current = { getViewport: () => view.current, setCenter };
+    const setViewport = vi.fn(() => new Promise<boolean>(() => undefined));
+    flowOverride.current = { getViewport: () => view.current, setViewport };
     const clock = { now: 1000 };
     vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
     showTree(siblings);
@@ -455,47 +486,52 @@ describe('TreeBoard', () => {
     const onDaughter = centredOn(rectOf(DAUGHTER), 1, size);
     expect(isRectVisible(rectOf(DAUGHTER), onSon, size)).toBe(false);
     expect(isRectVisible(rectOf(DAUGHTER), onDaughter, size)).toBe(true);
-    const centreOf = (id: string) => {
-      const rect = rectOf(id);
-      return [rect.x + rect.width / 2, rect.y + rect.height / 2, expect.anything()];
-    };
-    return { son, daughter, board, view, clock, setCenter, onSon, onDaughter, centreOf };
+    return { son, daughter, board, view, clock, setViewport, onSon, onDaughter };
   }
+
+  it('centres a card for the board’s measured size, not React Flow’s stale one', async () => {
+    const { son, setViewport, onSon } = await renderMidFlight();
+
+    act(() => son.focus());
+    // centredOn with the 375 × 420 board, at the same zoom and with the usual duration.
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(setViewport).toHaveBeenLastCalledWith(onSon, { duration: 300 });
+  });
 
   it('keeps a card reached while a centring is under way on screen once the view lands', async () => {
     const user = userEvent.setup();
-    const { son, daughter, view, clock, setCenter, onSon, onDaughter, centreOf } =
-      await renderMidFlight();
+    const { son, daughter, view, clock, setViewport, onSon, onDaughter } = await renderMidFlight();
 
     act(() => son.focus());
-    expect(setCenter).toHaveBeenLastCalledWith(...centreOf(SON));
+    expect(setViewport).toHaveBeenLastCalledWith(onSon, expect.anything());
     // Halfway to Nam the view happens to show Út whole, but it lands with her off screen.
     view.current = onDaughter;
     await user.keyboard('{ArrowRight}');
     expect(daughter).toHaveFocus();
-    expect(setCenter).toHaveBeenCalledTimes(2);
-    expect(setCenter).toHaveBeenLastCalledWith(...centreOf(DAUGHTER));
+    expect(setViewport).toHaveBeenCalledTimes(2);
+    expect(setViewport).toHaveBeenLastCalledWith(onDaughter, expect.anything());
 
     // Long after the flight, the view is where it reports: Nam is already in view there.
     clock.now += 1000;
     view.current = onSon;
     await user.keyboard('{ArrowLeft}');
     expect(son).toHaveFocus();
-    expect(setCenter).toHaveBeenCalledTimes(2);
+    expect(setViewport).toHaveBeenCalledTimes(2);
   });
 
   it('forgets where a centring lands once the user moves the view', async () => {
     const user = userEvent.setup();
-    const { son, daughter, board, view, setCenter, onDaughter } = await renderMidFlight();
+    const { son, daughter, board, view, setViewport, onDaughter } = await renderMidFlight();
 
     act(() => son.focus());
-    expect(setCenter).toHaveBeenCalledTimes(1);
+    expect(setViewport).toHaveBeenCalledTimes(1);
     act(() => board.focus());
     await user.keyboard('{ArrowLeft}');
-    // The pan took over: the view is where it reports, and Út is in it.
+    // The pan took over (one more move): the view is where it reports, and Út is in it.
+    expect(setViewport).toHaveBeenCalledTimes(2);
     view.current = onDaughter;
     act(() => daughter.focus());
-    expect(setCenter).toHaveBeenCalledTimes(1);
+    expect(setViewport).toHaveBeenCalledTimes(2);
   });
 
   it('brings a card into view when its button gets focus', async () => {

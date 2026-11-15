@@ -51,7 +51,7 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
   const birthdayLabel = birthday
     ? t('scrapbook.birthday', { date: dayMonth(birthday) })
     : undefined;
-  // The Polaroid is hidden from screen readers inside the button, so the button says the marks.
+  // The Polaroid is hidden from screen readers under the button, so the button says the marks.
   const marks = [anniversaryLabel, birthdayLabel].filter(Boolean).join(', ');
   const describedBy = [
     marks === '' ? undefined : marksId,
@@ -90,13 +90,37 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
         };
   return (
     <div className="group relative" style={POINTER_EVENTS} {...tooltipHandlers}>
+      {/* The photo, hidden from screen readers: the button over it names the person. */}
+      <Polaroid
+        aria-hidden="true"
+        name={person.fullName}
+        label={label}
+        lifeYears={lifeYears(person)}
+        tape={tape}
+        tilt={tiltFor(person.id)}
+        dateLine={
+          anniversary && anniversaryLabel ? (
+            <DateMark kind="death-anniversary" label={anniversaryLabel}>
+              {t('scrapbook.deathAnniversary', { date: dayMonth(anniversary) })}
+            </DateMark>
+          ) : undefined
+        }
+        marks={
+          birthday && birthdayLabel ? (
+            <DateMark kind="birthday" label={birthdayLabel}>
+              {dayMonth(birthday)}
+            </DateMark>
+          ) : undefined
+        }
+      />
       {/* Right-click, the menu key or Shift+F10: the panel's actions (spec §7.6). */}
       <CardMenu personId={person.id}>
         <button
           type="button"
-          // nodrag/nopan: React Flow leaves clicks on the card alone. The outline is the app's
-          // :focus-visible rule (styles/index.css), as for every Button.
-          className="nodrag nopan block cursor-pointer rounded-photo text-left"
+          // Over the Polaroid, not around it: a button holding the photo's initials and date line
+          // would have text its name lacks (WCAG 2.5.3). nodrag/nopan: React Flow leaves clicks
+          // on the card alone. The outline is the app's :focus-visible rule (styles/index.css).
+          className="nodrag nopan absolute inset-0 cursor-pointer rounded-photo"
           aria-label={label}
           aria-describedby={describedBy === '' ? undefined : describedBy}
           // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
@@ -115,30 +139,7 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
             // centres it when it is off screen (WCAG 2.4.11).
             if (target !== null) personCardButton(target)?.focus();
           }}
-        >
-          <Polaroid
-            aria-hidden="true"
-            name={person.fullName}
-            label={label}
-            lifeYears={lifeYears(person)}
-            tape={tape}
-            tilt={tiltFor(person.id)}
-            dateLine={
-              anniversary && anniversaryLabel ? (
-                <DateMark kind="death-anniversary" label={anniversaryLabel}>
-                  {t('scrapbook.deathAnniversary', { date: dayMonth(anniversary) })}
-                </DateMark>
-              ) : undefined
-            }
-            marks={
-              birthday && birthdayLabel ? (
-                <DateMark kind="birthday" label={birthdayLabel}>
-                  {dayMonth(birthday)}
-                </DateMark>
-              ) : undefined
-            }
-          />
-        </button>
+        />
       </CardMenu>
       {marks === '' ? null : (
         <span id={marksId} className="sr-only">

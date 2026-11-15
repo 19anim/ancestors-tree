@@ -140,10 +140,6 @@ test('edits a lunar death date and shows the anniversary on the card', async ({ 
 });
 
 test('the profile and its date input have no serious a11y violations', async ({ page }) => {
-  test.fixme(
-    true,
-    'App bug: board card buttons fail axe label-content-name-mismatch (photo initials not in the name)',
-  );
   const panel = await openProfile(page, 'Phạm Văn Cả');
   await expectNoSeriousA11yViolations(page);
   await panel.getByRole('button', { name: 'Sửa' }).click();
@@ -270,11 +266,6 @@ test.describe('with the profile open at 768 px', () => {
     await addChildren(page, 'Phạm Văn Cả', CHILDREN);
     const panel = await openProfile(page, 'Phạm Văn Cả');
     const board = page.getByRole('group', { name: BOARD });
-    // The column narrows the board; React Flow learns its new size on a later frame. A card
-    // focused before that is centred for the old width (a known race, reported separately).
-    await page.evaluate(
-      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-    );
 
     const first = cardOf(page, CHILDREN[0]);
     await first.focus();
