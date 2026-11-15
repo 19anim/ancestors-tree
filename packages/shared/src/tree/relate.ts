@@ -224,7 +224,8 @@ function marry(draft: Draft, a: string, b: string, answers: RelateAnswers): Step
       payload: { id: empty.id, changes: { partnerIds: [owner, owner === a ? b : a] } },
     });
   } else {
-    newUnion(draft, [a, b]);
+    // The target (already on the board or in the tray) first: they head a loose stack.
+    newUnion(draft, [b, a]);
   }
   return done(null);
 }

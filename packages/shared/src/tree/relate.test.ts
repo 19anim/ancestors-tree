@@ -180,6 +180,13 @@ describe('relate: spouse', () => {
     expect(spousesOf(next, DAUGHTER)).toEqual([LOOSE]);
   });
 
+  it('lists the person already there first in a new marriage (they head a loose stack)', () => {
+    const tree = family();
+    const next = after(tree, relate(tree, LOOSE, DAUGHTER, 'spouse', {}));
+    const [marriage] = buildTreeIndex(next).unionsOf(LOOSE);
+    expect(marriage?.partnerIds).toEqual([DAUGHTER, LOOSE]);
+  });
+
   it('asks whether children with one known parent are shared, and merges them when yes', () => {
     const tree = family();
     const solo = after(tree, relate(tree, LOOSE, DAUGHTER, 'child'));

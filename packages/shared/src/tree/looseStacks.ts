@@ -15,8 +15,9 @@ function byName(a: Person, b: Person): number {
 
 /**
  * The unlinked people grouped by branch, each group led by its topmost person: someone with no
- * parent in the group, with the most descendants in it; between tied partners, the one earlier
- * in their union's `partnerIds` (the person who was there first); then by name, then id.
+ * parent in the group, with the most descendants in it; between tied partners, the one at
+ * `partnerIds[0]` of their union (the person already there, the target of the spouse link);
+ * then by name, then id.
  */
 export function looseStacks(tree: TreeState): LooseStack[] {
   const index = buildTreeIndex(tree);
@@ -80,8 +81,8 @@ export function looseStacks(tree: TreeState): LooseStack[] {
     const most = Math.max(...counts.values());
     const top = pool.filter((person) => counts.get(person.id) === most);
     const topIds = new Set(top.map((person) => person.id));
-    // relate puts the person already there first in partnerIds and the added spouse after, so a
-    // later partner of another top candidate gives way to them.
+    // A spouse link puts its target, the person already there, at partnerIds[0] and the added
+    // spouse after (relate, addSpouseOp), so a later partner of another top candidate gives way.
     const addedLater = new Set(
       top
         .filter((person) =>
