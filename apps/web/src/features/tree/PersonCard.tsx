@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DateMark, Polaroid, tiltFor, type TapeKind } from '../../shared/ui';
+import { CardMenu } from './CardMenu';
 import {
   birthdayOf,
   birthFamilySubtitle,
@@ -87,40 +88,43 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
         };
   return (
     <div className="group relative" style={POINTER_EVENTS} {...tooltipHandlers}>
-      <button
-        type="button"
-        // nodrag/nopan: React Flow leaves clicks on the card alone. The outline is the app's
-        // :focus-visible rule (styles/index.css), as for every Button.
-        className="nodrag nopan block cursor-pointer rounded-photo text-left"
-        aria-label={label}
-        aria-describedby={describedBy === '' ? undefined : describedBy}
-        // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
-        data-person-open={person.id}
-        onClick={() => openPerson?.(person.id)}
-      >
-        <Polaroid
-          aria-hidden="true"
-          name={person.fullName}
-          label={label}
-          lifeYears={lifeYears(person)}
-          tape={tape}
-          tilt={tiltFor(person.id)}
-          dateLine={
-            anniversary && anniversaryLabel ? (
-              <DateMark kind="death-anniversary" label={anniversaryLabel}>
-                {t('scrapbook.deathAnniversary', { date: dayMonth(anniversary) })}
-              </DateMark>
-            ) : undefined
-          }
-          marks={
-            birthday && birthdayLabel ? (
-              <DateMark kind="birthday" label={birthdayLabel}>
-                {dayMonth(birthday)}
-              </DateMark>
-            ) : undefined
-          }
-        />
-      </button>
+      {/* Right-click, the menu key or Shift+F10: the panel's actions (spec §7.6). */}
+      <CardMenu personId={person.id}>
+        <button
+          type="button"
+          // nodrag/nopan: React Flow leaves clicks on the card alone. The outline is the app's
+          // :focus-visible rule (styles/index.css), as for every Button.
+          className="nodrag nopan block cursor-pointer rounded-photo text-left"
+          aria-label={label}
+          aria-describedby={describedBy === '' ? undefined : describedBy}
+          // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
+          data-person-open={person.id}
+          onClick={() => openPerson?.(person.id)}
+        >
+          <Polaroid
+            aria-hidden="true"
+            name={person.fullName}
+            label={label}
+            lifeYears={lifeYears(person)}
+            tape={tape}
+            tilt={tiltFor(person.id)}
+            dateLine={
+              anniversary && anniversaryLabel ? (
+                <DateMark kind="death-anniversary" label={anniversaryLabel}>
+                  {t('scrapbook.deathAnniversary', { date: dayMonth(anniversary) })}
+                </DateMark>
+              ) : undefined
+            }
+            marks={
+              birthday && birthdayLabel ? (
+                <DateMark kind="birthday" label={birthdayLabel}>
+                  {dayMonth(birthday)}
+                </DateMark>
+              ) : undefined
+            }
+          />
+        </button>
+      </CardMenu>
       {marks === '' ? null : (
         <span id={marksId} className="sr-only">
           {marks}
