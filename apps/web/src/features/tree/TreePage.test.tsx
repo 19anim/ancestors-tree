@@ -32,8 +32,12 @@ describe('TreePage', () => {
     expect(screen.getByText('Đã lưu')).toHaveAttribute('role', 'status');
     const tray = screen.getByRole('region', { name: 'Chưa nối vào cây' });
     expect(within(tray).getByText('Trần Văn Bình')).toBeInTheDocument();
-    // Viewers get no editing controls.
-    expect(screen.queryByRole('button', { name: /Thao tác với/ })).not.toBeInTheDocument();
+    // The photo is drawn under the tray's buttons: no text in them that their names lack
+    // (WCAG 2.5.3, axe's label-content-name-mismatch).
+    const loose = within(tray).getByRole('button', { name: /^Trần Văn Bình/ });
+    expect(loose.textContent).toBe('');
+    // Viewers get no editing controls: the toolbar has no undo.
+    expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
   });
 
   it('says when the family tree is empty', async () => {

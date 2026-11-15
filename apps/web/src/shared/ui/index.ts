@@ -1,4 +1,6 @@
 export { useReducedMotion } from './motion/useReducedMotion';
+export { useMediaQuery } from './useMediaQuery';
+export { inertOthers } from './inertOthers';
 export {
   applyTheme,
   getLocalStorage,
@@ -45,3 +47,14 @@ export {
   type Point,
   type Size,
 } from './scrapbook/threads';
+export { DualDateInput } from './dates/DualDateInput';
+export {
+  draftFromDateInfo,
+  draftToDateInfo,
+  EMPTY_DATE_DRAFT,
+  leapMonthOf,
+  type DateDraft,
+  type DateDraftError,
+  type DateMode,
+  type DraftResult,
+} from './dates/dateDraft';

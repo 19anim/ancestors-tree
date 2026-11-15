@@ -14,6 +14,7 @@ export {
   UnionSchema,
   UnionStatusSchema,
   type BirthFamily,
+  type ClearablePersonField,
   type DateInfo,
   type Death,
   type Gender,
@@ -23,6 +24,13 @@ export {
   type UnionChanges,
   type UnionStatus,
 } from './schemas.ts';
+export {
+  completeDateInfo,
+  derivedLunar,
+  derivedSolar,
+  hasWrongDerivedSide,
+  type DateSides,
+} from './date-info.ts';
 export { EMPTY_TREE, treeStateFromLists, type TreeState } from './state.ts';
 export { OP_ERROR_CODE_LIST, OP_ERROR_CODES, OpError, type OpErrorCode } from './op-error.ts';
 export {
@@ -45,3 +53,4 @@ export {
   type Lineage,
   type TreeIndex,
 } from './lineage.ts';
+export { relativeOf, type RelativeDirection } from './relatives.ts';

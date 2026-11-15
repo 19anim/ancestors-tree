@@ -1,5 +1,6 @@
 import { EmailSchema, PasswordSchema, RegisterRequestSchema } from '@ancestors-tree/shared';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import i18n from '../i18n';
 import { zodErrorMap } from './formErrors';
 
@@ -19,5 +20,16 @@ describe('zodErrorMap', () => {
       { error },
     );
     expect(firstMessage(missingName)).toBe('Hãy điền mục này');
+  });
+
+  it('uses the message key a custom issue carries', () => {
+    const schema = z
+      .string()
+      .superRefine((_, ctx) =>
+        ctx.addIssue({ code: 'custom', params: { messageKey: 'dates.errors.yearOnly' } }),
+      );
+    expect(firstMessage(schema.safeParse('x', { error }))).toBe(
+      'Chỉ biết năm? Hãy chọn “Chỉ biết năm”.',
+    );
   });
 });

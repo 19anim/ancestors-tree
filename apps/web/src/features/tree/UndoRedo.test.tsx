@@ -33,7 +33,7 @@ async function nextFrame() {
 
 async function openTree() {
   renderRoute(`/clans/${CLAN_ID}/tree`);
-  await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+  await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
 }
 
 beforeEach(() => {
@@ -164,7 +164,7 @@ describe('the undo and redo buttons', () => {
   it('stop listening to the keyboard when unmounted', async () => {
     editable();
     const view = renderRoute(`/clans/${CLAN_ID}/tree`);
-    await screen.findByRole('figure', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
     act(() => void useTreeStore.getState().apply(bio));
     const before = useTreeStore.getState().undoStack.length;
     view.unmount();
@@ -225,11 +225,11 @@ describe('the undo and redo buttons', () => {
     await openTree();
     act(() => void useTreeStore.getState().apply({ type: 'addPerson', payload: newcomer }));
     const undo = screen.getByRole('button', { name: 'Hoàn tác' });
-    const actions = await screen.findByRole('button', { name: 'Thao tác với Phạm Văn Lộc' });
-    act(() => actions.focus());
+    const card = await screen.findByRole('button', { name: /^Phạm Văn Lộc(,|$)/ });
+    act(() => card.focus());
     await user.keyboard('{Control>}z{/Control}');
     expect(useTreeStore.getState().tree.persons[NEWCOMER]).toBeUndefined();
-    expect(actions).not.toBeInTheDocument();
+    expect(card).not.toBeInTheDocument();
     await nextFrame();
     expect(document.activeElement).toBe(undo);
   });
@@ -239,12 +239,12 @@ describe('the undo and redo buttons', () => {
     editable();
     await openTree();
     act(() => void useTreeStore.getState().apply(bio));
-    const actions = screen.getByRole('button', { name: 'Thao tác với Trần Văn Bình' });
-    act(() => actions.focus());
+    const card = screen.getByRole('button', { name: /^Trần Văn Bình(,|$)/ });
+    act(() => card.focus());
     await user.keyboard('{Control>}z{/Control}');
     expect(useTreeStore.getState().tree.persons[SON]?.bio).toBeUndefined();
     await nextFrame();
-    expect(document.activeElement).toBe(actions);
+    expect(document.activeElement).toBe(card);
   });
 
   it('are not shown to a viewer, who still sees the save status', async () => {

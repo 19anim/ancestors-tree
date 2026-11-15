@@ -77,6 +77,15 @@ export function pannedToShow(
   return { x: viewport.x + dx, y: viewport.y + dy, zoom };
 }
 
+/** The view `setCenter` lands on: the rectangle's middle in the board's middle, at `zoom`. */
+export function centredOn(rect: Rect, zoom: number, size: Size): Viewport {
+  return {
+    x: size.width / 2 - (rect.x + rect.width / 2) * zoom,
+    y: size.height / 2 - (rect.y + rect.height / 2) * zoom,
+    zoom,
+  };
+}
+
 export function personRect(layout: TreeLayout, personId: string): Rect | null {
   const person = layout.persons.find((placed) => placed.id === personId);
   return person ? { x: person.x, y: person.y, width: CARD.width, height: CARD.height } : null;

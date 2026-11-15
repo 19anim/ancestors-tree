@@ -1,24 +1,43 @@
 import { vi } from 'vitest';
 
-/** jsdom has no layout engine; React Flow observes sizes and reads the viewport transform. */
+/** The shims observing something now, for `resizeObserved`. */
+const observing = new Set<ResizeObserverShim>();
+
+/**
+ * jsdom has no layout engine; React Flow observes sizes and reads the viewport transform. Each
+ * observed element reports its size once, on `observe`, and again on `resizeObserved`.
+ */
 class ResizeObserverShim {
   private readonly callback: ResizeObserverCallback;
+  readonly targets = new Set<Element>();
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
   }
 
   observe(target: Element): void {
+    this.targets.add(target);
+    observing.add(this);
+    this.report(target);
+  }
+
+  report(target: Element): void {
     this.callback([{ target } as ResizeObserverEntry], this as unknown as ResizeObserver);
   }
 
-  unobserve(): void {
-    // Nothing is observed for real.
+  unobserve(target: Element): void {
+    this.targets.delete(target);
   }
 
   disconnect(): void {
-    // Nothing is observed for real.
+    this.targets.clear();
+    observing.delete(this);
   }
+}
+
+/** Tells everything observing `target` that its size changed (set it with `style` first). */
+export function resizeObserved(target: Element): void {
+  for (const shim of [...observing]) if (shim.targets.has(target)) shim.report(target);
 }
 
 class DOMMatrixReadOnlyShim {

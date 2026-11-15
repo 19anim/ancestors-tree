@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLEARABLE_PERSON_FIELDS,
   DateInfoSchema,
   DeathSchema,
   PersonChangesSchema,
@@ -105,5 +106,16 @@ describe('treeStateFromLists', () => {
     expect(tree.persons[ID]?.fullName).toBe('Nguyễn Văn Tư');
     expect(tree.unions[OTHER]).toEqual(union);
     expect(EMPTY_TREE).toEqual({ progenitorId: null, persons: {}, unions: {} });
+  });
+});
+
+describe('CLEARABLE_PERSON_FIELDS', () => {
+  it('lists exactly the fields updatePerson may clear with null', () => {
+    expect([...CLEARABLE_PERSON_FIELDS].sort()).toEqual(
+      ['bio', 'birth', 'birthFamily', 'branch', 'burialPlace', 'siblingOrder'].sort(),
+    );
+    for (const field of CLEARABLE_PERSON_FIELDS) {
+      expect(PersonChangesSchema.safeParse({ [field]: null }).success).toBe(true);
+    }
   });
 });

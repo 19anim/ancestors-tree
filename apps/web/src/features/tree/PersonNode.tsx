@@ -14,7 +14,12 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
   return (
     <>
       <Handle type="target" position={Position.Top} isConnectable={false} style={HIDDEN_HANDLE} />
-      <PersonCard person={person} tape={data.tape} generation={data.generation} />
+      <PersonCard
+        person={person}
+        tape={data.tape}
+        generation={data.generation}
+        inLaw={data.tape === 'in-law'}
+      />
     </>
   );
 }

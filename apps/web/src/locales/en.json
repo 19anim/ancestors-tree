@@ -168,6 +168,8 @@
       "signedInAs": "Signed in as {{name}}",
       "signOutTitle": "Sign out?",
       "signOutBody": "Unsaved changes: {{count}}. If you sign out, they will be discarded.",
+      "signOutProfileBody": "You edited the profile but did not save. If you sign out, those changes are lost.",
+      "signOutProfileToo": "Your unsaved profile changes will be lost too.",
       "signOutStay": "Stay",
       "signOutAnyway": "Sign out anyway"
     }
@@ -285,12 +287,21 @@
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fitView": "Show the whole tree",
-      "keyboardHint": "Use the arrow keys to move, + and − to zoom in and out, and 0 to show the whole tree."
+      "keyboardHint": "Use the arrow keys to move, + and − to zoom in and out, and 0 to show the whole tree. On a card: Enter opens the profile, the arrow keys move to relatives."
     },
     "card": {
       "label": "{{name}}, {{years}}, generation {{generation}}",
       "labelNoYears": "{{name}}, generation {{generation}}",
-      "actions": "Actions for {{name}}"
+      "approxYear": "around {{year}}",
+      "inLawLabel": "{{label}}, {{family}}"
+    },
+    "inLaw": {
+      "sonOfFather": "Son of Mr. {{name}}",
+      "daughterOfFather": "Daughter of Mr. {{name}}",
+      "sonOfMother": "Son of Mrs. {{name}}",
+      "daughterOfMother": "Daughter of Mrs. {{name}}",
+      "surname": "{{surname}} family",
+      "separator": " · "
     },
     "rules": {
       "INVALID_ID": "An id is not valid. Reload the page and try again.",
@@ -311,15 +322,61 @@
     "outOfDate": "The family tree has just changed. Check again, then try again.",
     "actions": {
       "addFirst": "Add the first person",
-      "description": "What would you like to do with this person?",
       "addChild": "Add a child",
       "addSpouse": "Add a spouse",
+      "addParent": "Add parent",
       "setProgenitor": "Set as progenitor",
       "delete": "Delete this person"
     },
     "unlinked": {
       "title": "Not yet linked",
       "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
+    },
+    "profile": {
+      "close": "Close the profile",
+      "edit": "Edit",
+      "actions": "Actions",
+      "aliases": "Other names",
+      "gender": "Gender",
+      "birth": "Born",
+      "death": "Died",
+      "living": "Living",
+      "deceasedNoDate": "Deceased, date unknown",
+      "anniversary": "This year's death anniversary",
+      "anniversaryValue": "{{lunar}} lunar, that is {{solar}} solar",
+      "anniversaryFirst": "first anniversary",
+      "anniversarySecond": "second anniversary",
+      "burialPlace": "Burial place",
+      "siblingOrder": "Order among siblings",
+      "branch": "Branch",
+      "adopted": "Adopted",
+      "yes": "Yes",
+      "bio": "Biography",
+      "birthFamily": "Birth family",
+      "surname": "Surname",
+      "fatherName": "Father's name",
+      "motherName": "Mother's name",
+      "hometown": "Hometown",
+      "note": "Note",
+      "missing": "{{name}} is no longer in the tree, so the profile closed.",
+      "missingUnnamed": "This person is not in the tree, so the profile closed.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "aliasesHint": "One name per line.",
+      "status": "Status",
+      "siblingOrderHint": "From 1 to 99. Leave empty if unknown.",
+      "siblingOrderError": "Enter a number from 1 to 99.",
+      "changedElsewhere": "This person was just changed. Saving sends only the fields you edited.",
+      "missingWithDraft": "{{name}} is no longer in the tree, so the profile closed. Your unsaved changes were dropped.",
+      "reloadedWithDraft": "The tree was reloaded, so your unsaved profile changes were dropped."
+    },
+    "date": {
+      "solar": "{{date}} solar",
+      "lunar": "{{date}} lunar",
+      "lunarLeap": "{{day}}/leap {{month}}/{{year}} lunar",
+      "approx": "around {{year}}",
+      "withOther": "{{entered}} (= {{other}})",
+      "canChi": "{{text}} · year of {{name}}"
     },
     "toolbar": {
       "label": "Tree tools"
@@ -378,6 +435,9 @@
       "firstTitle": "Add the first person",
       "childTitle": "Add a child of {{name}}",
       "spouseTitle": "Add a spouse of {{name}}",
+      "parentTitle": "Add a parent of {{name}}",
+      "parentAlsoOf": "This person will also be the parent of: {{names}}.",
+      "makeProgenitor": "Make this person the progenitor (generation 1)",
       "fullName": "Full name",
       "gender": "Gender",
       "male": "Male",
@@ -398,11 +458,43 @@
       "confirm": "Delete",
       "cancel": "Cancel"
     },
+    "profileDraft": {
+      "title": "Drop your profile changes?",
+      "body": "You edited the profile but did not save. If you go on, those changes are lost.",
+      "stay": "Keep editing",
+      "discard": "Drop the changes"
+    },
     "switchTree": {
       "title": "Open another family tree?",
       "body": "Unsaved changes in the family tree you were editing: {{count}}. If you open another tree, they will be discarded.",
       "stay": "Stay",
-      "discard": "Discard changes and open"
+      "discard": "Discard changes and open",
+      "discardProfile": "Your unsaved profile changes will be lost too."
+    }
+  },
+  "dates": {
+    "lunar": "Lunar",
+    "solar": "Solar",
+    "approx": "Year only",
+    "mode": "Calendar",
+    "day": "Day",
+    "month": "Month",
+    "year": "Year",
+    "leap": "Leap month",
+    "leapHint": "Year {{year}} has a leap month {{month}}.",
+    "noLeapHint": "Year {{year}} has no leap month.",
+    "toSolar": "= {{date}} solar",
+    "toLunar": "= {{date}} lunar",
+    "leapMonth": "{{day}}/leap {{month}}/{{year}}",
+    "canChi": "year of {{name}}",
+    "clear": "Clear the date",
+    "errors": {
+      "incomplete": "Enter the day, month and year.",
+      "yearOnly": "Only the year? Choose “Year only”.",
+      "notANumber": "Numbers only.",
+      "yearRange": "The year must be between 1000 and 3000.",
+      "notADate": "This day is not in the calendar.",
+      "leapMonthAbsent": "That year has no such leap month."
     }
   }
 }

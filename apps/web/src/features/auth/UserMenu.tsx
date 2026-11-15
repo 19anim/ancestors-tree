@@ -7,16 +7,25 @@ import { useCurrentUser, useLogout } from './api';
 interface UserMenuProps {
   /** Changes made in this tab that are not saved yet: signing out asks first while there are any. */
   unsentChanges?: number;
+  /** An open profile form has unsaved changes: signing out asks first too. */
+  unsavedProfile?: boolean;
   /** Runs once the user is signed out, before the home page opens. */
   onSignedOut?: () => void;
 }
 
-export function UserMenu({ unsentChanges = 0, onSignedOut }: UserMenuProps) {
+export function UserMenu({
+  unsentChanges = 0,
+  unsavedProfile = false,
+  onSignedOut,
+}: UserMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const me = useCurrentUser();
   const logout = useLogout();
   const [asking, setAsking] = useState(false);
+  // Fixed when the question opens: the unsent changes can go out while it is on screen, and the
+  // profile wording must not take over then, with nothing unsaved in the profile.
+  const [description, setDescription] = useState('');
   const signOutButton = useRef<HTMLButtonElement>(null);
 
   if (!me.data) {
@@ -27,6 +36,19 @@ export function UserMenu({ unsentChanges = 0, onSignedOut }: UserMenuProps) {
     );
   }
 
+  const ask = () => {
+    setDescription(
+      unsentChanges > 0
+        ? [
+            t('auth.menu.signOutBody', { count: unsentChanges }),
+            unsavedProfile ? t('auth.menu.signOutProfileToo') : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        : t('auth.menu.signOutProfileBody'),
+    );
+    setAsking(true);
+  };
   const signOut = () => {
     setAsking(false);
     // Before the request: the dialog says unsent changes are discarded, so stop sending them now
@@ -46,7 +68,7 @@ export function UserMenu({ unsentChanges = 0, onSignedOut }: UserMenuProps) {
         ref={signOutButton}
         variant="ghost"
         disabled={logout.isPending}
-        onClick={() => (unsentChanges > 0 ? setAsking(true) : signOut())}
+        onClick={() => (unsentChanges > 0 || unsavedProfile ? ask() : signOut())}
       >
         {t('auth.menu.signOut')}
       </Button>
@@ -55,7 +77,7 @@ export function UserMenu({ unsentChanges = 0, onSignedOut }: UserMenuProps) {
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent
           title={t('auth.menu.signOutTitle')}
-          description={t('auth.menu.signOutBody', { count: unsentChanges })}
+          description={description}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             signOutButton.current?.focus();

@@ -8,9 +8,11 @@ import { describe, expect, it } from 'vitest';
 import { FAMILY, GRANDMA, GRANDPA, LOOSE, PARENTS_UNION, SON } from './fixtures';
 import {
   addChildOp,
+  addParentOp,
   addFirstPersonOp,
   addSpouseOp,
   deletePersonOp,
+  parentSlot,
   setProgenitorOp,
   type NewPersonInput,
 } from './ops';
@@ -110,5 +112,48 @@ describe('op builders', () => {
   it('deletes and chooses the progenitor', () => {
     expect(deletePersonOp(GRANDMA)).toEqual({ type: 'deletePerson', payload: { id: GRANDMA } });
     expect(setProgenitorOp(SON)).toEqual({ type: 'setProgenitor', payload: { personId: SON } });
+  });
+});
+
+describe('addParentOp', () => {
+  const parent: NewPersonInput = { fullName: 'Nguyễn Văn Cố', gender: 'male', isDeceased: true };
+
+  it('gives a person without parents a one-parent union, in one batch', () => {
+    expect(parentSlot(tree, index, GRANDPA)).toEqual({ kind: 'none' });
+    const op = addParentOp(tree, index, GRANDPA, parent, false);
+    expect(op.type).toBe('batch');
+    const next = applyOp(tree, op).tree;
+    const added = Object.values(next.persons).find((person) => person.fullName === 'Nguyễn Văn Cố');
+    const unionId = next.persons[GRANDPA]?.parentUnionId;
+    expect(unionId).toBeDefined();
+    expect(next.unions[unionId ?? '']?.partnerIds).toEqual([added?.id]);
+    expect(next.progenitorId).toBe(GRANDPA);
+  });
+
+  it('makes the new parent the progenitor when asked, still one op', () => {
+    const next = applyOp(tree, addParentOp(tree, index, GRANDPA, parent, true)).tree;
+    expect(next.persons[next.progenitorId ?? '']?.fullName).toBe('Nguyễn Văn Cố');
+  });
+
+  it('adds the second parent to the union of the first', () => {
+    const oneParent = treeStateFromLists(
+      FAMILY.progenitorId,
+      FAMILY.persons,
+      FAMILY.unions.map((union) =>
+        union.id === PARENTS_UNION ? { ...union, partnerIds: [GRANDPA] } : union,
+      ),
+    );
+    const oneIndex = buildTreeIndex(oneParent);
+    expect(parentSlot(oneParent, oneIndex, SON)).toMatchObject({
+      kind: 'one',
+      parent: { id: GRANDPA },
+      siblings: [],
+    });
+    const op = addParentOp(oneParent, oneIndex, SON, { ...parent, gender: 'female' }, false);
+    expect(applyOp(oneParent, op).tree.unions[PARENTS_UNION]?.partnerIds).toHaveLength(2);
+  });
+
+  it('finds both parents known', () => {
+    expect(parentSlot(tree, index, SON)).toEqual({ kind: 'full' });
   });
 });

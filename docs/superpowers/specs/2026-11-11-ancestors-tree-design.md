@@ -163,7 +163,8 @@ DateInfo {                       // used for both birth and death
   approxYear?: number,           // only "around 1920" is known
   source: 'solar' | 'lunar' | 'approx'   // what the user actually entered (kept as ground truth)
 }
-// When one side is complete (day/month/year), the other side is derived.
+// When one side is complete (day/month/year), the other side is derived. The shared schema
+// rejects a derived side that does not match the conversion of the entered side (P6b).
 // UI also shows the sexagenary (Can Chi) year: 1924 → "Giáp Tý".
 
 // ===== Accounts & access =====
@@ -538,9 +539,24 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
 ### 7.6 Forms & input
 
 - React Hook Form + Zod resolver (schemas from `packages/shared`).
-- Clicking a person opens a **side panel** (bottom sheet on mobile) to view/edit. Saving creates an `updatePerson` op with only the changed fields.
-- `DualDateInput`: toggle **Lunar / Solar / Year only**. Entering one side shows the converted other side and the Can Chi year. A "leap month" checkbox appears in Lunar mode.
-- Context menu (and card buttons on touch devices): Add child · Add spouse · Add parent (if missing) · Change relationship… · Link to another family tree · Decorate this card… (§13.4) · Delete.
+- **Profile panel** (P6b). Clicking a card, or Enter on it, opens a **side panel** (about 400 px on the right, the board stays usable) or a **bottom sheet** on small screens.
+  - The open person is in the URL (`?person=<id>`), so a link opens the same profile, Back closes it on mobile and a reload keeps it open. Esc or the close button closes it and returns focus to the card.
+  - **Read mode** (everyone): name and aliases, gender, birth (both calendars and the Can Chi year), death with this year's anniversary (§9.2), burial place, sibling order, branch, adopted, biography. For an in-law, the birth family (§8) comes first.
+  - **Actions** (editors), in the panel: Add child · Add spouse · Add parent (if missing) · Make progenitor (Owner) · Delete. On a pointer device, right-clicking a card opens a menu with the same actions. They replace P5's "Actions for X" dialog.
+  - **Edit mode.** Editors press **Edit** to get the form, with Save and Cancel. Save sends one `updatePerson` op with only the fields changed since the form opened, so it is one undo step and does not overwrite someone else's change to another field. An emptied optional field is sent as `null`. Closing the panel, opening another person or leaving the page with unsaved form changes asks first.
+  - If the person is deleted while the panel is open (by someone else, or by an undo), the panel closes and says so.
+- `DualDateInput`: toggle **Lunar / Solar / Year only**, each with day, month and year fields.
+  - Entering one side shows the converted other side and the Can Chi year ("= 25/11/1950 dương lịch · năm Canh Dần").
+  - In Lunar mode a "leap month" checkbox can be ticked only when that year's leap month is the chosen month.
+  - Errors show at the field, for example day 30 in a 29-day lunar month. A year alone in Lunar or Solar mode suggests "Year only".
+  - The entered side and the derived side are stored (§5).
+- **Add parent** (if missing).
+  - No parents yet: the new person, a new Union with them as its only partner, and `setParents` go out as one `batch`.
+  - One known parent: the new person joins that parent's Union as the second partner. The form names any siblings who get the same parent ("also the parent of: Y, Z"), and the gender defaults to the other one.
+  - Two known parents: the action is not offered.
+  - On the progenitor, only the Owner sees it, with "Make this person the progenitor (generation 1)" ticked by default; the batch then ends with `setProgenitor`, still one undo step. Editors do not see it on the progenitor.
+  - Not offered on in-laws: their parents belong in the birth family (§8), not in this tree.
+- Context menu (and the panel's buttons on touch devices), the full list as features arrive: Add child · Add spouse · Add parent (if missing) · Change relationship… (P6c) · Link to another family tree (P10) · Decorate this card… (§13.4) · Delete.
 - People are created through forms and AI import (§10), never by dragging. Dragging only **changes relationships**.
 - **Add several people** (editors only), from the board's toolbar and from the **Loose photos** tray. It is for families who know names before they know who belongs where.
   - The form has one row per person: full name, gender, living/deceased. A new row appears when the last one is filled, and an empty row is ignored.
@@ -580,7 +596,7 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
 ### 7.8 Responsive & accessibility
 
 - Touch pan/zoom (built into React Flow); panel becomes a bottom sheet on small screens.
-- Keyboard: Tab through cards, Enter opens the profile, arrow keys move between parent/child/siblings. The board itself is one tab stop before the cards: arrow keys pan, + (or =) and − zoom, 0 shows the whole tree, and three zoom buttons follow the cards in the tab order (P6a; the arrow keys between relatives come in P6b). The zoom buttons sit at the bottom right and React Flow's credit link at the bottom left. A card whose button gets focus off screen is centred at the current zoom; a newly added person is brought into view by the smallest pan at the current zoom, so the card it was added from stays visible (removals keep the view). "Change relationship…" in the card menu is the keyboard alternative to drag-to-relate (§7.6).
+- Keyboard: Tab through cards, Enter opens the profile, arrow keys move between relatives (P6b): ↑ to a parent, ↓ to the eldest child, ← and → to the previous and next sibling; on an in-law, ← and → move to the spouse. The board itself is one tab stop before the cards: arrow keys pan, + (or =) and − zoom, 0 shows the whole tree, and three zoom buttons follow the cards in the tab order (P6a; the arrow keys between relatives come in P6b). The zoom buttons sit at the bottom right and React Flow's credit link at the bottom left. A card whose button gets focus off screen is centred at the current zoom; a newly added person is brought into view by the smallest pan at the current zoom, so the card it was added from stays visible (removals keep the view). "Change relationship…" in the card menu is the keyboard alternative to drag-to-relate (§7.6).
 - WCAG AA contrast. Each card has an `aria-label` with name, life years and generation.
 
 ---
@@ -596,7 +612,7 @@ Vietnamese genealogies are traditionally patrilineal, but families want to see w
 
 **Display rules:**
 - In-laws are placed **beside their blood spouse** (ordered by `Union.order`) and never expand upward, so the layout stays a pure descendant tree (§7.4).
-- In-law cards use a distinct but quiet style (outlined card, lighter fill) and a subtitle built from `birthFamily`, e.g. "Daughter of Mr. Trần Văn X · Hà Nam". Opening the panel shows the full birth-family details.
+- In-law cards use a distinct but quiet style (outlined card, lighter fill). A subtitle built from `birthFamily`, e.g. "Daughter of Mr. Trần Văn X · Hà Nam", is part of the card's accessible name and shows as a tooltip on hover or focus; the card keeps its single line, so every card has the same height (P6b). Opening the panel shows the full birth-family details.
 - They share their spouse's generation number but are **excluded from blood statistics** ("312 members · 85 in-laws").
 - **Daughters' descendants**: `Clan.settings.daughtersDescendantsDepth` controls how many generations below a married-out daughter are shown (default 1 = her children, collapsed by default). The traditional "sons' line only" view is depth 0.
 - **"Hide in-laws" toggle** in the view menu and in export options produces a traditional lineage-only chart. Hidden in-laws collapse into a small marker on the spouse's card ("+1 spouse").
@@ -879,7 +895,7 @@ The UI must not look like a generic AI-generated SaaS template. It is aimed at y
 | Round yellow sticker with a line-drawn cake | birthday: Lucide `Cake` above the solar date ("21/11"); its accessible text is "Sinh nhật 21/11" |
 | "Loose photos" tray | people not connected to the tree (§7.6) |
 
-The line under the caption shows the death anniversary for deceased people with a lunar death date, and the life years ("1990–") for everyone else, so every full card has the same height (the card grows from 124 px to about 138 px). The birthday sticker stays on the photo's corner.
+The line under the caption shows the death anniversary for deceased people with a lunar death date (entered, or derived from a full solar date), and the life years ("1990–") for everyone else, so every full card has the same height (the card grows from 124 px to about 138 px). An approximate year shows as "~1920", read as "khoảng năm 1920" by screen readers. The birthday sticker stays on the photo's corner, only for living people whose solar day and month of birth are known (entered or derived).
 
 Each card tilts slightly by an angle derived from the person id (±2.5°). The board feels hand-made, but a card never changes its tilt between renders.
 

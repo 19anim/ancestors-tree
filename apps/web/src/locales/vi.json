@@ -168,6 +168,8 @@
       "signedInAs": "Đang đăng nhập với tên {{name}}",
       "signOutTitle": "Đăng xuất?",
       "signOutBody": "Còn {{count}} thay đổi chưa lưu. Đăng xuất thì các thay đổi này sẽ bị bỏ.",
+      "signOutProfileBody": "Bạn đã sửa hồ sơ nhưng chưa lưu. Đăng xuất thì những thay đổi này sẽ mất.",
+      "signOutProfileToo": "Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất.",
       "signOutStay": "Ở lại",
       "signOutAnyway": "Vẫn đăng xuất"
     }
@@ -285,12 +287,21 @@
       "zoomIn": "Phóng to",
       "zoomOut": "Thu nhỏ",
       "fitView": "Xem cả cây",
-      "keyboardHint": "Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây."
+      "keyboardHint": "Dùng phím mũi tên để di chuyển, phím + và − để phóng to, thu nhỏ, phím 0 để xem cả cây. Trên một thẻ: Enter mở hồ sơ, phím mũi tên đi tới người thân."
     },
     "card": {
       "label": "{{name}}, {{years}}, đời thứ {{generation}}",
       "labelNoYears": "{{name}}, đời thứ {{generation}}",
-      "actions": "Thao tác với {{name}}"
+      "approxYear": "khoảng năm {{year}}",
+      "inLawLabel": "{{label}}, {{family}}"
+    },
+    "inLaw": {
+      "sonOfFather": "Con trai ông {{name}}",
+      "daughterOfFather": "Con gái ông {{name}}",
+      "sonOfMother": "Con trai bà {{name}}",
+      "daughterOfMother": "Con gái bà {{name}}",
+      "surname": "Họ {{surname}}",
+      "separator": " · "
     },
     "rules": {
       "INVALID_ID": "Mã định danh không hợp lệ. Hãy tải lại trang rồi thử lại.",
@@ -311,15 +322,61 @@
     "outOfDate": "Cây gia phả vừa có thay đổi mới. Hãy xem lại rồi thử lại.",
     "actions": {
       "addFirst": "Thêm người đầu tiên",
-      "description": "Bạn muốn làm gì với người này?",
       "addChild": "Thêm con",
       "addSpouse": "Thêm vợ/chồng",
+      "addParent": "Thêm cha/mẹ",
       "setProgenitor": "Chọn làm thuỷ tổ",
       "delete": "Xoá người này"
     },
     "unlinked": {
       "title": "Chưa nối vào cây",
       "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
+    },
+    "profile": {
+      "close": "Đóng hồ sơ",
+      "edit": "Sửa",
+      "actions": "Thao tác",
+      "aliases": "Tên gọi khác",
+      "gender": "Giới tính",
+      "birth": "Ngày sinh",
+      "death": "Ngày mất",
+      "living": "Còn sống",
+      "deceasedNoDate": "Đã mất, chưa rõ ngày",
+      "anniversary": "Giỗ năm nay",
+      "anniversaryValue": "{{lunar}} âm lịch, tức {{solar}} dương lịch",
+      "anniversaryFirst": "giỗ đầu",
+      "anniversarySecond": "giỗ hết",
+      "burialPlace": "Nơi an táng",
+      "siblingOrder": "Thứ tự trong anh chị em",
+      "branch": "Chi, nhánh",
+      "adopted": "Con nuôi",
+      "yes": "Có",
+      "bio": "Tiểu sử",
+      "birthFamily": "Gia đình gốc",
+      "surname": "Họ",
+      "fatherName": "Tên cha",
+      "motherName": "Tên mẹ",
+      "hometown": "Quê quán",
+      "note": "Ghi chú",
+      "missing": "{{name}} không còn trong cây nên hồ sơ đã đóng.",
+      "missingUnnamed": "Không tìm thấy người này trong cây nên hồ sơ đã đóng.",
+      "save": "Lưu",
+      "cancel": "Huỷ",
+      "aliasesHint": "Mỗi dòng một tên.",
+      "status": "Tình trạng",
+      "siblingOrderHint": "Từ 1 đến 99. Để trống nếu chưa rõ.",
+      "siblingOrderError": "Nhập một số từ 1 đến 99.",
+      "changedElsewhere": "Người này vừa được thay đổi. Khi lưu, chỉ những ô bạn đã sửa được gửi đi.",
+      "missingWithDraft": "{{name}} không còn trong cây nên hồ sơ đã đóng. Các thay đổi chưa lưu đã bị bỏ.",
+      "reloadedWithDraft": "Cây vừa được tải lại nên các thay đổi chưa lưu trong hồ sơ đã bị bỏ."
+    },
+    "date": {
+      "solar": "{{date}} dương lịch",
+      "lunar": "{{date}} âm lịch",
+      "lunarLeap": "{{day}}/{{month}} nhuận/{{year}} âm lịch",
+      "approx": "khoảng năm {{year}}",
+      "withOther": "{{entered}} (= {{other}})",
+      "canChi": "{{text}} · năm {{name}}"
     },
     "toolbar": {
       "label": "Công cụ của cây"
@@ -378,6 +435,9 @@
       "firstTitle": "Thêm người đầu tiên",
       "childTitle": "Thêm con của {{name}}",
       "spouseTitle": "Thêm vợ/chồng của {{name}}",
+      "parentTitle": "Thêm cha/mẹ của {{name}}",
+      "parentAlsoOf": "Người này cũng sẽ là cha/mẹ của: {{names}}.",
+      "makeProgenitor": "Đặt người này làm thuỷ tổ (đời thứ 1)",
       "fullName": "Họ và tên",
       "gender": "Giới tính",
       "male": "Nam",
@@ -398,11 +458,43 @@
       "confirm": "Xoá",
       "cancel": "Huỷ"
     },
+    "profileDraft": {
+      "title": "Bỏ các thay đổi trong hồ sơ?",
+      "body": "Bạn đã sửa hồ sơ nhưng chưa lưu. Nếu đi tiếp, những thay đổi này sẽ mất.",
+      "stay": "Ở lại sửa tiếp",
+      "discard": "Bỏ thay đổi"
+    },
     "switchTree": {
       "title": "Mở cây gia phả khác?",
       "body": "Còn {{count}} thay đổi chưa lưu ở cây gia phả bạn vừa sửa. Mở cây khác thì các thay đổi này sẽ bị bỏ.",
       "stay": "Ở lại",
-      "discard": "Bỏ thay đổi và mở"
+      "discard": "Bỏ thay đổi và mở",
+      "discardProfile": "Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất."
+    }
+  },
+  "dates": {
+    "lunar": "Âm lịch",
+    "solar": "Dương lịch",
+    "approx": "Chỉ biết năm",
+    "mode": "Loại ngày",
+    "day": "Ngày",
+    "month": "Tháng",
+    "year": "Năm",
+    "leap": "Tháng nhuận",
+    "leapHint": "Năm {{year}} nhuận tháng {{month}}.",
+    "noLeapHint": "Năm {{year}} không có tháng nhuận.",
+    "toSolar": "= {{date}} dương lịch",
+    "toLunar": "= {{date}} âm lịch",
+    "leapMonth": "{{day}}/{{month}} nhuận/{{year}}",
+    "canChi": "năm {{name}}",
+    "clear": "Xoá ngày",
+    "errors": {
+      "incomplete": "Nhập đủ ngày, tháng và năm.",
+      "yearOnly": "Chỉ biết năm? Hãy chọn “Chỉ biết năm”.",
+      "notANumber": "Chỉ nhập số.",
+      "yearRange": "Năm phải từ 1000 đến 3000.",
+      "notADate": "Ngày này không có trong lịch.",
+      "leapMonthAbsent": "Năm này không có tháng nhuận đó."
     }
   }
 }

@@ -1,4 +1,4 @@
-import { FullNameSchema, GenderSchema } from '@ancestors-tree/shared/tree';
+import { FullNameSchema, GenderSchema, type Gender } from '@ancestors-tree/shared/tree';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ const PersonFormSchema = z.object({
   gender: GenderSchema,
   status: z.enum(['living', 'deceased']),
   unionId: z.string().optional(),
+  checked: z.boolean(),
 });
 
 const SELECT_CLASS =
@@ -27,7 +28,13 @@ interface PersonFormDialogProps {
   title: string;
   /** Shown as a choice only when there are two or more. */
   unionChoices?: UnionChoice[];
-  onSubmit: (input: NewPersonInput, unionId: string | undefined) => ApplyResult;
+  /** The gender picked when the form opens. */
+  defaultGender?: Gender;
+  /** A sentence above the fields, such as the siblings who get the same parent. */
+  note?: string;
+  /** An extra checkbox; its state is passed to onSubmit. */
+  checkbox?: { label: string; defaultChecked: boolean };
+  onSubmit: (input: NewPersonInput, unionId: string | undefined, checked: boolean) => ApplyResult;
   onClose: () => void;
   onCloseAutoFocus?: (event: Event) => void;
 }
@@ -36,6 +43,9 @@ interface PersonFormDialogProps {
 export function PersonFormDialog({
   title,
   unionChoices = [],
+  defaultGender,
+  note,
+  checkbox,
   onSubmit,
   onClose,
   onCloseAutoFocus,
@@ -43,7 +53,13 @@ export function PersonFormDialog({
   const { t } = useTranslation();
   const unionFieldId = useId();
   const form = useZodForm(PersonFormSchema, {
-    defaultValues: { fullName: '', gender: 'male', status: 'living', unionId: unionChoices[0]?.id },
+    defaultValues: {
+      fullName: '',
+      gender: defaultGender ?? 'male',
+      status: 'living',
+      unionId: unionChoices[0]?.id,
+      checked: checkbox?.defaultChecked ?? false,
+    },
   });
   const { errors } = form.formState;
 
@@ -55,6 +71,7 @@ export function PersonFormDialog({
         isDeceased: values.status === 'deceased',
       },
       values.unionId,
+      values.checked,
     );
     if (result.ok) onClose();
     else
@@ -68,6 +85,7 @@ export function PersonFormDialog({
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
       <DialogContent title={title} onCloseAutoFocus={onCloseAutoFocus}>
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
+          {note ? <p className="text-sm text-ink-muted">{note}</p> : null}
           <TextField
             label={t('tree.form.fullName')}
             autoComplete="off"
@@ -115,6 +133,12 @@ export function PersonFormDialog({
               </label>
             </div>
           </fieldset>
+          {checkbox ? (
+            <label className="flex items-center gap-2">
+              <input type="checkbox" className="size-4" {...form.register('checked')} />
+              {checkbox.label}
+            </label>
+          ) : null}
           {unionChoices.length > 1 ? (
             <div className="flex flex-col gap-1.5">
               <label htmlFor={unionFieldId} className="text-sm font-medium text-ink">

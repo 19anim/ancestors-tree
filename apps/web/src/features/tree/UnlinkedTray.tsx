@@ -1,18 +1,17 @@
 import { classifyLineage } from '@ancestors-tree/shared/tree';
-import { Ellipsis } from 'lucide-react';
 import { useContext, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Polaroid, tiltFor } from '../../shared/ui';
-import { lifeYears } from './format';
+import { Polaroid, tiltFor } from '../../shared/ui';
+import { lifeYears, lifeYearsSpoken } from './format';
+import { OpenPersonContext } from './profileParams';
 import { useTreeStore } from './store';
-import { TreeActionsContext } from './treeActions';
 
-/** People not linked to the progenitor (spec §8 "unlinked"), with their actions for editors. */
+/** People not linked to the progenitor (spec §8 "unlinked"), each opening their profile. */
 export function UnlinkedTray() {
   const { t } = useTranslation();
   const headingId = useId();
   const tree = useTreeStore((state) => state.tree);
-  const openActions = useContext(TreeActionsContext);
+  const openPerson = useContext(OpenPersonContext);
   const people = useMemo(() => {
     const lineage = classifyLineage(tree);
     return Object.values(tree.persons)
@@ -30,32 +29,33 @@ export function UnlinkedTray() {
       <ul className="flex flex-wrap gap-4">
         {people.map((person) => {
           const years = lifeYears(person);
+          const spokenYears = lifeYearsSpoken(t, person);
+          const label =
+            spokenYears === undefined
+              ? person.fullName
+              : t('scrapbook.personLabel', { name: person.fullName, years: spokenYears });
           return (
-            <li key={person.id} className="flex items-center gap-2">
+            <li key={person.id} className="relative">
               <Polaroid
+                aria-hidden="true"
                 lod="label"
                 name={person.fullName}
-                label={
-                  years === undefined
-                    ? person.fullName
-                    : t('scrapbook.personLabel', { name: person.fullName, years })
-                }
+                label={label}
                 lifeYears={years}
                 tape="loose"
                 tilt={tiltFor(person.id)}
               />
-              {openActions ? (
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="size-8 rounded-full"
-                  aria-label={t('tree.card.actions', { name: person.fullName })}
-                  data-person-actions={person.id}
-                  onClick={() => openActions(person.id)}
-                >
-                  <Ellipsis aria-hidden="true" className="size-4" strokeWidth={1.75} />
-                </Button>
-              ) : null}
+              <button
+                type="button"
+                // Over the photo, not around it: its caption ("~1931") is not the spoken name, and
+                // a button's text must be part of its name (WCAG 2.5.3). The outline is the app's
+                // :focus-visible rule (styles/index.css).
+                className="absolute inset-0 cursor-pointer rounded-photo"
+                aria-label={label}
+                // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
+                data-person-open={person.id}
+                onClick={() => openPerson?.(person.id)}
+              />
             </li>
           );
         })}
