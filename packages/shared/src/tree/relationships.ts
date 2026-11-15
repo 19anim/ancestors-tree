@@ -59,7 +59,8 @@ export type CutResult =
 export function cutMarriage(tree: TreeState, unionId: string, keepWith?: string): CutResult {
   if (!Object.hasOwn(tree.unions, unionId)) return blocked('UNION_NOT_FOUND');
   const union = tree.unions[unionId] as Union;
-  const hasChildren = buildTreeIndex(tree).childrenOf(unionId).length > 0;
+  const children = buildTreeIndex(tree).childrenOf(unionId);
+  const hasChildren = children.length > 0;
   const draft = new Draft(tree);
   if (union.partnerIds.length === 2 && hasChildren) {
     if (keepWith === undefined || !union.partnerIds.includes(keepWith)) {
@@ -71,7 +72,7 @@ export function cutMarriage(tree: TreeState, unionId: string, keepWith?: string)
     separateCouple(draft, union, keepWith);
   } else if (hasChildren) {
     // One partner with children: cutting it leaves the children without that parent.
-    for (const child of buildTreeIndex(tree).childrenOf(unionId)) {
+    for (const child of children) {
       draft.push({ type: 'setParents', payload: { personId: child.id, parentUnionId: null } });
     }
     draft.push({ type: 'deleteUnion', payload: { id: unionId } });
@@ -90,8 +91,10 @@ export function unionStatusOp(unionId: string, status: UnionStatus): BatchOp {
 }
 
 /**
- * A card dropped on the Loose photos tray (spec §7.6). Someone with parents leaves them and takes
- * their branch along; an in-law leaves their marriages to blood members, the children staying.
+ * A card dropped on the Loose photos tray (spec §7.6) loses every link to the tree. A blood member
+ * leaves their parents and takes their branch along. An in-law leaves their marriages to blood
+ * members, the children staying; their own parents, if any, are already loose, so that link stays
+ * and they join their family's stack. Someone already loose is left as they are.
  */
 export function detach(
   tree: TreeState,
@@ -100,12 +103,15 @@ export function detach(
   if (!Object.hasOwn(tree.persons, personId)) return blocked('PERSON_NOT_FOUND');
   if (tree.progenitorId === personId) return blocked('IS_PROGENITOR');
   try {
+    const index = buildTreeIndex(tree);
+    const lineage = classifyLineage(tree, index);
+    const kind = lineage.get(personId);
+    if (kind === 'unlinked') return blocked('ALREADY');
     const draft = new Draft(tree);
-    if (tree.persons[personId]?.parentUnionId !== undefined) {
+    if (kind === 'blood') {
       draft.push({ type: 'setParents', payload: { personId, parentUnionId: null } });
-    } else if (classifyLineage(tree).get(personId) === 'in-law') {
-      const lineage = classifyLineage(tree);
-      for (const union of buildTreeIndex(tree).unionsOf(personId)) {
+    } else {
+      for (const union of index.unionsOf(personId)) {
         const partner = union.partnerIds.find((id) => id !== personId);
         if (partner !== undefined && lineage.get(partner) === 'blood') {
           separateCouple(draft, draft.tree.unions[union.id] as Union, partner);

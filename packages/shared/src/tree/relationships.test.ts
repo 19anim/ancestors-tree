@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp } from './apply-op.ts';
+import { classifyLineage } from './lineage.ts';
 import {
   cutMarriage,
   cutThreadOp,
@@ -129,6 +130,69 @@ describe('detach (a card dropped on the tray)', () => {
     const result = detach(tree, WIFE);
     if (result.kind !== 'ok') throw new Error('expected ok');
     expect(valid(tree, result.op).unions[YOUNG]?.partnerIds).toEqual([SON]);
+  });
+
+  it('takes an in-law with loose parents out of the marriage, to their loose family', () => {
+    const WIFE_FATHER = testId(10);
+    const WIFE_PARENTS = testId(104);
+    const base = family();
+    const tree = treeOf(
+      [
+        ...Object.values(base.persons).map((person) =>
+          person.id === WIFE ? { ...person, parentUnionId: WIFE_PARENTS } : person,
+        ),
+        makePerson(WIFE_FATHER),
+      ],
+      [...Object.values(base.unions), makeUnion(WIFE_PARENTS, [WIFE_FATHER])],
+      GRANDPA,
+    );
+    expect(classifyLineage(tree).get(WIFE)).toBe('in-law');
+    const result = detach(tree, WIFE);
+    if (result.kind !== 'ok') throw new Error('expected ok');
+    const next = valid(tree, result.op);
+    expect(next.unions[YOUNG]?.partnerIds).toEqual([SON]);
+    expect(next.persons[WIFE]?.parentUnionId).toBe(WIFE_PARENTS);
+    expect(classifyLineage(next).get(WIFE)).toBe('unlinked');
+  });
+
+  it('leaves someone already loose with their loose parents', () => {
+    const PARENT = testId(10);
+    const CHILD = testId(11);
+    const tree = treeOf(
+      [
+        ...Object.values(family().persons),
+        makePerson(PARENT),
+        makePerson(CHILD, { parentUnionId: testId(104) }),
+      ],
+      [...Object.values(family().unions), makeUnion(testId(104), [PARENT])],
+      GRANDPA,
+    );
+    expect(detach(tree, CHILD)).toEqual({ kind: 'blocked', reason: 'ALREADY' });
+  });
+
+  it('separates an in-law only from their blood partner, not from another marriage', () => {
+    const OTHER = testId(12);
+    const SECOND = testId(105);
+    const tree = treeOf(
+      [...Object.values(family().persons), makePerson(OTHER)],
+      [...Object.values(family().unions), makeUnion(SECOND, [WIFE, OTHER], { order: 2 })],
+      GRANDPA,
+    );
+    const result = detach(tree, WIFE);
+    if (result.kind !== 'ok') throw new Error('expected ok');
+    const next = valid(tree, result.op);
+    expect(next.unions[YOUNG]?.partnerIds).toEqual([SON]);
+    expect(next.unions[SECOND]?.partnerIds).toEqual([WIFE, OTHER]);
+  });
+
+  it('deletes an in-law’s childless marriage', () => {
+    const tree = valid(family(), {
+      type: 'setParents',
+      payload: { personId: KID, parentUnionId: null },
+    });
+    const result = detach(tree, WIFE);
+    if (result.kind !== 'ok') throw new Error('expected ok');
+    expect(valid(tree, result.op).unions[YOUNG]).toBeUndefined();
   });
 
   it('refuses the progenitor and someone already loose', () => {
