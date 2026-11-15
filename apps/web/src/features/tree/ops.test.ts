@@ -46,6 +46,17 @@ describe('op builders', () => {
     expect(op.type === 'addPerson' && op.payload.id).toMatch(/^[a-f0-9]{24}$/);
   });
 
+  it('carries the dates of birth and death the form parsed', () => {
+    const birth = { source: 'approx', approxYear: 1931 } as const;
+    const deathDate = { source: 'solar', solar: { day: 2, month: 3, year: 1990 } } as const;
+    const op = addFirstPersonOp({ ...input, isDeceased: true, birth, deathDate });
+    expect(op.payload).toMatchObject({ birth, death: { isDeceased: true, date: deathDate } });
+    // No date given: neither key is set.
+    const plain = addFirstPersonOp(input).payload;
+    expect('birth' in plain).toBe(false);
+    expect('date' in plain.death).toBe(false);
+  });
+
   it('adds a child to the parent’s first union, as the youngest', () => {
     const op = addChildOp(index, GRANDPA, input);
     expect(op).toMatchObject({ type: 'addPerson', payload: { parentUnionId: PARENTS_UNION } });

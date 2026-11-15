@@ -1,5 +1,6 @@
 import {
   newObjectId,
+  type DateInfo,
   type Gender,
   type Op,
   type Person,
@@ -9,11 +10,14 @@ import {
   type Union,
 } from '@ancestors-tree/shared/tree';
 
-/** What the P5 form asks (dates arrive with DualDateInput in P6). */
+/** What the person form asks; the dates are already parsed by its schema. */
 export interface NewPersonInput {
   fullName: string;
   gender: Gender;
   isDeceased: boolean;
+  birth?: DateInfo;
+  /** Only read when `isDeceased`. */
+  deathDate?: DateInfo;
 }
 
 /** The highest `siblingOrder` and union `order` the schemas accept (both are 1–99). */
@@ -25,7 +29,11 @@ export function buildPerson(input: NewPersonInput, extra: Partial<Person> = {}):
     fullName: input.fullName.trim(),
     aliases: [],
     gender: input.gender,
-    death: { isDeceased: input.isDeceased },
+    ...(input.birth ? { birth: input.birth } : {}),
+    death:
+      input.isDeceased && input.deathDate
+        ? { isDeceased: true, date: input.deathDate }
+        : { isDeceased: input.isDeceased },
     isAdopted: false,
     ...extra,
   };

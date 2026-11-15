@@ -1,20 +1,54 @@
 import { FullNameSchema, GenderSchema, type Gender } from '@ancestors-tree/shared/tree';
 import { useId } from 'react';
+import { Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useZodForm } from '../../shared/lib/formErrors';
-import { Button, Dialog, DialogClose, DialogContent, TextField } from '../../shared/ui';
+import {
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DualDateInput,
+  EMPTY_DATE_DRAFT,
+  TextField,
+} from '../../shared/ui';
 import { applyFailureMessage } from './format';
 import type { NewPersonInput } from './ops';
+import { DateDraftSchema, DateFieldSchema } from './profileValues';
 import type { ApplyResult } from './store';
 
-const PersonFormSchema = z.object({
-  fullName: FullNameSchema,
-  gender: GenderSchema,
-  status: z.enum(['living', 'deceased']),
-  unionId: z.string().optional(),
-  checked: z.boolean(),
-});
+const StatusSchema = z.enum(['living', 'deceased']);
+
+/**
+ * What the fields hold, then the checked values. The date of death is hidden while "living" is
+ * chosen, so it is set aside before any rule is checked: a half-typed hidden date never blocks
+ * the form, and the typed text stays for when "deceased" is chosen again.
+ */
+const PersonFormSchema = z
+  .object({
+    fullName: z.string(),
+    gender: GenderSchema,
+    status: StatusSchema,
+    birth: DateDraftSchema,
+    death: DateDraftSchema,
+    unionId: z.string().optional(),
+    checked: z.boolean(),
+  })
+  .transform((values) =>
+    values.status === 'living' ? { ...values, death: EMPTY_DATE_DRAFT } : values,
+  )
+  .pipe(
+    z.object({
+      fullName: FullNameSchema,
+      gender: GenderSchema,
+      status: StatusSchema,
+      birth: DateFieldSchema,
+      death: DateFieldSchema,
+      unionId: z.string().optional(),
+      checked: z.boolean(),
+    }),
+  );
 
 const SELECT_CLASS =
   'h-10 rounded-control border border-line-strong bg-surface px-3 text-base text-ink';
@@ -39,7 +73,7 @@ interface PersonFormDialogProps {
   onCloseAutoFocus?: (event: Event) => void;
 }
 
-/** The P5 person form: full name, gender, living or deceased (dates arrive in P6). */
+/** The person form: full name, gender, date of birth, living or deceased, date of death. */
 export function PersonFormDialog({
   title,
   unionChoices = [],
@@ -57,11 +91,14 @@ export function PersonFormDialog({
       fullName: '',
       gender: defaultGender ?? 'male',
       status: 'living',
+      birth: EMPTY_DATE_DRAFT,
+      death: EMPTY_DATE_DRAFT,
       unionId: unionChoices[0]?.id,
       checked: checkbox?.defaultChecked ?? false,
     },
   });
   const { errors } = form.formState;
+  const status = form.watch('status');
 
   const submit = form.handleSubmit((values) => {
     const result = onSubmit(
@@ -69,6 +106,8 @@ export function PersonFormDialog({
         fullName: values.fullName,
         gender: values.gender,
         isDeceased: values.status === 'deceased',
+        ...(values.birth ? { birth: values.birth } : {}),
+        ...(values.death ? { deathDate: values.death } : {}),
       },
       values.unionId,
       values.checked,
@@ -80,6 +119,23 @@ export function PersonFormDialog({
         message: applyFailureMessage(t, result.reason),
       });
   });
+
+  const dateField = (name: 'birth' | 'death', legend: string) => (
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <DualDateInput
+          legend={legend}
+          value={field.value}
+          onChange={field.onChange}
+          onBlur={field.onBlur}
+          ref={field.ref}
+          error={fieldState.error?.message}
+        />
+      )}
+    />
+  );
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -110,6 +166,7 @@ export function PersonFormDialog({
               </label>
             </div>
           </fieldset>
+          {dateField('birth', t('tree.profile.birth'))}
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium text-ink">{t('tree.form.status')}</legend>
             <div className="flex gap-6">
@@ -133,6 +190,7 @@ export function PersonFormDialog({
               </label>
             </div>
           </fieldset>
+          {status === 'deceased' ? dateField('death', t('tree.profile.death')) : null}
           {checkbox ? (
             <label className="flex items-center gap-2">
               <input type="checkbox" className="size-4" {...form.register('checked')} />

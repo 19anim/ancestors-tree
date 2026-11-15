@@ -23,7 +23,7 @@ export const DateDraftSchema: z.ZodType<DateDraft, DateDraft> = z.object({
 });
 
 /** A DateDraft parsed into a DateInfo (null when empty), or an issue at the field. */
-const DateFieldSchema = DateDraftSchema.transform((draft, ctx): DateInfo | null => {
+export const DateFieldSchema = DateDraftSchema.transform((draft, ctx): DateInfo | null => {
   const result = draftToDateInfo(draft);
   if (result.ok) return result.value;
   ctx.addIssue({ code: 'custom', params: { messageKey: `dates.errors.${result.error}` } });
