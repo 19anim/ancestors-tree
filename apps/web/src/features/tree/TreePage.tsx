@@ -31,6 +31,16 @@ export function TreePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   // A person this page deleted: their panel closes without a notice.
   const removedHere = useRef<string | null>(null);
+  // The open person's last known name, kept here because the panel unmounts while the tree
+  // reloads (the skeleton shows): the notice can still name someone deleted meanwhile.
+  const openName = useTreeStore((state) =>
+    personId === null ? undefined : state.tree.persons[personId]?.fullName,
+  );
+  const knownName = useRef<{ personId: string; name: string } | null>(null);
+  useEffect(() => {
+    if (personId !== null && openName !== undefined)
+      knownName.current = { personId, name: openName };
+  }, [personId, openName]);
   const canEdit = hasRoleAtLeast(clan.role, 'editor');
   const isOwner = clan.role === 'owner';
 
@@ -40,37 +50,53 @@ export function TreePage() {
       actionsFor: (id) => availableActions(useTreeStore.getState().tree, id, isOwner),
       run: (id, action) => {
         setActionError(null);
-        if (action === 'setProgenitor') {
-          const result = useTreeStore.getState().apply(setProgenitorOp(id));
-          if (!result.ok) setActionError(applyFailureMessage(t, result.reason));
-        } else if (action === 'addChild') changeDialog({ kind: 'child', personId: id });
-        else if (action === 'addSpouse') changeDialog({ kind: 'spouse', personId: id });
-        else if (action === 'delete') changeDialog({ kind: 'delete', personId: id });
+        switch (action) {
+          case 'addChild':
+            changeDialog({ kind: 'child', personId: id });
+            return;
+          case 'addSpouse':
+            changeDialog({ kind: 'spouse', personId: id });
+            return;
+          case 'delete':
+            changeDialog({ kind: 'delete', personId: id });
+            return;
+          case 'setProgenitor': {
+            const result = useTreeStore.getState().apply(setProgenitorOp(id));
+            if (!result.ok) setActionError(applyFailureMessage(t, result.reason));
+            return;
+          }
+          case 'addParent':
+            // availableActions does not offer it yet: nothing to open.
+            return;
+          default: {
+            const unknown: never = action;
+            throw new Error(`Unknown person action: ${String(unknown)}`);
+          }
+        }
       },
     };
   }, [canEdit, changeDialog, isOwner, t]);
 
-  const onMissing = useCallback(
-    (name: string | undefined) => {
-      const silent = removedHere.current !== null && removedHere.current === personId;
-      removedHere.current = null;
-      if (!silent) {
-        setNotice(
-          name === undefined
-            ? t('tree.profile.missingUnnamed')
-            : t('tree.profile.missing', { name }),
-        );
-      }
-      closeProfile();
-    },
-    [closeProfile, personId, t],
-  );
+  const onMissing = useCallback(() => {
+    const silent = removedHere.current !== null && removedHere.current === personId;
+    removedHere.current = null;
+    const known = knownName.current;
+    const name = known !== null && known.personId === personId ? known.name : undefined;
+    if (!silent) {
+      setNotice(
+        name === undefined ? t('tree.profile.missingUnnamed') : t('tree.profile.missing', { name }),
+      );
+    }
+    closeProfile();
+  }, [closeProfile, personId, t]);
 
   // The panel closed with focus inside it (Esc, the close button, Back): back to the card.
   const previous = useRef<string | null>(null);
   useEffect(() => {
     const was = previous.current;
     previous.current = personId;
+    // An action's error belongs to the profile it came from.
+    setActionError(null);
     if (personId !== null) setNotice('');
     if (was === null || personId !== null) return;
     const active = document.activeElement;
@@ -94,40 +120,40 @@ export function TreePage() {
   return (
     <OpenPersonContext value={openPerson}>
       <PersonActionsContext value={actions}>
-        <div
-          className={
-            personId === null ? 'flex flex-col gap-4' : 'flex flex-col gap-4 md:pr-[416px]'
-          }
-        >
-          <TreeToolbar canEdit={canEdit} />
-          {/* empty:hidden keeps the region in the DOM, so a later message is announced. */}
-          <p role="status" className="font-medium text-ink empty:hidden">
-            {notice}
-          </p>
-          {actionError ? (
-            <p role="alert" className="font-medium text-stamp">
-              {actionError}
+        {/* From md up the profile is a column beside the content, so nothing hides under it. */}
+        <div className="md:flex md:items-start md:gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <TreeToolbar canEdit={canEdit} />
+            {/* Always in the accessibility tree, so a later message is announced; while empty,
+              sr-only takes it out of the layout without hiding it from screen readers. */}
+            <p role="status" className="font-medium text-ink empty:sr-only">
+              {notice}
             </p>
+            {actionError ? (
+              <p role="alert" className="font-medium text-stamp">
+                {actionError}
+              </p>
+            ) : null}
+            {isEmpty ? (
+              <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
+            ) : (
+              <>
+                <TreeBoard label={t('tree.board.label', { name: clan.name })} />
+                <UnlinkedTray />
+              </>
+            )}
+          </div>
+          {personId !== null ? (
+            <ProfilePanel
+              key={personId}
+              personId={personId}
+              isOwner={isOwner}
+              actions={actions}
+              onClose={closeProfile}
+              onMissing={onMissing}
+            />
           ) : null}
-          {isEmpty ? (
-            <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
-          ) : (
-            <>
-              <TreeBoard label={t('tree.board.label', { name: clan.name })} />
-              <UnlinkedTray />
-            </>
-          )}
         </div>
-        {personId !== null ? (
-          <ProfilePanel
-            key={personId}
-            personId={personId}
-            isOwner={isOwner}
-            actions={actions}
-            onClose={closeProfile}
-            onMissing={onMissing}
-          />
-        ) : null}
         {canEdit ? (
           <TreeDialogs
             dialog={dialog}

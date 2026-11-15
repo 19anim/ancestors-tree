@@ -19,7 +19,7 @@ interface ProfilePanelProps {
   actions: PersonActionsApi | null;
   onClose: () => void;
   /** The person is not in the loaded tree: the page closes the panel and says so. */
-  onMissing: (name: string | undefined) => void;
+  onMissing: () => void;
 }
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
@@ -38,15 +38,21 @@ export function ProfilePanel({
   const tree = useTreeStore((state) => state.tree);
   const status = useTreeStore((state) => state.status);
   const person = tree.persons[personId];
-  const lastName = useRef<string | undefined>(person?.fullName);
+  // Reported once: StrictMode runs effects twice, and a second close would go back twice.
+  const reported = useRef(false);
   const inLaw = useMemo(
     () => (person ? classifyLineage(tree).get(person.id) === 'in-law' : false),
     [person, tree],
   );
 
   useEffect(() => {
-    if (person) lastName.current = person.fullName;
-    else if (status === 'ready') onMissing(lastName.current);
+    if (person) {
+      reported.current = false;
+      return;
+    }
+    if (status !== 'ready' || reported.current) return;
+    reported.current = true;
+    onMissing();
   }, [onMissing, person, status]);
 
   // Focus moves into the panel when it opens, so a screen reader says whose profile it is.
@@ -87,7 +93,9 @@ export function ProfilePanel({
       onKeyDown={onKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
-      className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75vh] flex-col gap-4 overflow-y-auto rounded-t-control border-t border-line bg-paper p-4 shadow-lift md:inset-x-auto md:top-0 md:right-0 md:max-h-none md:w-[400px] md:rounded-none md:border-t-0 md:border-l"
+      // A bottom sheet on small screens. From md up, a sticky column beside the board, in the
+      // page flow under the header: it never covers the header or the notices (WCAG 2.4.11).
+      className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75vh] flex-col gap-4 overflow-y-auto rounded-t-control border-t border-line bg-paper p-4 shadow-lift md:sticky md:inset-x-auto md:top-4 md:bottom-auto md:z-auto md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:shrink-0 md:rounded-control md:border md:shadow-none"
     >
       <div className="flex items-start justify-between gap-2">
         <h2

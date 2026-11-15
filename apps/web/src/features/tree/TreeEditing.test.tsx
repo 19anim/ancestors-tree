@@ -183,9 +183,46 @@ describe('editing the tree', () => {
       expect(screen.getByRole('complementary', { name: 'Trần Văn Bình' })).toBeInTheDocument();
       expect(choose).toHaveFocus();
       expect(sent()).toEqual([]);
+
+      // Another person's profile, or none: the error belonged to Bình's and goes with it.
+      await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await user.click(
+        within(await openActions(user, 'Trần Văn Bình')).getByRole('button', {
+          name: 'Chọn làm thuỷ tổ',
+        }),
+      );
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     } finally {
       act(() => useTreeStore.setState({ apply: realApply }));
     }
+  });
+
+  it('resets a dialog whose person is gone, so the next one returns focus to its opener', async () => {
+    const user = userEvent.setup();
+    editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const nam = await openActions(user, 'Nguyễn Văn Nam');
+    await user.click(within(nam).getByRole('button', { name: 'Thêm con' }));
+    expect(screen.getByRole('dialog', { name: 'Thêm con của Nguyễn Văn Nam' })).toBeInTheDocument();
+    // Nam leaves the tree while his form is open (for example by a reload after a conflict).
+    act(() => {
+      useTreeStore.setState((state) => {
+        const { [SON]: _gone, ...persons } = state.tree.persons;
+        return { tree: { ...state.tree, persons } };
+      });
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    const tu = await openActions(user, 'Nguyễn Văn Tư');
+    const addSpouse = within(tu).getByRole('button', { name: 'Thêm vợ/chồng' });
+    await user.click(addSpouse);
+    const form = screen.getByRole('dialog', { name: 'Thêm vợ/chồng của Nguyễn Văn Tư' });
+    await user.click(within(form).getByRole('button', { name: 'Huỷ' }));
+    await waitFor(() => expect(addSpouse).toHaveFocus());
   });
 
   it('lets an editor add a child from a card, but not choose the progenitor', async () => {

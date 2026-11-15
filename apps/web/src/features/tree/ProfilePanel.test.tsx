@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { routes } from '../../app/routes';
@@ -26,6 +27,8 @@ afterEach(() => {
   resetTreeStore();
   vi.unstubAllGlobals();
 });
+
+const NOBODY = '64b7f0c2a1b2c3d4e5f6ffff';
 
 const cardOf = (name: string) => screen.findByRole('button', { name: new RegExp(`^${name},`) });
 
@@ -142,9 +145,71 @@ describe('the profile panel', () => {
 
   it('says so when the link names nobody', async () => {
     mockApi(treeRoutes(FAMILY));
-    renderRoute(`/clans/${CLAN_ID}/tree?person=64b7f0c2a1b2c3d4e5f6ffff`);
+    const router = createMemoryRouter(routes, {
+      initialEntries: [`/clans/${CLAN_ID}/tree?person=${NOBODY}`],
+    });
+    renderWithProviders(<RouterProvider router={router} />);
     expect(
       await screen.findByText('Không tìm thấy người này trong cây nên hồ sơ đã đóng.'),
     ).toBeInTheDocument();
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).toBe(''));
+    expect(router.state.location.pathname).toBe(`/clans/${CLAN_ID}/tree`);
+  });
+
+  it('closes once under StrictMode, going back only one entry', async () => {
+    mockApi(treeRoutes(FAMILY));
+    // A reload of a profile this tab opened (its history state survives), whose person is gone.
+    const router = createMemoryRouter(routes, {
+      initialEntries: [
+        '/clans',
+        `/clans/${CLAN_ID}/tree`,
+        {
+          pathname: `/clans/${CLAN_ID}/tree`,
+          search: `?person=${NOBODY}`,
+          state: { profileOpenedHere: true },
+        },
+      ],
+      initialIndex: 2,
+    });
+    renderWithProviders(
+      <StrictMode>
+        <RouterProvider router={router} />
+      </StrictMode>,
+    );
+    expect(
+      await screen.findByText('Không tìm thấy người này trong cây nên hồ sơ đã đóng.'),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).toBe(''));
+    expect(router.state.location.pathname).toBe(`/clans/${CLAN_ID}/tree`);
+  });
+
+  it('names the person who left the tree while it was reloading', async () => {
+    mockApi(treeRoutes(FAMILY));
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
+    await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    // A reload after a conflict shows the skeleton, so the panel unmounts meanwhile.
+    act(() => useTreeStore.setState({ status: 'loading' }));
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    act(() => {
+      useTreeStore.setState((state) => {
+        const { [SON]: _gone, ...persons } = state.tree.persons;
+        return { status: 'ready', tree: { ...state.tree, persons } };
+      });
+    });
+    expect(
+      await screen.findByText('Nguyễn Văn Nam không còn trong cây nên hồ sơ đã đóng.'),
+    ).toBeInTheDocument();
+  });
+
+  it('sits beside the board on wide screens, below the header, not over it', async () => {
+    mockApi(treeRoutes(FAMILY));
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
+    const panel = await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    // jsdom has no CSS: the classes are the layout. A bottom sheet on small screens; from md up,
+    // a sticky column in the page flow (WCAG 2.4.11: the header's controls stay uncovered).
+    expect(panel).toHaveClass('fixed', 'bottom-0', 'md:sticky', 'md:top-4');
+    expect(panel).not.toHaveClass('md:top-0');
+    expect(screen.getByRole('main')).toContainElement(panel);
   });
 });
