@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBlocker } from 'react-router';
+import { useBlocker, type Location } from 'react-router';
 import { Button, Dialog, DialogContent } from '../../shared/ui';
+import { discardProfileDraft, useProfileDraft } from './profileDraft';
+import { personParam } from './profileParams';
 import { resetTreeStore, selectUnsentCount, useTreeStore } from './store';
 import { treeOpenedBy } from './treePaths';
 
@@ -14,18 +16,32 @@ import { treeOpenedBy } from './treePaths';
  * history) asks first, and the tab asks the browser to confirm before it unloads. The browser
  * cannot tell a reload or a redirect from a close, so the prompt shows for those too. Other pages
  * (members, settings, the list, sign-in) never ask: nothing is lost there.
+ *
+ * An open profile form with unsaved changes also asks before the panel closes, another person
+ * opens, or the page changes (profileDraft.ts). React Router allows one blocker, so both reasons
+ * live here; when both apply, the tree question is asked and says the profile edits go too.
  */
 export function UnsentChangesGuard() {
   const { t } = useTranslation();
   const unsent = useTreeStore(selectUnsentCount);
   const loadedClanId = useTreeStore((state) => state.clanId);
-  const blocker = useBlocker(({ nextLocation }) => {
-    if (unsent === 0) return false;
-    const next = treeOpenedBy(nextLocation.pathname);
-    return next !== null && next !== loadedClanId;
-  });
+  const profileDirty = useProfileDraft((state) => state.dirty);
   const hasUnsent = unsent > 0;
-  const asking = blocker.state === 'blocked' && hasUnsent;
+  const switchesTree = (pathname: string) => {
+    const next = treeOpenedBy(pathname);
+    return hasUnsent && next !== null && next !== loadedClanId;
+  };
+  const leavesProfile = (from: Location, to: Location) =>
+    profileDirty &&
+    (from.pathname !== to.pathname || personParam(from.search) !== personParam(to.search));
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      switchesTree(nextLocation.pathname) || leavesProfile(currentLocation, nextLocation),
+  );
+  const blocked = blocker.state === 'blocked';
+  const askTree = blocked && switchesTree(blocker.location.pathname);
+  const askProfile = blocked && !askTree && profileDirty;
+  const asking = askTree || askProfile;
   // What had focus (the link that was followed), so closing the question returns there: the
   // dialog has no Radix trigger to go back to. A layout effect runs before the dialog takes focus.
   const returnTo = useRef<HTMLElement | null>(null);
@@ -36,7 +52,7 @@ export function UnsentChangesGuard() {
   }, [asking]);
 
   useEffect(() => {
-    if (!hasUnsent) return;
+    if (!hasUnsent && !profileDirty) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       // Older browsers still need a returnValue to show the prompt.
@@ -44,19 +60,34 @@ export function UnsentChangesGuard() {
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [hasUnsent]);
+  }, [hasUnsent, profileDirty]);
 
-  // Everything got saved while the question was open: nothing is lost any more, so go on.
+  // Nothing would be lost any more (everything got saved meanwhile): go on.
   useEffect(() => {
-    if (blocker.state === 'blocked' && !hasUnsent) blocker.proceed();
-  }, [blocker, hasUnsent]);
+    if (blocked && !asking) blocker.proceed();
+  }, [asking, blocked, blocker]);
 
   if (!asking) return null;
+  const discard = () => {
+    // The user chose to drop them: empty the queue now (so the redirect to the tree is not
+    // asked about again, and the next load() has no `discarded` notice to show).
+    if (askTree) resetTreeStore();
+    discardProfileDraft();
+    blocker.proceed();
+  };
+  const description = askTree
+    ? [
+        t('tree.switchTree.body', { count: unsent }),
+        profileDirty ? t('tree.switchTree.discardProfile') : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : t('tree.profileDraft.body');
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : blocker.reset())}>
       <DialogContent
-        title={t('tree.switchTree.title')}
-        description={t('tree.switchTree.body', { count: unsent })}
+        title={askTree ? t('tree.switchTree.title') : t('tree.profileDraft.title')}
+        description={description}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           if (returnTo.current?.isConnected) returnTo.current.focus();
@@ -64,18 +95,10 @@ export function UnsentChangesGuard() {
       >
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => blocker.reset()}>
-            {t('tree.switchTree.stay')}
+            {askTree ? t('tree.switchTree.stay') : t('tree.profileDraft.stay')}
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              // The user chose to drop them: empty the queue now (so the redirect to the tree
-              // is not asked about again, and the next load() has no `discarded` notice to show).
-              resetTreeStore();
-              blocker.proceed();
-            }}
-          >
-            {t('tree.switchTree.discard')}
+          <Button variant="danger" onClick={discard}>
+            {askTree ? t('tree.switchTree.discard') : t('tree.profileDraft.discard')}
           </Button>
         </div>
       </DialogContent>

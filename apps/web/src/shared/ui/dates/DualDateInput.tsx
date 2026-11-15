@@ -1,6 +1,6 @@
 import { canChiYear, MAX_YEAR, MIN_YEAR } from '@ancestors-tree/shared/lunar';
 import { X } from 'lucide-react';
-import { useId } from 'react';
+import { useId, type FocusEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../Button';
 import {
@@ -17,6 +17,7 @@ interface DualDateInputProps {
   onChange: (next: DateDraft) => void;
   /** Already translated; shown under the fields and linked to them. */
   error?: string;
+  /** Called when focus leaves the whole date, not when it moves between its fields. */
   onBlur?: () => void;
 }
 
@@ -86,13 +87,20 @@ export function DualDateInput({ legend, value, onChange, error, onBlur }: DualDa
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         onChange={(event) => set({ [name]: event.target.value })}
-        onBlur={onBlur}
       />
     </label>
   );
 
+  // One blur for the whole date: moving from the day to the month is still typing it, so a form
+  // that validates on blur does not call a half-typed date wrong.
+  const blurOut = (event: FocusEvent<HTMLFieldSetElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.contains(next)) return;
+    onBlur?.();
+  };
+
   return (
-    <fieldset className="flex flex-col gap-2">
+    <fieldset className="flex flex-col gap-2" onBlur={blurOut}>
       <legend className="mb-1 text-sm font-medium text-ink">{legend}</legend>
       <div role="radiogroup" aria-label={t('dates.mode')} className="flex flex-wrap gap-4">
         {MODES.map((mode) => (

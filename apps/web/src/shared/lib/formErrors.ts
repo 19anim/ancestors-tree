@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { TFunction } from 'i18next';
+import type { ParseKeys, TFunction } from 'i18next';
 import { useMemo } from 'react';
 import {
   useForm,
@@ -24,10 +24,14 @@ export function zodErrorMap(t: TFunction): z.core.$ZodErrorMap {
         return t('forms.errors.tooLong', { max: Number(issue.maximum) });
       case 'invalid_format':
         return issue.format === 'email' ? t('forms.errors.email') : t('forms.errors.invalid');
-      case 'custom':
+      case 'custom': {
+        // A field-specific message, such as a DualDateInput error (profileValues.ts).
+        const key: unknown = issue.params?.messageKey;
+        if (typeof key === 'string') return t(key as ParseKeys);
         return issue.params?.reason === 'passwordTooLong'
           ? t('forms.errors.passwordTooLong')
           : t('forms.errors.invalid');
+      }
       default:
         return t('forms.errors.invalid');
     }

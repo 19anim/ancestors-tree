@@ -1,9 +1,18 @@
 import { classifyLineage } from '@ancestors-tree/shared/tree';
-import { X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, type FocusEvent, type KeyboardEvent } from 'react';
+import { Pencil, X } from 'lucide-react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../shared/ui';
 import { ProfileDetails } from './ProfileDetails';
+import { ProfileForm } from './ProfileForm';
 import { useTreeStore } from './store';
 import {
   ACTION_ICONS,
@@ -20,6 +29,8 @@ interface ProfilePanelProps {
   onClose: () => void;
   /** The person is not in the loaded tree: the page closes the panel and says so. */
   onMissing: () => void;
+  /** The edit form went away with unsaved changes (ProfileForm). */
+  onDraftLost: () => void;
 }
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
@@ -31,6 +42,7 @@ export function ProfilePanel({
   actions,
   onClose,
   onMissing,
+  onDraftLost,
 }: ProfilePanelProps) {
   const { t } = useTranslation();
   const headingId = useId();
@@ -60,6 +72,16 @@ export function ProfilePanel({
   useEffect(() => {
     if (shown) heading.current?.focus();
   }, [shown]);
+
+  // Edit mode (spec §7.6). TreePage keys the panel by person, so another person opens in read mode.
+  const [editing, setEditing] = useState(false);
+  const editButton = useRef<HTMLButtonElement>(null);
+  // The form's Save or Cancel button goes with it: focus moves to the Edit button.
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !editing) editButton.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
 
   // A focused control that goes away (the progenitor button, once chosen) would drop focus on
   // the page: the heading takes it (WCAG 2.4.3).
@@ -106,34 +128,53 @@ export function ProfilePanel({
         >
           {person.fullName}
         </h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('tree.profile.close')}
-          title={t('tree.profile.close')}
-          onClick={onClose}
-        >
-          <X aria-hidden="true" strokeWidth={1.75} className="size-5" />
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {actions !== null && !editing ? (
+            <Button ref={editButton} variant="secondary" onClick={() => setEditing(true)}>
+              <Pencil {...ICON} />
+              {t('tree.profile.edit')}
+            </Button>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('tree.profile.close')}
+            title={t('tree.profile.close')}
+            onClick={onClose}
+          >
+            <X aria-hidden="true" strokeWidth={1.75} className="size-5" />
+          </Button>
+        </div>
       </div>
-      {actions && actionIds.length > 0 ? (
-        <section aria-label={t('tree.profile.actions')} className="flex flex-wrap gap-2">
-          {actionIds.map((action) => {
-            const Icon = ACTION_ICONS[action];
-            return (
-              <Button
-                key={action}
-                variant={action === 'delete' ? 'danger' : 'secondary'}
-                onClick={() => actions.run(person.id, action)}
-              >
-                <Icon {...ICON} />
-                {t(actionLabelKey(action))}
-              </Button>
-            );
-          })}
-        </section>
-      ) : null}
-      <ProfileDetails person={person} inLaw={inLaw} />
+      {editing ? (
+        <ProfileForm
+          person={person}
+          inLaw={inLaw}
+          onDone={() => setEditing(false)}
+          onDraftLost={onDraftLost}
+        />
+      ) : (
+        <>
+          {actions && actionIds.length > 0 ? (
+            <section aria-label={t('tree.profile.actions')} className="flex flex-wrap gap-2">
+              {actionIds.map((action) => {
+                const Icon = ACTION_ICONS[action];
+                return (
+                  <Button
+                    key={action}
+                    variant={action === 'delete' ? 'danger' : 'secondary'}
+                    onClick={() => actions.run(person.id, action)}
+                  >
+                    <Icon {...ICON} />
+                    {t(actionLabelKey(action))}
+                  </Button>
+                );
+              })}
+            </section>
+          ) : null}
+          <ProfileDetails person={person} inLaw={inLaw} />
+        </>
+      )}
     </aside>
   );
 }

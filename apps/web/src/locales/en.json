@@ -357,7 +357,16 @@
       "hometown": "Hometown",
       "note": "Note",
       "missing": "{{name}} is no longer in the tree, so the profile closed.",
-      "missingUnnamed": "This person is not in the tree, so the profile closed."
+      "missingUnnamed": "This person is not in the tree, so the profile closed.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "aliasesHint": "One name per line.",
+      "status": "Status",
+      "siblingOrderHint": "From 1 to 99. Leave empty if unknown.",
+      "siblingOrderError": "Enter a number from 1 to 99.",
+      "changedElsewhere": "Someone else just changed this person. Saving sends only the fields you edited.",
+      "missingWithDraft": "{{name}} is no longer in the tree, so the profile closed. Your unsaved changes were dropped.",
+      "reloadedWithDraft": "The tree was reloaded, so your unsaved profile changes were dropped."
     },
     "date": {
       "solar": "{{date}} solar",
@@ -444,11 +453,18 @@
       "confirm": "Delete",
       "cancel": "Cancel"
     },
+    "profileDraft": {
+      "title": "Drop your profile changes?",
+      "body": "You edited the profile but did not save. If you go on, those changes are lost.",
+      "stay": "Keep editing",
+      "discard": "Drop the changes"
+    },
     "switchTree": {
       "title": "Open another family tree?",
       "body": "Unsaved changes in the family tree you were editing: {{count}}. If you open another tree, they will be discarded.",
       "stay": "Stay",
-      "discard": "Discard changes and open"
+      "discard": "Discard changes and open",
+      "discardProfile": "Your unsaved profile changes will be lost too."
     }
   },
   "dates": {

@@ -357,7 +357,16 @@
       "hometown": "Quê quán",
       "note": "Ghi chú",
       "missing": "{{name}} không còn trong cây nên hồ sơ đã đóng.",
-      "missingUnnamed": "Không tìm thấy người này trong cây nên hồ sơ đã đóng."
+      "missingUnnamed": "Không tìm thấy người này trong cây nên hồ sơ đã đóng.",
+      "save": "Lưu",
+      "cancel": "Huỷ",
+      "aliasesHint": "Mỗi dòng một tên.",
+      "status": "Tình trạng",
+      "siblingOrderHint": "Từ 1 đến 99. Để trống nếu chưa rõ.",
+      "siblingOrderError": "Nhập một số từ 1 đến 99.",
+      "changedElsewhere": "Người này vừa được sửa ở nơi khác. Khi lưu, chỉ những ô bạn đã sửa được gửi đi.",
+      "missingWithDraft": "{{name}} không còn trong cây nên hồ sơ đã đóng. Các thay đổi chưa lưu đã bị bỏ.",
+      "reloadedWithDraft": "Cây vừa được tải lại nên các thay đổi chưa lưu trong hồ sơ đã bị bỏ."
     },
     "date": {
       "solar": "{{date}} dương lịch",
@@ -444,11 +453,18 @@
       "confirm": "Xoá",
       "cancel": "Huỷ"
     },
+    "profileDraft": {
+      "title": "Bỏ các thay đổi trong hồ sơ?",
+      "body": "Bạn đã sửa hồ sơ nhưng chưa lưu. Nếu đi tiếp, những thay đổi này sẽ mất.",
+      "stay": "Ở lại sửa tiếp",
+      "discard": "Bỏ thay đổi"
+    },
     "switchTree": {
       "title": "Mở cây gia phả khác?",
       "body": "Còn {{count}} thay đổi chưa lưu ở cây gia phả bạn vừa sửa. Mở cây khác thì các thay đổi này sẽ bị bỏ.",
       "stay": "Ở lại",
-      "discard": "Bỏ thay đổi và mở"
+      "discard": "Bỏ thay đổi và mở",
+      "discardProfile": "Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất."
     }
   },
   "dates": {

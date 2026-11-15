@@ -7,6 +7,7 @@ import { Button } from '../../shared/ui';
 import { EmptyTree } from './EmptyTree';
 import { applyFailureMessage } from './format';
 import { setProgenitorOp } from './ops';
+import { discardProfileDraft } from './profileDraft';
 import { ProfilePanel } from './ProfilePanel';
 import { OpenPersonContext, personCardButton, useProfileParam } from './profileParams';
 import { useTreeStore } from './store';
@@ -77,18 +78,42 @@ export function TreePage() {
     };
   }, [canEdit, changeDialog, isOwner, t]);
 
+  // An open profile form went away with unsaved changes (ProfileForm's onDraftLost). Its
+  // unmount comes before the panel reports a missing person, and before the tree is back from a
+  // reload: whichever comes next says the changes were dropped.
+  const draftLost = useRef(false);
+  const onDraftLost = useCallback(() => {
+    draftLost.current = true;
+  }, []);
+
   const onMissing = useCallback(() => {
     const silent = removedHere.current !== null && removedHere.current === personId;
     removedHere.current = null;
     const known = knownName.current;
     const name = known !== null && known.personId === personId ? known.name : undefined;
+    const hadDraft = draftLost.current;
+    draftLost.current = false;
+    // The form is gone already; dropped before closing, so the guard does not ask about it.
+    discardProfileDraft();
     if (!silent) {
       setNotice(
-        name === undefined ? t('tree.profile.missingUnnamed') : t('tree.profile.missing', { name }),
+        name === undefined
+          ? t('tree.profile.missingUnnamed')
+          : t(hadDraft ? 'tree.profile.missingWithDraft' : 'tree.profile.missing', { name }),
       );
     }
     closeProfile();
   }, [closeProfile, personId, t]);
+
+  // The tree reloaded (the skeleton replaced the page, and the open form with it): once it is
+  // back, say the unsaved profile changes were dropped. The panel's effects run first, so a
+  // person who left the tree meanwhile gets onMissing's notice instead.
+  const ready = view.state === 'ready';
+  useEffect(() => {
+    if (!ready || !draftLost.current) return;
+    draftLost.current = false;
+    setNotice(t('tree.profile.reloadedWithDraft'));
+  }, [ready, t]);
 
   // The panel closed with focus inside it (Esc, the close button, Back): back to the card.
   const previous = useRef<string | null>(null);
@@ -151,6 +176,7 @@ export function TreePage() {
               actions={actions}
               onClose={closeProfile}
               onMissing={onMissing}
+              onDraftLost={onDraftLost}
             />
           ) : null}
         </div>

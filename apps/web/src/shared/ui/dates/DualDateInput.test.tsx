@@ -2,7 +2,7 @@ import { lunarCalendar } from '@ancestors-tree/shared/lunar';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../test/render';
 import { DualDateInput } from './DualDateInput';
 import { EMPTY_DATE_DRAFT, type DateDraft } from './dateDraft';
@@ -83,6 +83,29 @@ describe('DualDateInput', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Xoá ngày' }));
     expect(screen.getByLabelText('Năm')).toHaveValue('');
+  });
+
+  it('reports a blur only when focus leaves the whole date', async () => {
+    const user = userEvent.setup();
+    const onBlur = vi.fn();
+    function WithBlur() {
+      const [value, setValue] = useState(EMPTY_DATE_DRAFT);
+      return (
+        <>
+          <DualDateInput legend="Ngày mất" value={value} onChange={setValue} onBlur={onBlur} />
+          <button type="button">Sau</button>
+        </>
+      );
+    }
+    renderWithProviders(<WithBlur />);
+    await user.type(screen.getByLabelText('Ngày'), '1');
+    await user.tab();
+    expect(screen.getByLabelText('Tháng')).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText('Năm')).toHaveFocus();
+    expect(onBlur).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Sau' }));
+    expect(onBlur).toHaveBeenCalledTimes(1);
   });
 
   it('shows the error it is given at the fields', () => {
