@@ -557,7 +557,7 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
   - Two known parents: the action is not offered.
   - On the progenitor, only the Owner sees it, with "Make this person the progenitor (generation 1)" ticked by default; the batch then ends with `setProgenitor`, still one undo step. Editors do not see it on the progenitor.
   - Not offered on in-laws: their parents belong in the birth family (§8), not in this tree.
-- Context menu (and the panel's buttons on touch devices), the full list as features arrive: Add child · Add spouse · Add parent (if missing) · Change relationship… (P6c) · Link to another family tree (P10) · Decorate this card… (§13.4) · Delete.
+- Context menu (and the panel's buttons on touch devices), the full list as features arrive: Add child · Add spouse · Add parent (if missing) · Change relationship… (P6c) · Move earlier · Move later (among siblings, P6c) · Link to another family tree (P10) · Decorate this card… (§13.4) · Delete.
 - People are created through forms and AI import (§10), never by dragging. Dragging only **changes relationships**.
 - **Add several people** (editors only), from the board's toolbar and from the **Loose photos** tray. It is for families who know names before they know who belongs where.
   - The form has one row per person: full name, gender, living/deceased. A new row appears when the last one is filled, and an empty row is ignored.
@@ -566,7 +566,10 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
 
 **Drag to relate (editors only).** Positions always come from the layout (§7.4); a drag never stores a free position.
 
-- **Drop zones.** Dropping card A on the top, middle or bottom third of card B makes A a **parent**, **spouse** or **child** of B. The zones are labelled on B while hovering, and the status line says exactly what the drop will do.
+- **One rule for every way in (P6c).** Dragging, **Change relationship…** and **Cut** all build their op with the same pure rules in `packages/shared/src/tree/relate.ts`. For "make A the parent, spouse or child of B" or "put A before or after B among siblings", they answer one of three things: a `batch` op with a sentence that says what it does ("Lan becomes the child of Nam and Hoa"), a follow-up question, or a block with its reason.
+- **Starting a drag.** With a mouse, a drag starts once the pointer moves about 6 px with the button down. The lifted card follows the pointer with a slight tilt and a shadow, and the original fades in place. Viewers cannot drag.
+- **Drop zones.** Dropping card A on the top, middle or bottom third of card B makes A a **parent**, **spouse** or **child** of B. When A and B are siblings, the left and right edges of B (about a fifth each) put A **before** or **after** B, and the whole group is renumbered with `siblingOrder` 1, 2, 3… in one `batch`. The zones are labelled on B while hovering ("Parent", "Spouse", "Child", "Before", "After"), and a polite live status line says exactly what the drop will do. The rules run again only when the target card or zone changes.
+- **Edges of the board.** Dragging near an edge of the board pans it, so far cards can be reached.
 - **Replace, don't stack.** Any existing direct relationship between A and B (spouse, parent or child) is replaced by the new one. When a couple becomes parent and child, their shared children stay with the person who becomes the child.
 - **Follow-up questions instead of dead ends.**
   - If B has several spouses, making A a child of B asks "child of B with whom?" (or "only B").
@@ -575,16 +578,22 @@ Top bar of the tree page, left to right: clan name (or the breadcrumb when follo
   - Every question has a "Cancel, change nothing" option.
 - **Blocked only when impossible.** A drop is blocked only when it would create an impossible state, such as someone becoming an ancestor of themselves through other people. Blocked zones are crossed out with the reason before the drop, and the reason says how to proceed. Validation runs the same `applyOp` as the server, so the UI never accepts a drop the server would reject.
 - **Undo.** Each completed drop is a single `batch` op, so it is one undo step. A toast confirms the change and offers "Undo".
-- **Cancel a drag.** Press Esc, or drop the card on empty space more than about one card width from its place.
+- **Cancel a drag.** Press Esc, drop the card on empty space, or drop it within about one card width of its place. A cancelled drag sends no op and shows no toast.
+- **After a drop.** Focus is on card A in its new place, brought into view. If the tree changed while dragging or while a question was open, the rules run again on the new tree just before the op is applied; if the answer is no longer the same, the "the tree has just changed" message shows and nothing is applied.
 - **Cut.**
-  - Clicking a thread or its red pin, or a marriage knot, shows **Cut**.
+  - Clicking a thread or its red pin, or a marriage knot, shows **Cut** in a small popover. The pins and knots are buttons for the pointer only and are not tab stops (a big tree has hundreds); from the keyboard, **Remove** in **Change relationship…** does the same.
   - Cutting a parent → child thread is `setParents(null)`.
   - Cutting a marriage with shared children asks who the children stay with. The other partner is removed from that Union with `updateUnion`.
   - A divorce where both stay parents is recorded as Union status `divorced` (shown as a broken stitch), not by cutting.
-- **Loose photos.** Anyone left unconnected moves to the **Loose photos** tray instead of being deleted. People added with **Add several people** start here too. A detached branch moves as one stack and can be dropped back onto the tree.
-- **Nudge.** Dropping a card within about one card width of its place keeps a small display offset, so short threads stay easy to reach. Offsets are per device (localStorage), are not ops and are not shared. **Tidy up** clears them.
-- **Touch.** A long press (about 400 ms) picks a card up; a normal swipe still pans the tree.
-- **Keyboard and screen reader.** The card menu item **Change relationship…** lists each relationship with a **Remove** button and offers the same add and replace choices.
+- **Loose photos.** Anyone left unconnected moves to the **Loose photos** tray instead of being deleted. People added with **Add several people** start here too. A detached branch moves as one stack and can be dropped back onto the tree. The tray groups unlinked people by branch: a stack shows the photo of the branch's topmost person with "+3 people", dragging that person brings the whole branch (the links inside it do not change), and opening the stack lists everyone in it. Dropping a card on the tray removes all of that person's links to the tree.
+- **Nudge (P7).** Dropping a card within about one card width of its place will keep a small display offset, so short threads stay easy to reach. Offsets are per device (localStorage), are not ops and are not shared. **Tidy up** clears them. Until P7, such a drop only cancels the drag.
+- **Touch.** A long press (about 400 ms, moving less than about 8 px) picks a card up; a normal swipe, even one that starts on a card, still pans the tree. On touch the long press is for dragging only: it does not open the card menu, whose actions are in the profile panel's buttons.
+- **Keyboard and screen reader.** The card menu item **Change relationship…** (also a button in the profile panel) opens a dialog with the same rules as dragging.
+  - It lists the person's parents, spouses and children in groups, each with **Remove**. Removing a spouse with shared children asks who the children stay with.
+  - Each marriage also has its status (married, divorced, widowed), changed with `updateUnion`.
+  - **Add or replace**: choose parent, spouse or child, then the other person from a list searched by name (people on the tree and in the tray), then **Apply**. The follow-up questions are the same. Blocked choices stay in the list with their reason and are `aria-disabled`.
+  - **Move earlier** and **Move later** in the card menu change the order among siblings. Each is offered only when there is a sibling on that side.
+  - Every change is one op with an Undo toast, and focus returns to the card when the dialog closes.
 
 ### 7.7 PWA
 

@@ -559,7 +559,7 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
   - Đã có đủ hai người: không có thao tác này.
   - Trên thuỷ tổ, chỉ Quản lý thấy thao tác này, với ô "Đặt người này làm thuỷ tổ (đời thứ 1)" đánh dấu sẵn; batch khi đó kết thúc bằng `setProgenitor`, vẫn là một bước hoàn tác. Người có quyền sửa không thấy thao tác này trên thuỷ tổ.
   - Không có trên thẻ dâu/rể: cha mẹ của họ thuộc gia đình gốc (§8), không thuộc cây này.
-- Menu chuột phải (và các nút trong panel trên thiết bị cảm ứng), danh sách đầy đủ khi các tính năng lần lượt có: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… (P6c) · Nối với cây gia phả khác (P10) · Trang trí thẻ này… (§13.4) · Xoá.
+- Menu chuột phải (và các nút trong panel trên thiết bị cảm ứng), danh sách đầy đủ khi các tính năng lần lượt có: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… (P6c) · Xếp lên trước · Xếp ra sau (trong anh chị em, P6c) · Nối với cây gia phả khác (P10) · Trang trí thẻ này… (§13.4) · Xoá.
 - Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
 - **Thêm nhiều người** (chỉ người có quyền sửa), mở từ thanh công cụ của cây và từ cột **Ảnh chưa dán**. Dành cho gia đình biết tên trước khi biết ai ở đâu trong cây.
   - Form có mỗi người một dòng: họ tên, giới tính, còn sống/đã mất. Điền xong dòng cuối thì hiện thêm một dòng mới; dòng để trống bị bỏ qua.
@@ -568,7 +568,10 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
 
 **Kéo thả để đổi quan hệ (chỉ người có quyền sửa).** Vị trí luôn do layout tính (§7.4); kéo thả không bao giờ lưu một vị trí tự do.
 
-- **Vùng thả.** Thả thẻ A vào ⅓ trên, ⅓ giữa hoặc ⅓ dưới của thẻ B thì A thành **cha/mẹ**, **vợ/chồng** hoặc **con** của B. Các vùng hiện nhãn trên thẻ B khi rê tới, và dòng trạng thái nói chính xác lần thả sẽ làm gì.
+- **Một bộ quy tắc cho mọi cách làm (P6c).** Kéo thả, **Đổi quan hệ…** và **Cắt chỉ** đều tạo op bằng cùng các quy tắc thuần trong `packages/shared/src/tree/relate.ts`. Với "đặt A làm cha/mẹ, vợ/chồng hoặc con của B" hay "xếp A trước hoặc sau B trong anh chị em", quy tắc trả về một trong ba thứ: một op `batch` kèm câu nói rõ nó làm gì ("Lan thành con của Nam và Hoa"), một câu hỏi tiếp, hoặc một lý do bị chặn.
+- **Bắt đầu kéo.** Với chuột, kéo bắt đầu khi giữ nút và di quá khoảng 6 px. Tấm ảnh được nhấc lên đi theo con trỏ, hơi nghiêng và có bóng; tấm gốc mờ đi tại chỗ. Người chỉ xem không kéo được.
+- **Vùng thả.** Thả thẻ A vào ⅓ trên, ⅓ giữa hoặc ⅓ dưới của thẻ B thì A thành **cha/mẹ**, **vợ/chồng** hoặc **con** của B. Khi A và B là anh chị em, mép trái và mép phải của B (mỗi bên khoảng một phần năm) xếp A **trước** hoặc **sau** B, và cả nhóm được đánh số lại `siblingOrder` 1, 2, 3… trong một op `batch`. Các vùng hiện nhãn trên thẻ B khi rê tới ("Làm cha/mẹ", "Làm vợ/chồng", "Làm con", "Xếp trước", "Xếp sau"), và một dòng trạng thái (live region lịch sự) nói chính xác lần thả sẽ làm gì. Quy tắc chỉ chạy lại khi đổi thẻ đích hoặc đổi vùng.
+- **Mép bảng.** Kéo tới gần mép bảng thì bảng tự trượt, để với tới các thẻ ở xa.
 - **Thay thế, không chồng thêm.** Quan hệ trực tiếp đang có giữa A và B (vợ chồng, cha mẹ hoặc con) được thay bằng quan hệ mới. Khi một cặp vợ chồng đổi thành cha mẹ – con, các con chung ở lại với người trở thành con.
 - **Hỏi tiếp thay vì ngõ cụt.**
   - Nếu B có nhiều vợ/chồng, đặt A làm con của B sẽ hỏi "con của B với ai?" (hoặc "chỉ B").
@@ -577,16 +580,22 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
   - Câu hỏi nào cũng có lựa chọn "Thôi, không đổi".
 - **Chỉ chặn điều không thể.** Lần thả chỉ bị chặn khi tạo ra trạng thái không thể có, ví dụ một người thành tổ tiên của chính mình qua người khác. Vùng bị chặn được gạch ngang kèm lý do trước khi thả, và lý do chỉ cách làm tiếp. Bước kiểm tra chạy đúng `applyOp` của server, nên giao diện không bao giờ nhận một lần thả mà server sẽ từ chối.
 - **Hoàn tác.** Mỗi lần thả thành công là một op `batch`, tức là một bước hoàn tác. Một thông báo xác nhận thay đổi kèm nút "Hoàn tác".
-- **Huỷ khi đang kéo.** Bấm Esc, hoặc thả thẻ ra chỗ trống cách vị trí cũ hơn khoảng một tấm ảnh.
+- **Huỷ khi đang kéo.** Bấm Esc, thả thẻ ra chỗ trống, hoặc thả trong khoảng một tấm ảnh quanh vị trí cũ. Huỷ thì không gửi op nào và không có thông báo.
+- **Sau khi thả.** Focus nằm ở thẻ A tại vị trí mới và được đưa vào khung nhìn. Nếu cây thay đổi trong lúc kéo hoặc lúc câu hỏi đang mở, quy tắc chạy lại trên cây mới ngay trước khi áp dụng; nếu kết quả không còn như cũ, hiện thông báo "cây vừa có thay đổi" và không áp dụng gì.
 - **Cắt chỉ.**
-  - Bấm vào sợi chỉ hoặc ghim đỏ của nó, hay nút tròn giữa hai vợ chồng, để hiện nút **Cắt chỉ**.
+  - Bấm vào sợi chỉ hoặc ghim đỏ của nó, hay nút tròn giữa hai vợ chồng, để hiện nút **Cắt chỉ** trong một khung nhỏ. Ghim và nút tròn chỉ là nút cho chuột/ngón tay, không phải điểm dừng Tab (cây lớn có hàng trăm cái); bằng bàn phím, nút **Gỡ** trong **Đổi quan hệ…** làm cùng việc đó.
   - Cắt sợi chỉ cha mẹ → con là `setParents(null)`.
   - Cắt quan hệ vợ chồng có con chung sẽ hỏi các con ở lại với ai; người còn lại được gỡ khỏi Union đó bằng `updateUnion`.
   - Ly hôn mà cả hai vẫn là cha mẹ thì ghi trạng thái Union `divorced` (đường khâu đứt quãng), không cắt chỉ.
-- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào cột **Ảnh chưa dán** chứ không bị xoá. Người thêm bằng **Thêm nhiều người** cũng bắt đầu ở đây. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây.
-- **Xê dịch.** Thả thẻ cách vị trí cũ chưa tới khoảng một tấm ảnh thì thẻ giữ một độ lệch hiển thị nhỏ, giúp sợi chỉ ngắn vẫn dễ bấm. Độ lệch lưu theo từng máy (localStorage), không phải op và không chia sẻ cho người khác. Nút **Xếp lại gọn** xoá hết độ lệch.
-- **Cảm ứng.** Nhấn giữ khoảng 400 ms để nhấc thẻ lên; vuốt bình thường vẫn là di chuyển cây.
-- **Bàn phím và trình đọc màn hình.** Mục **Đổi quan hệ…** trong menu của thẻ liệt kê từng quan hệ kèm nút **Gỡ**, và có các lựa chọn thêm hoặc thay như trên.
+- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào cột **Ảnh chưa dán** chứ không bị xoá. Người thêm bằng **Thêm nhiều người** cũng bắt đầu ở đây. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây. Cột gom người chưa nối theo nhánh: mỗi xấp hiện ảnh của người đứng đầu nhánh kèm "+3 người", kéo người đó là kéo cả nhánh (quan hệ bên trong nhánh không đổi), và mở xấp ra thì thấy từng người. Thả một thẻ vào cột thì gỡ mọi quan hệ của người đó với cây.
+- **Xê dịch (P7).** Thả thẻ cách vị trí cũ chưa tới khoảng một tấm ảnh thì thẻ sẽ giữ một độ lệch hiển thị nhỏ, giúp sợi chỉ ngắn vẫn dễ bấm. Độ lệch lưu theo từng máy (localStorage), không phải op và không chia sẻ cho người khác. Nút **Xếp lại gọn** xoá hết độ lệch. Trước P7, thả như vậy chỉ là huỷ kéo.
+- **Cảm ứng.** Nhấn giữ khoảng 400 ms (ngón tay xê dịch dưới khoảng 8 px) để nhấc thẻ lên; vuốt bình thường, kể cả bắt đầu trên một thẻ, vẫn là di chuyển cây. Trên cảm ứng, nhấn giữ chỉ để kéo: nó không mở menu của thẻ, vì các thao tác đã có trong các nút của panel hồ sơ.
+- **Bàn phím và trình đọc màn hình.** Mục **Đổi quan hệ…** trong menu của thẻ (cũng là một nút trong panel hồ sơ) mở một hộp thoại dùng cùng quy tắc với kéo thả.
+  - Hộp thoại liệt kê cha mẹ, vợ/chồng và con của người đó theo nhóm, mỗi dòng có nút **Gỡ**. Gỡ vợ/chồng mà có con chung thì hỏi các con ở lại với ai.
+  - Mỗi cuộc hôn nhân có thêm tình trạng (đang kết hôn, đã ly hôn, goá), đổi bằng `updateUnion`.
+  - **Thêm hoặc thay**: chọn cha/mẹ, vợ/chồng hoặc con, rồi chọn người kia trong danh sách tìm theo tên (người trên cây và trong cột Ảnh chưa dán), rồi bấm **Áp dụng**. Các câu hỏi tiếp giống như khi kéo. Lựa chọn bị chặn vẫn nằm trong danh sách kèm lý do và có `aria-disabled`.
+  - **Xếp lên trước** và **Xếp ra sau** trong menu của thẻ đổi thứ tự trong anh chị em; mỗi mục chỉ hiện khi bên đó còn anh chị em.
+  - Mỗi thay đổi là một op kèm thông báo có nút Hoàn tác, và đóng hộp thoại thì focus quay về thẻ.
 
 ### 7.7 PWA
 
