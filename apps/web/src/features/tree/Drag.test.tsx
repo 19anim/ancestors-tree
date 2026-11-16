@@ -51,11 +51,33 @@ describe('drag to relate (mouse)', () => {
         seenTree: tree,
       });
     });
-    // Grandpa is already Nam's parent: that zone is crossed out.
+    // Grandpa is already Nam's parent, and the progenitor gets no parent: both are crossed out.
     expect(screen.getByText('Làm cha/mẹ')).toHaveClass('line-through');
-    expect(screen.getByText('Làm con')).not.toHaveClass('line-through');
+    expect(screen.getByText('Làm con')).toHaveClass('line-through');
+    expect(screen.getByText('Làm vợ/chồng')).not.toHaveClass('line-through');
     expect(
       screen.getByText('Làm cha/mẹ của Nguyễn Văn Nam: không được. Quan hệ này đã có rồi.'),
+    ).toBeInTheDocument();
+  });
+
+  it('crosses out the parent zone on the progenitor’s card, and says why', async () => {
+    editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('button', { name: /^Nguyễn Văn Tư/ });
+    act(() => {
+      useDragStore.setState({
+        activeId: LOOSE,
+        overId: GRANDPA,
+        zone: 'parent',
+        results: zoneResults(tree, LOOSE, GRANDPA),
+        seenTree: tree,
+      });
+    });
+    expect(screen.getByText('Làm cha/mẹ')).toHaveClass('line-through');
+    expect(
+      screen.getByText(
+        'Làm cha/mẹ của Nguyễn Văn Tư: không được. Thuỷ tổ là đời 1. Muốn thêm đời trên, Quản lý dùng Thêm cha/mẹ.',
+      ),
     ).toBeInTheDocument();
   });
 

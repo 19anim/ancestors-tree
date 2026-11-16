@@ -502,7 +502,8 @@
         "IN_LAW_PARENT": "The parents of someone who married in go under Birth family in their profile.",
         "NOT_SIBLINGS": "Only siblings with the same parents can be put in order.",
         "TOO_MANY_SIBLINGS": "This group has more than 99 siblings, so it cannot be renumbered.",
-        "IS_PROGENITOR": "The progenitor cannot move to Loose photos. Choose another progenitor first."
+        "IS_PROGENITOR": "The progenitor cannot move to Loose photos. Choose another progenitor first.",
+        "PROGENITOR_PARENT": "The progenitor is generation 1. To add a generation above, the Manager uses Add parent."
       },
       "ask": {
         "cancel": "Cancel, change nothing",

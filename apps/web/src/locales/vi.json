@@ -502,7 +502,8 @@
         "IN_LAW_PARENT": "Cha mẹ của dâu, rể được ghi ở mục Gia đình gốc trong hồ sơ của họ.",
         "NOT_SIBLINGS": "Chỉ xếp được thứ tự giữa anh chị em cùng cha mẹ.",
         "TOO_MANY_SIBLINGS": "Nhóm anh chị em này có hơn 99 người nên không đánh số lại được.",
-        "IS_PROGENITOR": "Không thể chuyển thuỷ tổ vào Ảnh chưa dán. Hãy chọn thuỷ tổ khác trước."
+        "IS_PROGENITOR": "Không thể chuyển thuỷ tổ vào Ảnh chưa dán. Hãy chọn thuỷ tổ khác trước.",
+        "PROGENITOR_PARENT": "Thuỷ tổ là đời 1. Muốn thêm đời trên, Quản lý dùng Thêm cha/mẹ."
       },
       "ask": {
         "cancel": "Thôi, không đổi",

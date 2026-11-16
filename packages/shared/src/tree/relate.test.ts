@@ -73,8 +73,19 @@ describe('relate: blocks', () => {
   });
 
   it('turns a cycle into a block with the server’s own code', () => {
-    // Kid as the parent of Grandpa: Grandpa would be his own ancestor.
-    expect(relate(family(), KID, GRANDPA, 'parent')).toEqual({ kind: 'blocked', reason: 'CYCLE' });
+    // Grandma as the child of Kid: Grandma would be her own ancestor.
+    expect(relate(family(), GRANDMA, KID, 'child')).toEqual({ kind: 'blocked', reason: 'CYCLE' });
+  });
+
+  it('refuses a parent for the progenitor, from either side', () => {
+    // Spec §7.6: the progenitor is generation 1; the Manager's "Add parent" adds a generation.
+    const tree = family();
+    const reason = { kind: 'blocked', reason: 'PROGENITOR_PARENT' };
+    expect(relate(tree, LOOSE, GRANDPA, 'parent')).toEqual(reason);
+    expect(relate(tree, GRANDPA, LOOSE, 'child')).toEqual(reason);
+    // Even as the parent of someone the progenitor already parents (a would-be cycle).
+    expect(relate(tree, SON, GRANDPA, 'parent')).toEqual(reason);
+    expect(relate(tree, GRANDPA, KID, 'child')).toEqual(reason);
   });
 });
 
@@ -153,9 +164,9 @@ describe('relate: parent', () => {
 
   it('gives B without parents a one-person union of A', () => {
     const tree = family();
-    const result = relate(tree, LOOSE, GRANDPA, 'parent');
+    const result = relate(tree, DAUGHTER, LOOSE, 'parent');
     expect(result).toMatchObject({ kind: 'ok', effect: { withId: null } });
-    expect(parentsOf(after(tree, result), GRANDPA)).toEqual([LOOSE]);
+    expect(parentsOf(after(tree, result), LOOSE)).toEqual([DAUGHTER]);
   });
 
   it('asks which parent A replaces, and moves only B', () => {

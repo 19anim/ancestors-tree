@@ -16,6 +16,7 @@ const RELATE_BLOCKS = [
   'NOT_SIBLINGS',
   'TOO_MANY_SIBLINGS',
   'IS_PROGENITOR',
+  'PROGENITOR_PARENT',
 ] as const;
 type RelateOnlyBlock = (typeof RELATE_BLOCKS)[number];
 

@@ -40,6 +40,7 @@ export type RelateBlock =
   | 'NOT_SIBLINGS'
   | 'TOO_MANY_SIBLINGS'
   | 'IS_PROGENITOR'
+  | 'PROGENITOR_PARENT'
   | OpErrorCode;
 
 /** What a change does, for the sentence the web shows ("Lan becomes the child of Nam and Hoa"). */
@@ -356,6 +357,9 @@ export function relate(
   if (relation === 'before' || relation === 'after') {
     return reorder(tree, personId, targetId, relation);
   }
+  // The progenitor is generation 1 (spec §7.6): only the Manager's "Add parent" goes above them.
+  const child = relation === 'parent' ? targetId : relation === 'child' ? personId : null;
+  if (child !== null && child === tree.progenitorId) return blocked('PROGENITOR_PARENT');
   if (relation === 'parent' && classifyLineage(tree).get(targetId) === 'in-law') {
     return blocked('IN_LAW_PARENT');
   }
