@@ -6,7 +6,7 @@ import { applyFailureMessage } from './format';
 import { MAX_SEVERAL, type NewPersonInput } from './ops';
 import type { ApplyResult } from './store';
 
-interface Row {
+export interface SeveralRow {
   key: number;
   fullName: string;
   gender: Gender;
@@ -16,12 +16,12 @@ interface Row {
 /** Matches FullNameSchema's limit, so a row is never refused by the server for its length. */
 const MAX_NAME = 120;
 
-function emptyRow(key: number): Row {
+function emptyRow(key: number): SeveralRow {
   return { key, fullName: '', gender: 'male', isDeceased: false };
 }
 
 /** A new empty row follows a filled last row, up to MAX_SEVERAL rows. */
-function withSpare(rows: Row[], nextKey: () => number): Row[] {
+export function withSpare(rows: SeveralRow[], nextKey: () => number): SeveralRow[] {
   const last = rows.at(-1);
   if (last === undefined || (last.fullName.trim() !== '' && rows.length < MAX_SEVERAL)) {
     return [...rows, emptyRow(nextKey())];
@@ -40,11 +40,20 @@ export function AddSeveralDialog({ onSubmit, onClose, onCloseAutoFocus }: AddSev
   const { t } = useTranslation();
   const counter = useRef(1);
   const nextKey = () => (counter.current += 1);
-  const [rows, setRows] = useState<Row[]>([emptyRow(1)]);
+  const [rows, setRows] = useState<SeveralRow[]>([emptyRow(1)]);
+  // "Enter at least one name" belongs to the first name field; a refused apply to the form.
+  const [noName, setNoName] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstName = useRef<HTMLInputElement>(null);
+  const hasNames = rows.some((row) => row.fullName.trim() !== '');
+  // Unsent edits are never lost silently: once a name is typed, only Cancel or the close button
+  // (both deliberate) close the dialog, not Escape or a click outside it.
+  const keepTyped = (event: Event) => {
+    if (hasNames) event.preventDefault();
+  };
 
-  const change = (key: number, patch: Partial<Row>) => {
+  const change = (key: number, patch: Partial<SeveralRow>) => {
+    if (patch.fullName !== undefined && patch.fullName.trim() !== '') setNoName(false);
     setRows((current) =>
       withSpare(
         current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
@@ -59,7 +68,7 @@ export function AddSeveralDialog({ onSubmit, onClose, onCloseAutoFocus }: AddSev
       .filter((row) => row.fullName.trim() !== '')
       .map((row) => ({ fullName: row.fullName, gender: row.gender, isDeceased: row.isDeceased }));
     if (inputs.length === 0) {
-      setError(t('tree.several.none'));
+      setNoName(true);
       firstName.current?.focus();
       return;
     }
@@ -76,6 +85,8 @@ export function AddSeveralDialog({ onSubmit, onClose, onCloseAutoFocus }: AddSev
         // Wider than the default, so a row's name, gender and status fit on one line.
         className="w-[min(92vw,40rem)]"
         onCloseAutoFocus={onCloseAutoFocus}
+        onEscapeKeyDown={keepTyped}
+        onInteractOutside={keepTyped}
       >
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
           <div className="flex max-h-[55vh] flex-col gap-3 overflow-y-auto pr-1">
@@ -88,6 +99,7 @@ export function AddSeveralDialog({ onSubmit, onClose, onCloseAutoFocus }: AddSev
                 <TextField
                   ref={at === 0 ? firstName : undefined}
                   label={t('tree.form.fullName')}
+                  error={at === 0 && noName ? t('tree.several.none') : undefined}
                   value={row.fullName}
                   maxLength={MAX_NAME}
                   autoComplete="off"
@@ -118,6 +130,12 @@ export function AddSeveralDialog({ onSubmit, onClose, onCloseAutoFocus }: AddSev
           </div>
           {rows.length >= MAX_SEVERAL ? (
             <p className="text-sm text-ink-muted">{t('tree.several.full')}</p>
+          ) : null}
+          {noName ? (
+            // The field shows the message; this announces it once (the field's error has no role).
+            <p role="alert" className="sr-only">
+              {t('tree.several.none')}
+            </p>
           ) : null}
           {error !== null ? (
             <p role="alert" className="text-sm font-medium text-stamp">
