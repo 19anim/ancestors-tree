@@ -91,6 +91,55 @@ describe('relate: blocks', () => {
     expect(relate(tree, SON, GRANDPA, 'parent')).toEqual(reason);
     expect(relate(tree, GRANDPA, KID, 'child')).toEqual(reason);
   });
+
+  describe('when the progenitor already has a parent (Add parent, not made progenitor)', () => {
+    // Elder (11) alone → Founder (12, the progenitor), Brother (13). Stranger (14).
+    const ELDER = testId(11);
+    const FOUNDER = testId(12);
+    const BROTHER = testId(13);
+    const STRANGER = testId(14);
+    const ELDER_ALONE = testId(111);
+    const reason = { kind: 'blocked', reason: 'PROGENITOR_PARENT' };
+
+    function founded(): TreeState {
+      return treeOf(
+        [
+          makePerson(ELDER),
+          makePerson(FOUNDER, { parentUnionId: ELDER_ALONE, siblingOrder: 1 }),
+          makePerson(BROTHER, { parentUnionId: ELDER_ALONE, siblingOrder: 2 }),
+          makePerson(STRANGER, { gender: 'female' }),
+        ],
+        [makeUnion(ELDER_ALONE, [ELDER])],
+        FOUNDER,
+      );
+    }
+
+    it('refuses a parent for a sibling when the progenitor would share it', () => {
+      const tree = founded();
+      expect(relate(tree, STRANGER, BROTHER, 'parent')).toEqual(reason);
+      // Also when Stranger and Elder are already married: the children would join that marriage.
+      const married = after(
+        tree,
+        relate(tree, STRANGER, ELDER, 'spouse', { shareChildren: false }),
+      );
+      expect(relate(married, STRANGER, BROTHER, 'parent')).toEqual(reason);
+    });
+
+    it('refuses to share the progenitor with the new spouse of their parent, from either side', () => {
+      const tree = founded();
+      expect(relate(tree, STRANGER, ELDER, 'spouse', { shareChildren: true })).toEqual(reason);
+      expect(relate(tree, ELDER, STRANGER, 'spouse', { shareChildren: true })).toEqual(reason);
+    });
+
+    it('still marries the parent when the children stay theirs alone', () => {
+      const tree = founded();
+      const result = relate(tree, STRANGER, ELDER, 'spouse', { shareChildren: false });
+      const next = after(tree, result);
+      expect(spousesOf(next, ELDER)).toEqual([STRANGER]);
+      expect(parentsOf(next, FOUNDER)).toEqual([ELDER]);
+      expect(parentsOf(next, BROTHER)).toEqual([ELDER]);
+    });
+  });
 });
 
 describe('relate: child', () => {

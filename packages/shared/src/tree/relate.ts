@@ -109,6 +109,18 @@ function parentIdsOf(tree: TreeState, personId: string): readonly string[] {
   return unionId === undefined ? [] : (tree.unions[unionId]?.partnerIds ?? []);
 }
 
+/**
+ * True when `next` gives the progenitor a parent they did not have in `tree`. A progenitor who
+ * already has a parent (Add parent, not made progenitor) shares that union with siblings and a
+ * parent's later spouse, so a change to them can reach the progenitor too (spec §7.6).
+ */
+function progenitorGainsParent(tree: TreeState, next: TreeState): boolean {
+  const id = tree.progenitorId;
+  if (id === null) return false;
+  const had = parentIdsOf(tree, id);
+  return parentIdsOf(next, id).some((parentId) => !had.includes(parentId));
+}
+
 /** A union order after every marriage of these people (never past the schema's 99). */
 function nextUnionOrder(tree: TreeState, partnerIds: readonly string[]): number {
   let highest = 0;
@@ -373,6 +385,7 @@ export function relate(
     return reorder(tree, personId, targetId, relation);
   }
   // The progenitor is generation 1 (spec §7.6): only the Manager's "Add parent" goes above them.
+  // The direct cases are refused here; the check before `ok` catches the indirect ones.
   const child = relation === 'parent' ? targetId : relation === 'child' ? personId : null;
   if (child !== null && child === tree.progenitorId) return blocked('PROGENITOR_PARENT');
   if (relation === 'parent' && classifyLineage(tree).get(targetId) === 'in-law') {
@@ -388,6 +401,7 @@ export function relate(
           ? makeChild(draft, personId, targetId, answers)
           : makeParent(draft, personId, targetId, answers);
     if (step.kind === 'ask') return step;
+    if (progenitorGainsParent(tree, draft.tree)) return blocked('PROGENITOR_PARENT');
     return {
       kind: 'ok',
       op: draft.batch(),

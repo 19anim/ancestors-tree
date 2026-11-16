@@ -76,7 +76,7 @@ describe('drag to relate (mouse)', () => {
     expect(screen.getByText('Làm cha/mẹ')).toHaveClass('line-through');
     expect(
       screen.getByText(
-        'Làm cha/mẹ của Nguyễn Văn Tư: không được. Thuỷ tổ là đời 1. Muốn thêm đời trên, Quản lý dùng Thêm cha/mẹ.',
+        'Làm cha/mẹ của Nguyễn Văn Tư: không được. Thuỷ tổ là đời 1. Muốn thêm đời trên, Quản lý dùng Thêm cha/mẹ, hoặc chọn người kia làm thuỷ tổ trước.',
       ),
     ).toBeInTheDocument();
   });

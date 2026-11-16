@@ -19,6 +19,11 @@ function answered(result: RelateResult, again: (answers: object) => RelateResult
   return again({ shareChildren: true });
 }
 
+function parentIdsOf(tree: TreeState, personId: string): readonly string[] {
+  const unionId = tree.persons[personId]?.parentUnionId;
+  return unionId === undefined ? [] : (tree.unions[unionId]?.partnerIds ?? []);
+}
+
 /** How many one-person unions each person is the partner of. */
 function aloneCounts(tree: TreeState): Map<string, number> {
   const counts = new Map<string, number>();
@@ -63,6 +68,12 @@ describe('relate (properties)', () => {
           );
           if (result.kind !== 'ok') return;
           checkOp(tree, result.op);
+          // The progenitor never gains a parent through relate (spec §7.6).
+          const progenitor = tree.progenitorId;
+          if (progenitor === null) return;
+          const had = parentIdsOf(tree, progenitor);
+          const now = parentIdsOf(applyOp(tree, result.op).tree, progenitor);
+          expect(now.filter((id) => !had.includes(id))).toEqual([]);
         },
       ),
       { numRuns: 300 },
