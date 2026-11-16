@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useRef,
   useState,
   type CSSProperties,
   type FocusEvent,
@@ -62,6 +63,8 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
   ]
     .filter(Boolean)
     .join(' ');
+  // The last pointer down on this card was a finger: a contextmenu now is its long press's.
+  const touched = useRef(false);
   // Esc hides the tooltip until the pointer or focus leaves the card (WCAG 1.4.13).
   const [dismissed, setDismissed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -130,9 +133,11 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
         <button
           type="button"
           // Over the Polaroid, not around it: a button holding the photo's initials and date line
-          // would have text its name lacks (WCAG 2.5.3). nodrag/nopan: React Flow leaves clicks
-          // on the card alone. The outline is the app's :focus-visible rule (styles/index.css).
-          className="nodrag nopan absolute inset-0 cursor-pointer rounded-photo"
+          // would have text its name lacks (WCAG 2.5.3). nodrag: React Flow leaves clicks on the
+          // card alone; the wrapper (CardDrag) adds nopan for a mouse press only, so a finger's
+          // swipe still pans the board. The outline is the app's :focus-visible rule
+          // (styles/index.css).
+          className="nodrag absolute inset-0 cursor-pointer rounded-photo"
           aria-label={label}
           aria-describedby={describedBy === '' ? undefined : describedBy}
           // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
@@ -141,9 +146,22 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
             // The click the browser fires on the dragged card right after a drop is not a click.
             if (!justDropped()) openPerson?.(person.id);
           }}
+          onPointerDown={(event) => {
+            touched.current = event.pointerType === 'touch';
+            // Radix's menu trigger skips its 700 ms touch long press when this is prevented; a tap
+            // still clicks. On touch the long press is for dragging (spec §7.6 "Touch"), and the
+            // menu's actions are the profile's buttons.
+            if (touched.current) event.preventDefault();
+          }}
+          onContextMenu={(event) => {
+            // The menu Radix opens on contextmenu, unless it is a finger's long press.
+            if (touched.current) event.preventDefault();
+          }}
           // On the button, not the wrapper: keys in an open card menu bubble to the wrapper
           // through the portal, never to the button, so the menu keeps its own arrows.
           onKeyDown={(event) => {
+            // A key, Shift+F10 or the menu key among them: the next contextmenu is the keyboard's.
+            touched.current = false;
             if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
             if (!isRelativeKey(event.key)) return;
             // Arrows on a card never scroll the page or pan the board (spec §7.8).

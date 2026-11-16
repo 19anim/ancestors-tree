@@ -311,7 +311,12 @@ describe('drag to relate: what lifts a card', () => {
     renderRoute(`/clans/${CLAN_ID}/tree`);
     const hoa = await screen.findByRole('button', { name: /^Lê Thị Hoa/ });
     const tooltip = within(wrapperOf('Lê Thị Hoa')).getByRole('tooltip', { hidden: true });
-    // The tooltip pans the board instead (it is not "nopan"): React Flow reads the events' window.
+    // The tooltip pans the board instead: its press takes "nopan" off the card (CardDrag), and
+    // React Flow reads the events' window.
+    const press = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 });
+    Object.defineProperty(press, 'pointerType', { value: 'mouse' });
+    fireEvent(tooltip, press);
+    expect(wrapperOf('Lê Thị Hoa')).not.toHaveClass('nopan');
     withView(tooltip, 'mousedown');
     fireEvent.mouseMove(document, { clientX: 20, clientY: 0 });
     expect(useDragStore.getState().activeId).toBeNull();

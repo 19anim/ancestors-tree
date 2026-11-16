@@ -3,6 +3,7 @@ import {
   DragOverlay,
   MouseSensor,
   pointerWithin,
+  TouchSensor,
   useDndContext,
   useSensor,
   useSensors,
@@ -31,6 +32,9 @@ import { useTreeStore } from './store';
 
 /** A mouse drag starts after the pointer moves this far with the button down (spec §7.6). */
 export const MOUSE_DISTANCE = 6;
+/** A long press picks a card up (spec §7.6 "Touch"); moving more first is a swipe. */
+export const TOUCH_DELAY_MS = 400;
+export const TOUCH_TOLERANCE = 8;
 
 // dnd-kit measures the cards when a drag starts (its default) and then only when one mounts or
 // resizes: a board that pans or zooms under the drag moves them without either, so the board
@@ -182,7 +186,10 @@ function DragTracker({ rects }: { rects: RefObject<Rects> }) {
 export function TreeDnd({ canEdit, children }: { canEdit: boolean; children: ReactNode }) {
   const requestChange = useContext(ChangeContext);
   const mouse = useSensor(MouseSensor, { activationConstraint: { distance: MOUSE_DISTANCE } });
-  const sensors = useSensors(canEdit ? mouse : null);
+  const touch = useSensor(TouchSensor, {
+    activationConstraint: { delay: TOUCH_DELAY_MS, tolerance: TOUCH_TOLERANCE },
+  });
+  const sensors = useSensors(canEdit ? mouse : null, canEdit ? touch : null);
   const rects = useRef<Rects>(new Map());
   const lastPointer = useRef<Point | null>(null);
   const mounted = useRef(false);
@@ -201,23 +208,33 @@ export function TreeDnd({ canEdit, children }: { canEdit: boolean; children: Rea
 
   // The real pointer, in client coordinates like the cards' rects: dnd-kit's own delta also
   // counts any scrolling since the drag started. Captured on the window, so it is known before
-  // dnd-kit handles the same move.
+  // dnd-kit handles the same move. A finger counts from its touch: a long press may lift the card
+  // without any move, and a browser stops sending pointer moves for a touch it takes over.
   useEffect(() => {
     if (!canEdit) return;
-    const onMove = (event: MouseEvent) => {
-      const pointer = { x: event.clientX, y: event.clientY };
+    const record = (x: number, y: number) => {
+      const pointer = { x, y };
       lastPointer.current = pointer;
       const state = useDragStore.getState();
       if (state.activeId === null) return;
       if (state.pointer?.x === pointer.x && state.pointer.y === pointer.y) return;
       useDragStore.setState({ pointer });
     };
+    const onMove = (event: MouseEvent) => record(event.clientX, event.clientY);
+    const onTouch = (event: TouchEvent) => {
+      const finger = event.touches[0];
+      if (finger !== undefined) record(finger.clientX, finger.clientY);
+    };
     const options = { capture: true, passive: true };
     window.addEventListener('pointermove', onMove, options);
     window.addEventListener('mousemove', onMove, options);
+    window.addEventListener('touchstart', onTouch, options);
+    window.addEventListener('touchmove', onTouch, options);
     return () => {
       window.removeEventListener('pointermove', onMove, options);
       window.removeEventListener('mousemove', onMove, options);
+      window.removeEventListener('touchstart', onTouch, options);
+      window.removeEventListener('touchmove', onTouch, options);
     };
   }, [canEdit]);
 
