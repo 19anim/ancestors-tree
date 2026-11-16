@@ -87,7 +87,7 @@ const ZONE_POINT = {
   right: { x: 0.9, y: 0.5 },
 } as const;
 
-export type DropZone = keyof typeof ZONE_POINT;
+type DropZone = keyof typeof ZONE_POINT;
 
 async function boxOf(locator: Locator) {
   const box = await locator.boundingBox();

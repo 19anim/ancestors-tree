@@ -25,7 +25,7 @@ const BANDS: { zone: Relation; className: (edges: boolean) => string }[] = [
  * The zones on the card under a dragged card (spec §7.6): the one under the pointer stands out,
  * blocked ones are crossed out. Hidden from screen readers: the status line says the same.
  */
-export function DropZones({ results, zone }: { results: ZoneResults; zone: Zone | null }) {
+function DropZones({ results, zone }: { results: ZoneResults; zone: Zone | null }) {
   const { t } = useTranslation();
   const edges = results.before !== undefined;
   return (
