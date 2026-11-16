@@ -114,10 +114,10 @@ export function createApp(options: AppOptions): CreatedApp {
     secureCookies: options.auth.secureCookies,
     logger: options.logger,
   });
-  registerClanRoutes(api);
+  registerClanRoutes(api, { photos: options.photos, logger: options.logger });
   registerMemberRoutes(api);
   registerInviteRoutes(api);
-  registerTreeRoutes(api);
+  registerTreeRoutes(api, { photos: options.photos });
   registerHistoryRoutes(api);
   registerPhotoRoutes(api, { photos: options.photos });
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
