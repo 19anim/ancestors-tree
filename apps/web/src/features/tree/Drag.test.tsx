@@ -233,6 +233,11 @@ describe('drag to relate: the board and the page moving under the drag', () => {
     stubRect(board(), 0, 0, 800, 600);
     await lift(nam, 400, 300);
     expect(useDragStore.getState().liftZoom).toBeCloseTo(viewportOf(board()).zoom);
+    // Scaled from the photo's own width, not the overlay's (already the card's width on screen):
+    // the lift shadow is the size of the photo at any zoom.
+    const lifted = document.querySelector<HTMLElement>('.shadow-lift');
+    expect(lifted).toHaveClass('w-fit');
+    expect(Number(lifted?.style.scale)).toBeCloseTo(viewportOf(board()).zoom);
     const start = viewportOf(board());
     fireEvent.mouseMove(document, { clientX: 10, clientY: 300 });
     await waitFor(() => expect(viewportOf(board()).x).toBeGreaterThan(start.x));

@@ -13,8 +13,9 @@ interface StitchProps {
 const GAP = 12;
 
 /**
- * Marriage: a dashed stitch with a round knot in the middle. A divorce is two halves with a gap
- * where the knot was, and the knot an open ring. Render inside <svg>.
+ * Marriage: a dashed stitch with a solid round knot in the middle, in the thread's colour. A
+ * divorce is two halves with a gap where the knot was, and the knot an open ring: a filled knot
+ * stays distinct from the ring on both the light and the dark board. Render inside <svg>.
  */
 export function Stitch({ left, right, selected = false, broken = false }: StitchProps) {
   const knot = midpoint(left, right);
@@ -46,7 +47,7 @@ export function Stitch({ left, right, selected = false, broken = false }: Stitch
         cy={knot.y}
         r={6}
         strokeWidth={1.8}
-        className={cn(broken ? 'fill-none' : 'fill-photo', stroke)}
+        className={cn(broken ? 'fill-none' : selected ? 'fill-stamp' : 'fill-thread', stroke)}
       />
     </g>
   );

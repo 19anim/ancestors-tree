@@ -125,9 +125,10 @@ function LiftedCard() {
   if (person === undefined) return null;
   return (
     // Lifted: a slight extra tilt and the lift shadow. Scaled from the corner, where dnd-kit
-    // places the overlay on the card it came from.
+    // places the overlay on the card it came from. As wide as the photo, not the overlay (already
+    // the card's width on screen), so the scaled shadow is the photo's size at any zoom.
     <div
-      className="origin-top-left rotate-3 rounded-photo shadow-lift"
+      className="w-fit origin-top-left rotate-3 rounded-photo shadow-lift"
       style={liftZoom === null ? undefined : { scale: String(liftZoom) }}
     >
       <Polaroid
