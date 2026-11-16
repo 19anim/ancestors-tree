@@ -1,7 +1,8 @@
 import type { TreeResponse } from '@ancestors-tree/shared';
+import { cutMarriage } from '@ancestors-tree/shared/tree';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
 import type * as changes from './changes';
@@ -69,6 +70,15 @@ function group(dialog: HTMLElement, name: string): HTMLElement {
 
 function search(dialog: HTMLElement): HTMLElement {
   return within(dialog).getByRole('searchbox', { name: 'Tìm theo tên' });
+}
+
+const OUT_OF_DATE = 'Cây gia phả vừa có thay đổi mới. Hãy xem lại rồi thử lại.';
+
+/** For this test only, the store's apply or undo answers with a failure. */
+function failing(action: 'apply' | 'undo') {
+  const real = useTreeStore.getState()[action];
+  onTestFinished(() => useTreeStore.setState({ [action]: real }));
+  useTreeStore.setState({ [action]: () => ({ ok: false, reason: 'OUT_OF_DATE' }) });
 }
 
 /** Focus is on the dialog's content, not on its frame (where Radix's focus trap would put it). */
@@ -323,6 +333,65 @@ describe('Change relationship…', () => {
     );
     expect(within(dialog).queryByRole('button', { name: UNDO })).not.toBeInTheDocument();
     expect(within(dialog).getByText(DIVORCED)).toBeInTheDocument();
+  });
+
+  it('says in the dialog when the tree changed under a question', async () => {
+    const user = userEvent.setup();
+    const sent = editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const dialog = await openDialog(user, 'Nguyễn Văn Tư');
+    await user.click(
+      within(group(dialog, 'Vợ/chồng')).getByRole('button', { name: 'Gỡ vợ/chồng: Lê Thị Hoa' }),
+    );
+    // Meanwhile another device separated them, the children staying with Tư: the answer would
+    // now do something else.
+    const separated = cutMarriage(useTreeStore.getState().tree, PARENTS_UNION, GRANDPA);
+    if (separated.kind !== 'ok') throw new Error('Expected the separation to be possible');
+    act(() => void useTreeStore.getState().apply(separated.op));
+    await user.click(screen.getByRole('button', { name: 'Ở với Lê Thị Hoa' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(OUT_OF_DATE);
+    expect(sent()).toHaveLength(1);
+
+    // The next change made clears it.
+    await user.click(
+      within(group(dialog, 'Con')).getByRole('button', { name: 'Gỡ con: Nguyễn Văn Nam' }),
+    );
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('says in the dialog when a change cannot be applied, until the next pick', async () => {
+    const user = userEvent.setup();
+    editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const dialog = await openDialog(user, 'Nguyễn Văn Tư');
+    act(() => failing('apply'));
+    await user.selectOptions(
+      within(dialog).getByRole('combobox', { name: 'Tình trạng hôn nhân với Lê Thị Hoa' }),
+      'Goá',
+    );
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(`Không đổi được: ${OUT_OF_DATE}`);
+    expect(within(dialog).queryByRole('button', { name: UNDO })).not.toBeInTheDocument();
+
+    await user.type(search(dialog), 'binh');
+    await user.click(within(dialog).getByRole('option', { name: /Trần Văn Bình/ }));
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('says in the dialog when its Undo fails', async () => {
+    const user = userEvent.setup();
+    editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const dialog = await openDialog(user, 'Nguyễn Văn Tư');
+    await user.selectOptions(
+      within(dialog).getByRole('combobox', { name: 'Tình trạng hôn nhân với Lê Thị Hoa' }),
+      'Goá',
+    );
+    act(() => failing('undo'));
+    await user.click(within(dialog).getByRole('button', { name: UNDO }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(
+      `Không hoàn tác được: ${OUT_OF_DATE}`,
+    );
+    await focusInContent(dialog);
   });
 
   it('scrolls its lists, while Apply and Done stay in view', async () => {

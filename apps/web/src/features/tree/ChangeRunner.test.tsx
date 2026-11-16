@@ -241,4 +241,14 @@ describe('the change runner', () => {
     expect(useTreeStore.getState().tree.persons[SON]?.fullName).toBe('Nguyễn Văn Nam Anh');
     expect(useTreeStore.getState().tree.persons[LOOSE]?.parentUnionId).toBe(FIRST_UNION);
   });
+  it('reports a change that is not made to its asker, with the message', async () => {
+    const user = userEvent.setup();
+    const failed = vi.fn<(text: string) => void>();
+    const { trigger } = await openWith(() => ({
+      change: { kind: 'cutThread', childId: LOOSE },
+      onFailed: failed,
+    }));
+    await user.click(trigger);
+    expect(failed).toHaveBeenCalledExactlyOnceWith('Không đổi được: Quan hệ này đã có rồi.');
+  });
 });

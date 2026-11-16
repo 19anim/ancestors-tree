@@ -110,7 +110,9 @@ export function ChangeRelationshipDialog({
   const [relation, setRelation] = useState<Addable>('child');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [pickError, setPickError] = useState<string | null>(null);
+  // The footer's alert: no pick, or why a change (or its Undo) was not made. The runner's toast
+  // says so too, but the modal covers it.
+  const [error, setError] = useState<string | null>(null);
   // The last change made here, told here: the modal covers the runner's toast and its Undo.
   const [done, setDone] = useState<ChangeDone | null>(null);
   // Its Undo while it is the latest change, as the toast's; a boolean, so the selector is stable.
@@ -170,8 +172,10 @@ export function ChangeRelationshipDialog({
       focusFallback: () => body.current,
       onDone: (applied) => {
         setDone(applied);
+        setError(null);
         then?.();
       },
+      onFailed: setError,
     });
   const marriages = links.marriages.filter((marriage) => marriage.partnerId !== null);
   const childIds = links.marriages.flatMap((marriage) => marriage.childIds);
@@ -190,10 +194,10 @@ export function ChangeRelationshipDialog({
 
   const apply = () => {
     if (pickedId === null) {
-      setPickError(t('tree.relationships.pick'));
+      setError(t('tree.relationships.pick'));
       return;
     }
-    setPickError(null);
+    setError(null);
     // Cancelled, blocked or out of date: the search and the pick stay, to try again.
     run({ kind: 'relate', personId: pickedId, targetId: personId, relation }, () => {
       setSelectedId(null);
@@ -313,15 +317,15 @@ export function ChangeRelationshipDialog({
               selectedId={pickedId}
               onSelect={(id) => {
                 setSelectedId(id);
-                setPickError(null);
+                setError(null);
               }}
             />
           </section>
         </div>
         <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
-          {pickError === null ? null : (
+          {error === null ? null : (
             <p role="alert" className="text-sm font-medium text-stamp">
-              {pickError}
+              {error}
             </p>
           )}
           {/* Not a live region: the runner's toast announces the same sentence. */}

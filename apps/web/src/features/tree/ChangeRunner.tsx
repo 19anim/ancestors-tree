@@ -30,6 +30,11 @@ export interface ChangeRequest {
   seenTree?: TreeState;
   /** The change was applied (not cancelled, blocked or out of date). */
   onDone?: (done: ChangeDone) => void;
+  /**
+   * The change, or its Undo, was not made: the toast's message, for an asker that shows it
+   * itself (a dialog covers the toast).
+   */
+  onFailed?: (text: string) => void;
 }
 
 /** An applied change, for an asker that shows it itself (a dialog, which covers the toast). */
@@ -95,23 +100,28 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
     });
   }, []);
 
+  /** Not made: the toast says why, and so does the asker. */
+  const fail = useCallback(
+    (request: ChangeRequest, text: string) => {
+      show({ kind: 'error', text, request });
+      request.onFailed?.(text);
+    },
+    [show],
+  );
+
   /** Undoes the change while it is the latest one (spec §7.6 "Undo"); a failure is told. */
   const undoChange = useCallback(
     (op: Op, request: ChangeRequest) => {
       const store = useTreeStore.getState();
       if (store.undoStack.at(-1)?.op !== op) return;
       const result = store.undo();
-      show(
-        result !== null && !result.ok
-          ? {
-              kind: 'error',
-              text: t('tree.undo.failed', { reason: applyFailureMessage(t, result.reason) }),
-              request,
-            }
-          : null,
-      );
+      if (result !== null && !result.ok) {
+        fail(request, t('tree.undo.failed', { reason: applyFailureMessage(t, result.reason) }));
+      } else {
+        show(null);
+      }
     },
-    [show, t],
+    [fail, show, t],
   );
 
   const run = useCallback(
@@ -125,13 +135,9 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
       }
       setAsking(null);
       if (decision.kind === 'outOfDate') {
-        show({ kind: 'error', text: t('tree.outOfDate'), request });
+        fail(request, t('tree.outOfDate'));
       } else if (decision.kind === 'blocked') {
-        show({
-          kind: 'error',
-          text: t('tree.relate.failed', { reason: blockMessage(t, decision.reason) }),
-          request,
-        });
+        fail(request, t('tree.relate.failed', { reason: blockMessage(t, decision.reason) }));
       } else {
         const { op, summary } = decision;
         const applied = store.apply(op);
@@ -140,16 +146,15 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
           show({ kind: 'done', text, op, request });
           request.onDone?.({ op, text, undo: () => undoChange(op, request) });
         } else {
-          show({
-            kind: 'error',
-            text: t('tree.relate.failed', { reason: applyFailureMessage(t, applied.reason) }),
+          fail(
             request,
-          });
+            t('tree.relate.failed', { reason: applyFailureMessage(t, applied.reason) }),
+          );
         }
       }
       focusAfter(request);
     },
-    [focusAfter, show, t, undoChange],
+    [fail, focusAfter, show, t, undoChange],
   );
 
   const requestChange = useCallback<RequestChange>(
