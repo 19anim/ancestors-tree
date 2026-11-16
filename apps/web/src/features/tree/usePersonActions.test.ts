@@ -11,14 +11,36 @@ describe('availableActions', () => {
       'addChild',
       'addSpouse',
       'addParent',
+      'changeRelationship',
       'delete',
     ]);
-    expect(availableActions(tree, GRANDPA, false)).toEqual(['addChild', 'addSpouse', 'delete']);
+    expect(availableActions(tree, GRANDPA, false)).toEqual([
+      'addChild',
+      'addSpouse',
+      'changeRelationship',
+      'delete',
+    ]);
   });
 
   it('does not offer Add parent to in-laws or to someone with both parents', () => {
     expect(availableActions(tree, GRANDMA, true)).not.toContain('addParent');
     expect(availableActions(tree, SON, true)).not.toContain('addParent');
+  });
+
+  it('offers Change relationship… after Add parent, to every person', () => {
+    expect(availableActions(tree, SON, false)).toEqual([
+      'addChild',
+      'addSpouse',
+      'changeRelationship',
+      'delete',
+    ]);
+    expect(availableActions(tree, LOOSE, false)).toEqual([
+      'addChild',
+      'addSpouse',
+      'addParent',
+      'changeRelationship',
+      'delete',
+    ]);
   });
 
   it('offers it to an unlinked person without parents', () => {

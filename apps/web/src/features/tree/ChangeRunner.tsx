@@ -206,8 +206,10 @@ function ChangeToast({
       >
         {/* Always in the accessibility tree, so each new message is announced; the message is
             keyed on the toast, so the same text again is a new node, announced again. An alert is
-            announced as it appears, so it is there only with its message (as the page's own). */}
-        <p role="status" className="text-sm text-ink empty:sr-only">
+            announced as it appears, so it is there only with its message (as the page's own).
+            aria-live is explicit: a modal dialog hides the page from screen readers except live
+            regions marked so, and "Change relationship…" makes changes from a dialog. */}
+        <p role="status" aria-live="polite" className="text-sm text-ink empty:sr-only">
           {toast?.kind === 'done' ? <span key={toast.id}>{toast.text}</span> : null}
         </p>
         {toast?.kind === 'error' ? (

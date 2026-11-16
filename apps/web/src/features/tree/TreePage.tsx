@@ -79,6 +79,9 @@ export function TreePage() {
           case 'addParent':
             changeDialog({ kind: 'parent', personId: id });
             return;
+          case 'changeRelationship':
+            changeDialog({ kind: 'relationships', personId: id });
+            return;
           case 'moveEarlier':
           case 'moveLater': {
             const tree = useTreeStore.getState().tree;

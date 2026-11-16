@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOutletContext } from 'react-router';
 import { AddSeveralDialog } from './AddSeveralDialog';
+import { ChangeRelationshipDialog } from './ChangeRelationshipDialog';
 import { DeletePersonDialog } from './DeletePersonDialog';
 import {
   addChildOp,
@@ -21,7 +22,7 @@ import { useTreeStore } from './store';
 export type TreeDialog =
   | { kind: 'first' }
   | { kind: 'several' }
-  | { kind: 'child' | 'spouse' | 'parent' | 'delete'; personId: string }
+  | { kind: 'child' | 'spouse' | 'parent' | 'delete' | 'relationships'; personId: string }
   | null;
 
 /**
@@ -198,6 +199,14 @@ export function TreeDialogs({
         />
       );
     }
+    case 'relationships':
+      return (
+        <ChangeRelationshipDialog
+          personId={person.id}
+          onClose={close}
+          onCloseAutoFocus={onCloseAutoFocus}
+        />
+      );
     case 'delete':
       return (
         <DeletePersonDialog

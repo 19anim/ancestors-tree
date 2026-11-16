@@ -10,6 +10,7 @@ import {
   Baby,
   Crown,
   HeartPlus,
+  Link2,
   Trash2,
   UserRoundPlus,
   type LucideIcon,
@@ -18,7 +19,14 @@ import { createContext } from 'react';
 import { parentSlot } from './ops';
 
 export type PersonActionId =
-  'addChild' | 'addSpouse' | 'addParent' | 'moveEarlier' | 'moveLater' | 'setProgenitor' | 'delete';
+  | 'addChild'
+  | 'addSpouse'
+  | 'addParent'
+  | 'changeRelationship'
+  | 'moveEarlier'
+  | 'moveLater'
+  | 'setProgenitor'
+  | 'delete';
 
 /** The sibling just before or after the person, as the chart orders them; null when none. */
 export function siblingNeighbour(
@@ -49,6 +57,7 @@ export function availableActions(
   const inLaw = classifyLineage(tree, index).get(personId) === 'in-law';
   const slot = parentSlot(tree, index, personId).kind;
   if (!inLaw && slot !== 'full' && (!isProgenitor || isOwner)) actions.push('addParent');
+  actions.push('changeRelationship');
   if (siblingNeighbour(tree, index, personId, 'earlier') !== null) actions.push('moveEarlier');
   if (siblingNeighbour(tree, index, personId, 'later') !== null) actions.push('moveLater');
   if (isOwner && !isProgenitor) actions.push('setProgenitor');
@@ -60,6 +69,7 @@ export const ACTION_ICONS: Record<PersonActionId, LucideIcon> = {
   addChild: Baby,
   addSpouse: HeartPlus,
   addParent: UserRoundPlus,
+  changeRelationship: Link2,
   moveEarlier: ArrowLeft,
   moveLater: ArrowRight,
   setProgenitor: Crown,
