@@ -42,7 +42,7 @@ P6c lets editors change relationships four ways: dragging a card onto another, t
 - One new dependency, `@dnd-kit/core`, used only by the tree page, which is loaded lazily (ADR 0007).
 - The rules are shared and pure, so a future server-side "relate" endpoint or the AI import (spec §10) can reuse them, and they are tested in `packages/shared` with the other tree rules.
 - Every way in gives the same answer, the same questions and the same Undo, because only the trigger differs.
-- The nudge (P7) will add a display offset to the "near its place" drop, which today only cancels the drag.
+- The nudge (P7) will add a display offset to a drop near the card's place. Today only a drop on the card itself (the faded original) cancels; a drop near it that lands on a neighbouring card relates to that card. P7 must decide how "near its place" sits beside the neighbours' drop zones.
 
 **Known limits.**
 
