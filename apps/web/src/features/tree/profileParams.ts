@@ -7,9 +7,16 @@ export const PERSON_PARAM = 'person';
 /** Opens a person's profile from a card; set by the tree page, so cards need no router hooks. */
 export const OpenPersonContext = createContext<((id: string) => void) | null>(null);
 
-/** A person's card button, on the board or in the tray: where focus returns. */
+/**
+ * Where focus returns for a person: their card button, on the board or in the tray. A card in a
+ * collapsed tray stack cannot take focus, so its stack's toggle does; null when neither can.
+ */
 export function personCardButton(id: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`[data-person-open="${id}"]`);
+  const card = document.querySelector<HTMLElement>(`[data-person-open="${id}"]`);
+  if (card === null || card.closest('[hidden]') === null) return card;
+  const stack = card.closest<HTMLElement>('[data-stack-of]')?.dataset.stackOf;
+  if (stack === undefined) return null;
+  return document.querySelector<HTMLElement>(`[data-stack-toggle="${stack}"]`);
 }
 
 export function personParam(search: string): string | null {

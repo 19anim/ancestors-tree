@@ -3,11 +3,14 @@ import { buildTreeIndex } from '@ancestors-tree/shared/tree';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOutletContext } from 'react-router';
+import { AddSeveralDialog } from './AddSeveralDialog';
+import { ChangeRelationshipDialog } from './ChangeRelationshipDialog';
 import { DeletePersonDialog } from './DeletePersonDialog';
 import {
   addChildOp,
   addFirstPersonOp,
   addParentOp,
+  addSeveralOp,
   addSpouseOp,
   deletePersonOp,
   parentSlot,
@@ -17,7 +20,10 @@ import { personCardButton } from './profileParams';
 import { useTreeStore } from './store';
 
 export type TreeDialog =
-  { kind: 'first' } | { kind: 'child' | 'spouse' | 'parent' | 'delete'; personId: string } | null;
+  | { kind: 'first' }
+  | { kind: 'several' }
+  | { kind: 'child' | 'spouse' | 'parent' | 'delete' | 'relationships'; personId: string }
+  | null;
 
 /**
  * The tree page's dialog, and where focus goes when the last one closes (WCAG 2.4.3). The
@@ -35,7 +41,7 @@ export function useTreeDialog() {
       const active = document.activeElement;
       opener.current = {
         element: active instanceof HTMLElement ? active : null,
-        personId: next.kind === 'first' ? null : next.personId,
+        personId: 'personId' in next ? next.personId : null,
       };
     }
     current.current = next;
@@ -94,7 +100,7 @@ export function TreeDialogs({
   // A dialog whose person is gone (deleted meanwhile, for example by a reload after a conflict)
   // is reset, so the next dialog records its opener again.
   const missing =
-    dialog !== null && dialog.kind !== 'first' && tree.persons[dialog.personId] === undefined;
+    dialog !== null && 'personId' in dialog && tree.persons[dialog.personId] === undefined;
   useEffect(() => {
     if (missing) onDialogChange(null);
   }, [missing, onDialogChange]);
@@ -110,6 +116,15 @@ export function TreeDialogs({
           if (result.ok) onFirstPersonAdded(op.payload.id);
           return result;
         }}
+        onClose={close}
+        onCloseAutoFocus={onCloseAutoFocus}
+      />
+    );
+  }
+  if (dialog.kind === 'several') {
+    return (
+      <AddSeveralDialog
+        onSubmit={(inputs) => apply(addSeveralOp(inputs))}
         onClose={close}
         onCloseAutoFocus={onCloseAutoFocus}
       />
@@ -184,6 +199,14 @@ export function TreeDialogs({
         />
       );
     }
+    case 'relationships':
+      return (
+        <ChangeRelationshipDialog
+          personId={person.id}
+          onClose={close}
+          onCloseAutoFocus={onCloseAutoFocus}
+        />
+      );
     case 'delete':
       return (
         <DeletePersonDialog

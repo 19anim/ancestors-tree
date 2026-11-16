@@ -324,7 +324,7 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 **Tính ra, không lưu:**
 - **Số đời** — `computeGenerations()`: thuỷ tổ là đời 1, con là đời 2…; vợ/chồng cùng đời với người kia.
 - **Loại huyết thống** — `classifyLineage()` trả về `'blood' | 'in-law' | 'unlinked'` (§8).
-- Người chưa nối với thuỷ tổ được liệt kê ở mục "Chưa nối vào cây" để người dùng ghép lại.
+- Người chưa nối với thuỷ tổ nằm trong mục "Ảnh chưa dán" để người dùng ghép lại.
 
 **Giới hạn thiết kế:** tối đa 5.000 người mỗi dòng họ. Cả cây tải trong một request (~2 MB trước nén với 2.000 người).
 
@@ -364,7 +364,7 @@ ReminderLog {                    // "sổ ký nhận" chống gửi trùng (§9.
 - `parentUnionId` phải trỏ tới một Union có thật trong cùng dòng họ.
 - Không có vòng lặp (không ai là tổ tiên của chính mình).
 - Không xoá được thuỷ tổ khi chưa chọn thuỷ tổ khác.
-- Dòng họ mới tạo chưa có thuỷ tổ. Quản lý chọn thuỷ tổ ngay trên cây bằng `setProgenitor`; thêm người đầu tiên không tự chọn thuỷ tổ. Trước đó mọi người nằm ở mục "Chưa nối vào cây".
+- Dòng họ mới tạo chưa có thuỷ tổ. Quản lý chọn thuỷ tổ ngay trên cây bằng `setProgenitor`; thêm người đầu tiên không tự chọn thuỷ tổ. Trước đó mọi người đều nằm trong mục "Ảnh chưa dán".
 
 API trả lời một luật bị vi phạm bằng `RULE_VIOLATION` (422) kèm mã `OpError` trong `reason` (ví dụ `PERSON_HAS_CHILDREN`); giao diện hiện luật đó bằng lời đã dịch.
 
@@ -559,34 +559,50 @@ Thanh trên cùng của trang cây, từ trái sang phải: tên dòng họ (ho�
   - Đã có đủ hai người: không có thao tác này.
   - Trên thuỷ tổ, chỉ Quản lý thấy thao tác này, với ô "Đặt người này làm thuỷ tổ (đời thứ 1)" đánh dấu sẵn; batch khi đó kết thúc bằng `setProgenitor`, vẫn là một bước hoàn tác. Người có quyền sửa không thấy thao tác này trên thuỷ tổ.
   - Không có trên thẻ dâu/rể: cha mẹ của họ thuộc gia đình gốc (§8), không thuộc cây này.
-- Menu chuột phải (và các nút trong panel trên thiết bị cảm ứng), danh sách đầy đủ khi các tính năng lần lượt có: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… (P6c) · Nối với cây gia phả khác (P10) · Trang trí thẻ này… (§13.4) · Xoá.
+- Menu chuột phải (và các nút trong panel trên thiết bị cảm ứng), danh sách đầy đủ khi các tính năng lần lượt có: Thêm con · Thêm vợ/chồng · Thêm cha/mẹ (nếu chưa có) · Đổi quan hệ… (P6c) · Xếp lên trước · Xếp ra sau (trong anh chị em, P6c) · Nối với cây gia phả khác (P10) · Trang trí thẻ này… (§13.4) · Xoá.
 - Người mới được tạo qua form và nhập bằng AI (§10), không bao giờ bằng kéo thả. Kéo thả chỉ dùng để **đổi quan hệ**.
-- **Thêm nhiều người** (chỉ người có quyền sửa), mở từ thanh công cụ của cây và từ cột **Ảnh chưa dán**. Dành cho gia đình biết tên trước khi biết ai ở đâu trong cây.
+- **Thêm nhiều người** (chỉ người có quyền sửa), mở từ thanh công cụ của cây và từ mục **Ảnh chưa dán**. Dành cho gia đình biết tên trước khi biết ai ở đâu trong cây.
   - Form có mỗi người một dòng: họ tên, giới tính, còn sống/đã mất. Điền xong dòng cuối thì hiện thêm một dòng mới; dòng để trống bị bỏ qua.
   - Lưu thì gửi một op `batch` gồm các op `addPerson` không kèm quan hệ (tối đa 500 dòng, và vẫn tính giới hạn 5.000 người của cây), nên chỉ là một bước hoàn tác.
-  - Người mới vào cột **Ảnh chưa dán**. Từ đó kéo họ lên cây, hoặc dùng "Đổi quan hệ…" bằng bàn phím để đặt vào chỗ.
+  - Khi đã có ít nhất một dòng có tên, bấm Esc hay bấm ra ngoài sẽ không đóng form nữa; chỉ nút **Huỷ** hoặc ✕ mới đóng, để tên đã gõ không bị mất vì lỡ tay.
+  - Người mới vào mục **Ảnh chưa dán**. Từ đó kéo họ lên cây, hoặc dùng "Đổi quan hệ…" bằng bàn phím để đặt vào chỗ.
 
 **Kéo thả để đổi quan hệ (chỉ người có quyền sửa).** Vị trí luôn do layout tính (§7.4); kéo thả không bao giờ lưu một vị trí tự do.
 
-- **Vùng thả.** Thả thẻ A vào ⅓ trên, ⅓ giữa hoặc ⅓ dưới của thẻ B thì A thành **cha/mẹ**, **vợ/chồng** hoặc **con** của B. Các vùng hiện nhãn trên thẻ B khi rê tới, và dòng trạng thái nói chính xác lần thả sẽ làm gì.
+- **Một bộ quy tắc cho mọi cách làm (P6c).** Kéo thả, **Đổi quan hệ…** và **Cắt chỉ** đều tạo op bằng cùng các quy tắc thuần trong `packages/shared/src/tree/relate.ts`. Với "đặt A làm cha/mẹ, vợ/chồng hoặc con của B" hay "xếp A trước hoặc sau B trong anh chị em", quy tắc trả về một trong ba thứ: một op `batch` kèm câu nói rõ nó làm gì ("Lan thành con của Nam và Hoa"), một câu hỏi tiếp, hoặc một lý do bị chặn.
+- **Bắt đầu kéo.** Với chuột, kéo bắt đầu khi giữ nút và di quá khoảng 6 px. Tấm ảnh được nhấc lên đi theo con trỏ, hơi nghiêng và có bóng; tấm gốc mờ đi tại chỗ. Người chỉ xem không kéo được.
+- **Vùng thả.** Thả thẻ A vào ⅓ trên, ⅓ giữa hoặc ⅓ dưới của thẻ B thì A thành **cha/mẹ**, **vợ/chồng** hoặc **con** của B. Khi A và B là anh chị em, mép trái và mép phải của B (mỗi bên khoảng một phần năm) xếp A **trước** hoặc **sau** B, và cả nhóm được đánh số lại `siblingOrder` 1, 2, 3… trong một op `batch`. Các vùng hiện nhãn trên thẻ B khi rê tới ("Làm cha/mẹ", "Làm vợ/chồng", "Làm con", "Xếp trước", "Xếp sau"), và một dòng trạng thái (live region lịch sự) nói chính xác lần thả sẽ làm gì. Quy tắc chỉ chạy lại khi đổi thẻ đích hoặc đổi vùng.
+- **Mép bảng.** Kéo tới gần mép bảng thì bảng tự trượt, để với tới các thẻ ở xa.
 - **Thay thế, không chồng thêm.** Quan hệ trực tiếp đang có giữa A và B (vợ chồng, cha mẹ hoặc con) được thay bằng quan hệ mới. Khi một cặp vợ chồng đổi thành cha mẹ – con, các con chung ở lại với người trở thành con.
 - **Hỏi tiếp thay vì ngõ cụt.**
   - Nếu B có nhiều vợ/chồng, đặt A làm con của B sẽ hỏi "con của B với ai?" (hoặc "chỉ B").
   - Nếu B đã có đủ cha và mẹ, đặt A làm cha/mẹ của B sẽ hỏi A thay cho ai.
   - Nếu một trong hai người có con mới chỉ biết một cha/mẹ, đặt A và B làm vợ chồng sẽ hỏi đó có phải con chung không.
   - Câu hỏi nào cũng có lựa chọn "Thôi, không đổi".
-- **Chỉ chặn điều không thể.** Lần thả chỉ bị chặn khi tạo ra trạng thái không thể có, ví dụ một người thành tổ tiên của chính mình qua người khác. Vùng bị chặn được gạch ngang kèm lý do trước khi thả, và lý do chỉ cách làm tiếp. Bước kiểm tra chạy đúng `applyOp` của server, nên giao diện không bao giờ nhận một lần thả mà server sẽ từ chối.
-- **Hoàn tác.** Mỗi lần thả thành công là một op `batch`, tức là một bước hoàn tác. Một thông báo xác nhận thay đổi kèm nút "Hoàn tác".
-- **Huỷ khi đang kéo.** Bấm Esc, hoặc thả thẻ ra chỗ trống cách vị trí cũ hơn khoảng một tấm ảnh.
+- **Chỉ chặn điều không thể.** Lần thả chỉ bị chặn khi tạo ra trạng thái không thể có, ví dụ một người thành tổ tiên của chính mình qua người khác. Vùng bị chặn được gạch ngang kèm lý do trước khi thả, và lý do chỉ cách làm tiếp. Lỡ thả vào vùng bị gạch thì không có gì thay đổi, và chỗ thông báo nói rõ lý do. Bước kiểm tra chạy đúng `applyOp` của server, nên giao diện không bao giờ nhận một lần thả mà server sẽ từ chối. Thuỷ tổ là đời 1, nên kéo thả hay **Đổi quan hệ…** đều không thêm cha/mẹ cho thuỷ tổ, bằng bất kỳ đường nào: không trực tiếp, cũng không qua cha/mẹ của anh chị em, hay qua cuộc hôn nhân mới của cha/mẹ khi con là con chung. Chỉ Quản lý dùng **Thêm cha/mẹ** để thêm đời trên.
+- **Hoàn tác.** Mỗi lần thả thành công là một op `batch`, tức là một bước hoàn tác. Một thông báo xác nhận thay đổi kèm nút "Hoàn tác". Nút này chỉ hoàn tác khi thay đổi đó vẫn là thay đổi mới nhất: có thay đổi khác sau nó thì nút biến mất, còn nút ↶ trên thanh công cụ vẫn hoàn tác từng bước như thường. Nếu một nút trên thông báo đang giữ focus mà biến mất (bị đóng, hoặc thay đổi đã được hoàn tác ở chỗ khác), focus chuyển sang thẻ vừa đổi (hoặc về chỗ cũ), không bao giờ rơi ra ngoài trang.
+- **Huỷ khi đang kéo.** Bấm Esc, thả thẻ ra chỗ trống, hoặc thả lại đúng chỗ cũ (lên tấm ảnh đang mờ). Ảnh chưa dán thả lại vào mục cũng là huỷ. Huỷ thì không gửi op nào và không có thông báo.
+- **Sau khi thả.** Focus nằm ở thẻ A tại vị trí mới và được đưa vào khung nhìn. Nếu cây thay đổi trong lúc kéo hoặc lúc câu hỏi đang mở, quy tắc chạy lại trên cây mới ngay trước khi áp dụng; nếu kết quả không còn như cũ, hiện thông báo "cây vừa có thay đổi" và không áp dụng gì.
 - **Cắt chỉ.**
-  - Bấm vào sợi chỉ hoặc ghim đỏ của nó, hay nút tròn giữa hai vợ chồng, để hiện nút **Cắt chỉ**.
-  - Cắt sợi chỉ cha mẹ → con là `setParents(null)`.
+  - Bấm vào sợi chỉ hoặc ghim đỏ của nó, hay nút tròn giữa hai vợ chồng, để hiện nút **Cắt chỉ** trong một khung nhỏ. Ghim và nút tròn chỉ là nút cho chuột/ngón tay, không phải điểm dừng Tab (cây lớn có hàng trăm cái); bằng bàn phím, nút **Gỡ** trong **Đổi quan hệ…** làm cùng việc đó.
+  - Cắt sợi chỉ cha mẹ → con là `setParents(null)`: người con rời Union đó (cả cha lẫn mẹ, hoặc người cha/mẹ duy nhất).
   - Cắt quan hệ vợ chồng có con chung sẽ hỏi các con ở lại với ai; người còn lại được gỡ khỏi Union đó bằng `updateUnion`.
-  - Ly hôn mà cả hai vẫn là cha mẹ thì ghi trạng thái Union `divorced` (đường khâu đứt quãng), không cắt chỉ.
-- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào cột **Ảnh chưa dán** chứ không bị xoá. Người thêm bằng **Thêm nhiều người** cũng bắt đầu ở đây. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây.
-- **Xê dịch.** Thả thẻ cách vị trí cũ chưa tới khoảng một tấm ảnh thì thẻ giữ một độ lệch hiển thị nhỏ, giúp sợi chỉ ngắn vẫn dễ bấm. Độ lệch lưu theo từng máy (localStorage), không phải op và không chia sẻ cho người khác. Nút **Xếp lại gọn** xoá hết độ lệch.
-- **Cảm ứng.** Nhấn giữ khoảng 400 ms để nhấc thẻ lên; vuốt bình thường vẫn là di chuyển cây.
-- **Bàn phím và trình đọc màn hình.** Mục **Đổi quan hệ…** trong menu của thẻ liệt kê từng quan hệ kèm nút **Gỡ**, và có các lựa chọn thêm hoặc thay như trên.
+  - Ly hôn mà cả hai vẫn là cha mẹ thì ghi trạng thái Union `divorced`, không cắt chỉ. Nút tròn giữa hai vợ chồng được tô kín; đã ly hôn thì nút là một vòng tròn rỗng, và đường khâu đứt ở hai bên nút.
+- **Ảnh chưa dán.** Ai không còn nối với cây thì chuyển vào mục **Ảnh chưa dán** chứ không bị xoá. Người thêm bằng **Thêm nhiều người** cũng bắt đầu ở đây. Một nhánh bị tách ra đi cùng nhau thành một xấp ảnh và có thể thả lại lên cây. Mục này gom người chưa nối theo nhánh: mỗi xấp hiện ảnh của người đứng đầu nhánh kèm "+3 người", kéo người đó là kéo cả nhánh (quan hệ bên trong nhánh không đổi), và mở xấp ra thì thấy từng người.
+  - Chỉ kéo được người nằm trên cùng của xấp ra khỏi mục; những người khác hiện ra khi mở xấp.
+  - Người nằm trên cùng là người không có cha mẹ trong xấp và có nhiều con cháu trong xấp nhất. Nếu hai vợ chồng ngang nhau thì người có mặt trước đứng đầu: khi nối vợ/chồng, người được nối tới đứng đầu `partnerIds` của Union.
+  - Thả một thẻ vào mục thì tách người đó khỏi cây, tuỳ theo huyết thống. Người trong họ rời cha mẹ và kéo theo cả nhánh của mình. Dâu/rể rời các cuộc hôn nhân với người trong họ (con cái vẫn ở lại trên cây), nhưng giữ quan hệ với cha mẹ ruột, vốn đã nằm ngoài cây, nên vào chung xấp với gia đình mình. Người vốn đã nằm trong mục thì không có gì để tách: lần thả bị huỷ, như khi thả ra chỗ trống.
+- **Xê dịch (P7).** Thả thẻ cách vị trí cũ chưa tới khoảng một tấm ảnh thì thẻ sẽ giữ một độ lệch hiển thị nhỏ, giúp sợi chỉ ngắn vẫn dễ bấm. Độ lệch lưu theo từng máy (localStorage), không phải op và không chia sẻ cho người khác. Nút **Xếp lại gọn** xoá hết độ lệch. Trước P7, chỉ thả lại đúng chỗ cũ mới là huỷ kéo; thả gần đó mà trúng thẻ khác thì là đổi quan hệ với thẻ đó.
+- **Cảm ứng.** Nhấn giữ khoảng 400 ms (ngón tay xê dịch dưới khoảng 8 px) để nhấc thẻ lên; vuốt bình thường, kể cả bắt đầu trên một thẻ, vẫn là di chuyển cây. Trên cảm ứng, nhấn giữ chỉ để kéo: nó không mở menu của thẻ, vì các thao tác đã có trong các nút của panel hồ sơ.
+- **Bàn phím và trình đọc màn hình.** Mục **Đổi quan hệ…** trong menu của thẻ (cũng là một nút trong panel hồ sơ) mở một hộp thoại dùng cùng quy tắc với kéo thả.
+  - Hộp thoại liệt kê cha mẹ, vợ/chồng và con của người đó theo nhóm, mỗi dòng có nút **Gỡ**. Gỡ vợ/chồng mà có con chung thì hỏi các con ở lại với ai.
+  - Gỡ một người con (nút **Gỡ** trong nhóm Con) chỉ gỡ đứa con khỏi người này; người con vẫn giữ cha hoặc mẹ còn lại (nếu có). Khác với **Cắt chỉ** trên sợi chỉ của cây, vốn tách đứa con khỏi cả cặp cha mẹ (cả Union).
+  - Mỗi cuộc hôn nhân có thêm tình trạng (đang kết hôn, đã ly hôn, goá), đổi bằng `updateUnion`.
+  - **Thêm hoặc thay**: chọn cha/mẹ, vợ/chồng hoặc con, rồi chọn người kia trong danh sách tìm theo tên (người trên cây và trong mục Ảnh chưa dán), rồi bấm **Áp dụng**. Các câu hỏi tiếp giống như khi kéo. Lựa chọn bị chặn vẫn nằm trong danh sách kèm lý do và có `aria-disabled`.
+  - Ô tìm kiếm không phân biệt dấu và chữ hoa ("dung" tìm ra "Dũng") và liệt kê tối đa 20 người. Số người tìm được hiện ra và được đọc lên ("Tìm thấy 7 người."); khi quá 20 thì có thêm câu báo danh sách chỉ hiện 20 người đầu, gõ thêm để thu hẹp.
+  - **Xếp lên trước** và **Xếp ra sau** trong menu của thẻ đổi thứ tự trong anh chị em; mỗi mục chỉ hiện khi bên đó còn anh chị em.
+  - Mỗi thay đổi là một op kèm thông báo có nút Hoàn tác, và đóng hộp thoại thì focus quay về thẻ.
+  - Hộp thoại che mất chỗ thông báo, nên tự nhắc lại: thay đổi vừa làm nằm trên một dòng riêng ("Đã đổi: …") kèm nút Hoàn tác theo đúng quy tắc của thông báo (chỉ khi đó vẫn là thay đổi mới nhất). Thay đổi nào không làm được (cây vừa có thay đổi, bị chặn, hoặc áp dụng hay hoàn tác không thành) thì lý do hiện ở chân hộp thoại, đồng thời ở chỗ thông báo.
 
 ### 7.7 PWA
 
@@ -611,7 +627,7 @@ Gia phả Việt Nam truyền thống theo dòng cha, nhưng các gia đình v�
 **Phân loại** (`classifyLineage()`, tính ra chứ không lưu):
 - `blood` — thuỷ tổ và mọi người là hậu duệ của thuỷ tổ qua `parentUnionId`.
 - `in-law` — không cùng huyết thống, nhưng là partner trong một Union với người trong họ.
-- `unlinked` — không thuộc hai loại trên; liệt kê ở "Chưa nối vào cây".
+- `unlinked` — không thuộc hai loại trên; nằm trong mục "Ảnh chưa dán".
 
 **Luật hiển thị:**
 - Dâu/rể đặt **cạnh vợ/chồng là người trong họ** (theo `Union.order`) và không bao giờ mở rộng lên trên, nên layout luôn là cây hậu duệ thuần (§7.4).
@@ -893,10 +909,10 @@ Giao diện không được trông như template SaaS do AI sinh ra. Đối tư�
 | Ảnh polaroid | một người: ảnh (hoặc chữ cái đầu trên nền màu nhạt), chú thích viết tay và một dòng chữ nhỏ bên dưới |
 | Màu băng dính washi (hoặc màu đinh ghim / nam châm, §13.4) | chi của người đó, lấy từ bảng màu Okabe–Ito an toàn cho người mù màu. Thuỷ tổ dán băng đỏ cam; dâu/rể dán băng xám trung tính |
 | Sợi chỉ có ghim đỏ ở cuối | cha mẹ → con |
-| Đường khâu chấm chấm có nút tròn | vợ chồng |
+| Đường khâu chấm chấm có nút tròn tô kín | vợ chồng; đã ly hôn thì nút là một vòng tròn rỗng, đường khâu đứt ở hai bên nút |
 | Dòng dưới chú thích: "Giỗ 15/10 ÂL" | ngày giỗ (ngày âm lịch). Chữ mono màu `photo-muted`, không con dấu, không nghiêng, không màu đỏ, vì đây là ngày tưởng nhớ người đã khuất |
 | Sticker vàng tròn có hình bánh kem vẽ nét | sinh nhật: icon Lucide `Cake` phía trên ngày dương ("21/11"); chữ cho trình đọc màn hình là "Sinh nhật 21/11" |
-| Cột "Ảnh chưa dán" | người chưa nối với cây (§7.6) |
+| Mục "Ảnh chưa dán" | người chưa nối với cây (§7.6) |
 
 Dòng dưới chú thích hiện ngày giỗ với người đã mất có ngày mất âm lịch (do người dùng nhập, hoặc tính ra từ ngày dương đầy đủ), và hiện năm sinh–mất ("1990–") với mọi người khác, nên mọi thẻ đầy đủ cao bằng nhau (thẻ cao thêm từ 124 px lên khoảng 138 px). Năm ước chừng hiện là "~1920", trình đọc màn hình đọc là "khoảng năm 1920". Sticker sinh nhật vẫn dán ở góc ảnh, chỉ cho người còn sống đã biết ngày và tháng sinh dương lịch (do nhập hoặc tính ra).
 

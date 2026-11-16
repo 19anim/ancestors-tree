@@ -21,7 +21,7 @@ test('build a small family tree and find it again after a reload', async ({ page
   // The first person waits in the tray until the Manager makes them the progenitor.
   await page.getByRole('button', { name: 'Thêm người đầu tiên' }).click();
   await addPerson(page, 'Phạm Văn Cả');
-  const tray = page.getByRole('region', { name: 'Chưa nối vào cây' });
+  const tray = page.getByRole('region', { name: 'Ảnh chưa dán' });
   await expect(tray.getByText('Phạm Văn Cả')).toBeVisible();
   const panel = await openProfile(page, 'Phạm Văn Cả');
   await panel.getByRole('button', { name: 'Chọn làm thuỷ tổ' }).click();

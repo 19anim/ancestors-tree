@@ -283,7 +283,7 @@
     "loading": "Loading the family tree…",
     "board": {
       "label": "Family tree: {{name}}",
-      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Not yet linked” below.",
+      "noProgenitor": "No progenitor has been chosen yet. The Manager chooses one under “Loose photos” below.",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fitView": "Show the whole tree",
@@ -325,12 +325,44 @@
       "addChild": "Add a child",
       "addSpouse": "Add a spouse",
       "addParent": "Add parent",
+      "changeRelationship": "Change relationship…",
+      "moveEarlier": "Move earlier",
+      "moveLater": "Move later",
       "setProgenitor": "Set as progenitor",
       "delete": "Delete this person"
     },
+    "relationships": {
+      "title": "Change relationships of {{name}}",
+      "parents": "Parents",
+      "spouses": "Spouses",
+      "children": "Children",
+      "none": "No one yet.",
+      "remove": "Remove",
+      "removeParent": "Remove parent: {{name}}",
+      "removeSpouse": "Remove spouse: {{name}}",
+      "removeChild": "Remove child: {{name}}",
+      "statusOf": "Marriage status with {{name}}",
+      "add": "Add or replace",
+      "relation": "The other person is",
+      "asParent": "A parent of {{name}}",
+      "asSpouse": "A spouse of {{name}}",
+      "asChild": "A child of {{name}}",
+      "search": "Search by name",
+      "results": "People found",
+      "found": "People found: {{count}}.",
+      "narrow": "Showing the first {{max}}. Type more to narrow it down.",
+      "inTray": "Loose photos",
+      "noMatch": "No one has that name.",
+      "pick": "Choose someone from the list.",
+      "apply": "Apply",
+      "close": "Done"
+    },
     "unlinked": {
-      "title": "Not yet linked",
-      "hint": "These people are not linked to the progenitor yet, so they are not on the chart."
+      "title": "Loose photos",
+      "hint": "These people are not linked to the progenitor yet, so they are not on the chart. Each stack is one branch.",
+      "more": "+{{count}} more",
+      "stackToggle": "+{{count}} more in {{name}}’s stack",
+      "stackList": "{{name}}’s stack"
     },
     "profile": {
       "close": "Close the profile",
@@ -430,6 +462,89 @@
       "parents": "the parents",
       "couple": "two people",
       "pair": "{{first}} and {{second}}"
+    },
+    "several": {
+      "open": "Add several people",
+      "title": "Add several people",
+      "hint": "One person per row. They go to Loose photos; then drag each onto the tree or use “Change relationship…”.",
+      "row": "Person {{n}}",
+      "none": "Enter at least one full name.",
+      "full": "You can add up to 500 people at a time."
+    },
+    "relate": {
+      "someone": "(a deleted person)",
+      "and": "{{a}} and {{b}}",
+      "toast": "Changed: {{change}}",
+      "failed": "Could not change it: {{reason}}",
+      "undoThis": "Undo this change",
+      "dismiss": "Dismiss",
+      "done": {
+        "parent": "{{a}} becomes a parent of {{b}}",
+        "spouse": "{{a}} and {{b}} become spouses",
+        "child": "{{a}} becomes the child of {{b}}",
+        "childWith": "{{a}} becomes the child of {{b}} and {{with}}",
+        "before": "{{a}} goes before {{b}}",
+        "after": "{{a}} goes after {{b}}",
+        "notChildOf": "{{a}} is no longer the child of {{parents}}",
+        "cutMarriage": "{{a}} and {{b}} are no longer spouses",
+        "cutAlone": "The children no longer have {{a}} as a parent",
+        "status": "Marriage of {{a}} and {{b}}: {{status}}",
+        "detach": "{{a}} moves to Loose photos"
+      },
+      "status": {
+        "married": "Married",
+        "divorced": "Divorced",
+        "widowed": "Widowed"
+      },
+      "blocked": {
+        "SAME_PERSON": "A person cannot be linked to themselves.",
+        "ALREADY": "This relationship is already there.",
+        "IN_LAW_PARENT": "The parents of someone who married in go under Birth family in their profile.",
+        "NOT_SIBLINGS": "Only siblings with the same parents can be put in order.",
+        "TOO_MANY_SIBLINGS": "This group has more than 99 siblings, so it cannot be renumbered.",
+        "IS_PROGENITOR": "The progenitor cannot move to Loose photos. Choose another progenitor first.",
+        "PROGENITOR_PARENT": "The progenitor is generation 1. To add a generation above, the Manager uses Add parent, or sets the other person as the progenitor first."
+      },
+      "ask": {
+        "cancel": "Cancel, change nothing",
+        "withWhom": "{{a}} is the child of {{b}} with whom?",
+        "withPartner": "Child of {{b}} and {{partner}}",
+        "onlyOf": "Only the child of {{b}}",
+        "replaceParent": "{{b}} already has two parents. Who does {{a}} replace?",
+        "replaces": "Replace {{name}}",
+        "sharedChildren": "Are {{names}} the children of both {{a}} and {{b}}?",
+        "shared": "Yes, they are both theirs",
+        "notShared": "No",
+        "keepChildren": "Who do the children stay with?",
+        "keepWith": "With {{name}}"
+      }
+    },
+    "drag": {
+      "lifted": "Dragging {{name}}. Drop on another card, or press Esc to cancel.",
+      "willDo": "Drop to: {{change}}",
+      "willAsk": "{{target}}: one more question when you drop.",
+      "blocked": "{{target}}: not possible. {{reason}}",
+      "zone": {
+        "parent": "Parent",
+        "spouse": "Spouse",
+        "child": "Child",
+        "before": "Before",
+        "after": "After"
+      },
+      "target": {
+        "parent": "Parent of {{name}}",
+        "spouse": "Spouse of {{name}}",
+        "child": "Child of {{name}}",
+        "before": "Before {{name}}",
+        "after": "After {{name}}",
+        "tray": "Move to Loose photos"
+      },
+      "trayDrop": "Drop here to move to Loose photos."
+    },
+    "cut": {
+      "action": "Cut",
+      "thread": "Thread from {{name}} to the parents",
+      "knot": "Marriage knot of {{names}}"
     },
     "form": {
       "firstTitle": "Add the first person",

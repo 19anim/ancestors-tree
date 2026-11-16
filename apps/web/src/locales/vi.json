@@ -283,7 +283,7 @@
     "loading": "Đang tải cây gia phả…",
     "board": {
       "label": "Cây gia phả: {{name}}",
-      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Chưa nối vào cây” bên dưới.",
+      "noProgenitor": "Chưa chọn thuỷ tổ. Người Quản lý chọn thuỷ tổ trong mục “Ảnh chưa dán” bên dưới.",
       "zoomIn": "Phóng to",
       "zoomOut": "Thu nhỏ",
       "fitView": "Xem cả cây",
@@ -325,12 +325,44 @@
       "addChild": "Thêm con",
       "addSpouse": "Thêm vợ/chồng",
       "addParent": "Thêm cha/mẹ",
+      "changeRelationship": "Đổi quan hệ…",
+      "moveEarlier": "Xếp lên trước",
+      "moveLater": "Xếp ra sau",
       "setProgenitor": "Chọn làm thuỷ tổ",
       "delete": "Xoá người này"
     },
+    "relationships": {
+      "title": "Đổi quan hệ của {{name}}",
+      "parents": "Cha mẹ",
+      "spouses": "Vợ/chồng",
+      "children": "Con",
+      "none": "Chưa có ai.",
+      "remove": "Gỡ",
+      "removeParent": "Gỡ cha/mẹ: {{name}}",
+      "removeSpouse": "Gỡ vợ/chồng: {{name}}",
+      "removeChild": "Gỡ con: {{name}}",
+      "statusOf": "Tình trạng hôn nhân với {{name}}",
+      "add": "Thêm hoặc thay",
+      "relation": "Người kia là",
+      "asParent": "Cha/mẹ của {{name}}",
+      "asSpouse": "Vợ/chồng của {{name}}",
+      "asChild": "Con của {{name}}",
+      "search": "Tìm theo tên",
+      "results": "Người tìm được",
+      "found": "Tìm thấy {{count}} người.",
+      "narrow": "Chỉ hiện {{max}} người đầu tiên, gõ thêm để thu hẹp.",
+      "inTray": "Ảnh chưa dán",
+      "noMatch": "Không có ai trùng tên này.",
+      "pick": "Hãy chọn một người trong danh sách.",
+      "apply": "Áp dụng",
+      "close": "Xong"
+    },
     "unlinked": {
-      "title": "Chưa nối vào cây",
-      "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ."
+      "title": "Ảnh chưa dán",
+      "hint": "Những người này chưa nối với thuỷ tổ, nên chưa có trên sơ đồ. Mỗi xấp là một nhánh.",
+      "more": "+{{count}} người",
+      "stackToggle": "+{{count}} người trong xấp của {{name}}",
+      "stackList": "Xấp của {{name}}"
     },
     "profile": {
       "close": "Đóng hồ sơ",
@@ -430,6 +462,89 @@
       "parents": "cha mẹ",
       "couple": "hai người",
       "pair": "{{first}} và {{second}}"
+    },
+    "several": {
+      "open": "Thêm nhiều người",
+      "title": "Thêm nhiều người",
+      "hint": "Mỗi dòng một người. Họ sẽ vào mục Ảnh chưa dán, rồi bạn kéo từng người lên cây hoặc dùng “Đổi quan hệ…”.",
+      "row": "Người thứ {{n}}",
+      "none": "Nhập ít nhất một họ tên.",
+      "full": "Mỗi lần thêm được tối đa 500 người."
+    },
+    "relate": {
+      "someone": "(người đã bị xoá)",
+      "and": "{{a}} và {{b}}",
+      "toast": "Đã đổi: {{change}}",
+      "failed": "Không đổi được: {{reason}}",
+      "undoThis": "Hoàn tác thay đổi này",
+      "dismiss": "Đóng thông báo",
+      "done": {
+        "parent": "{{a}} thành cha/mẹ của {{b}}",
+        "spouse": "{{a}} và {{b}} thành vợ chồng",
+        "child": "{{a}} thành con của {{b}}",
+        "childWith": "{{a}} thành con của {{b}} và {{with}}",
+        "before": "{{a}} xếp trước {{b}}",
+        "after": "{{a}} xếp sau {{b}}",
+        "notChildOf": "{{a}} không còn là con của {{parents}}",
+        "cutMarriage": "{{a}} và {{b}} không còn là vợ chồng",
+        "cutAlone": "Các con không còn là con của {{a}}",
+        "status": "Hôn nhân của {{a}} và {{b}}: {{status}}",
+        "detach": "{{a}} chuyển vào Ảnh chưa dán"
+      },
+      "status": {
+        "married": "Vợ chồng",
+        "divorced": "Đã ly hôn",
+        "widowed": "Goá"
+      },
+      "blocked": {
+        "SAME_PERSON": "Không thể nối một người với chính họ.",
+        "ALREADY": "Quan hệ này đã có rồi.",
+        "IN_LAW_PARENT": "Cha mẹ của dâu, rể được ghi ở mục Gia đình gốc trong hồ sơ của họ.",
+        "NOT_SIBLINGS": "Chỉ xếp được thứ tự giữa anh chị em cùng cha mẹ.",
+        "TOO_MANY_SIBLINGS": "Nhóm anh chị em này có hơn 99 người nên không đánh số lại được.",
+        "IS_PROGENITOR": "Không thể chuyển thuỷ tổ vào Ảnh chưa dán. Hãy chọn thuỷ tổ khác trước.",
+        "PROGENITOR_PARENT": "Thuỷ tổ là đời 1. Muốn thêm đời trên, Quản lý dùng Thêm cha/mẹ, hoặc chọn người kia làm thuỷ tổ trước."
+      },
+      "ask": {
+        "cancel": "Thôi, không đổi",
+        "withWhom": "{{a}} là con của {{b}} với ai?",
+        "withPartner": "Con của {{b}} và {{partner}}",
+        "onlyOf": "Chỉ con của {{b}}",
+        "replaceParent": "{{b}} đã có đủ cha và mẹ. {{a}} thay cho ai?",
+        "replaces": "Thay {{name}}",
+        "sharedChildren": "{{names}} có phải là con chung của {{a}} và {{b}} không?",
+        "shared": "Có, là con chung",
+        "notShared": "Không phải con chung",
+        "keepChildren": "Các con ở với ai?",
+        "keepWith": "Ở với {{name}}"
+      }
+    },
+    "drag": {
+      "lifted": "Đang kéo {{name}}. Thả lên một thẻ khác, hoặc nhấn Esc để huỷ.",
+      "willDo": "Thả để: {{change}}",
+      "willAsk": "{{target}}: khi thả sẽ hỏi thêm một câu.",
+      "blocked": "{{target}}: không được. {{reason}}",
+      "zone": {
+        "parent": "Làm cha/mẹ",
+        "spouse": "Làm vợ/chồng",
+        "child": "Làm con",
+        "before": "Xếp trước",
+        "after": "Xếp sau"
+      },
+      "target": {
+        "parent": "Làm cha/mẹ của {{name}}",
+        "spouse": "Làm vợ/chồng của {{name}}",
+        "child": "Làm con của {{name}}",
+        "before": "Xếp trước {{name}}",
+        "after": "Xếp sau {{name}}",
+        "tray": "Chuyển vào Ảnh chưa dán"
+      },
+      "trayDrop": "Thả vào đây để chuyển vào Ảnh chưa dán."
+    },
+    "cut": {
+      "action": "Cắt chỉ",
+      "thread": "Chỉ nối {{name}} với cha mẹ",
+      "knot": "Nút hôn nhân của {{names}}"
     },
     "form": {
       "firstTitle": "Thêm người đầu tiên",

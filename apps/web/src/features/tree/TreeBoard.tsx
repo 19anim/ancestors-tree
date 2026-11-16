@@ -1,4 +1,11 @@
-import { ReactFlow, ReactFlowProvider, useReactFlow, type Viewport } from '@xyflow/react';
+import { useDndContext } from '@dnd-kit/core';
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  useStoreApi,
+  type Viewport,
+} from '@xyflow/react';
 import '@xyflow/react/dist/base.css';
 import { Maximize, ZoomIn, ZoomOut, type LucideIcon } from 'lucide-react';
 import {
@@ -22,6 +29,8 @@ import {
   pannedToShow,
   personRect,
 } from './boardView';
+import { useDragStore } from './dragStore';
+import { clampedPan, edgePan, PAN_FRAME_MS, panFor } from './dragZones';
 import { toFlowElements, type FlowElements } from './flowElements';
 import { layoutTree, type TreeLayout } from './layout';
 import { PersonNode } from './PersonNode';
@@ -102,6 +111,100 @@ function RevealNewPeople({
     const frame = requestAnimationFrame(() => reveal(added));
     return () => cancelAnimationFrame(frame);
   }, [layout, reveal]);
+  return null;
+}
+
+/** While the view moves during a drag, the cards are measured again at most this often (ms). */
+export const REMEASURE_MS = 100;
+
+/**
+ * The board's part in a drag (spec §7.6). Near its edges it pans, so far cards can be reached,
+ * stopping once the tree's edge is in view. Whenever its view moves (that pan, a wheel zoom),
+ * dnd-kit measures the cards again: it would otherwise hit-test them where they were. And it
+ * tells the lifted card the zoom of the card it came from.
+ */
+function BoardDrag({
+  surface,
+  layout,
+}: {
+  surface: RefObject<HTMLDivElement | null>;
+  layout: TreeLayout;
+}) {
+  const { getViewport, setViewport } = useReactFlow();
+  const flow = useStoreApi();
+  const { measureDroppableContainers } = useDndContext();
+  const latestLayout = useRef(layout);
+  useLayoutEffect(() => {
+    latestLayout.current = layout;
+  });
+
+  // The edge pan, by rAF timestamps: as fast at any refresh rate.
+  useEffect(() => {
+    let frame = 0;
+    let last: number | null = null;
+    const step = (now: number) => {
+      frame = 0;
+      const elapsed = last === null ? PAN_FRAME_MS : now - last;
+      const { activeId, pointer } = useDragStore.getState();
+      const element = surface.current;
+      if (activeId === null || pointer === null || element === null) {
+        last = null;
+        return;
+      }
+      const rect = element.getBoundingClientRect();
+      const move = edgePan(pointer, rect);
+      const { width, height } = latestLayout.current;
+      const next =
+        move === null
+          ? null
+          : clampedPan(getViewport(), panFor(move, elapsed), rect, { width, height });
+      if (next === null) {
+        last = null;
+        return;
+      }
+      last = now;
+      void setViewport(next);
+      frame = requestAnimationFrame(step);
+    };
+    const unsubscribe = useDragStore.subscribe((state, previous) => {
+      // A board card lifted: the lifted card takes the board's zoom.
+      if (state.activeId !== null && state.activeId !== previous.activeId) {
+        if (personRect(latestLayout.current, state.activeId) !== null) {
+          useDragStore.setState({ liftZoom: getViewport().zoom });
+        }
+      }
+      if (state.pointer !== null && frame === 0) frame = requestAnimationFrame(step);
+    });
+    return () => {
+      unsubscribe();
+      cancelAnimationFrame(frame);
+    };
+  }, [getViewport, setViewport, surface]);
+
+  // The view moved during a drag: the cards again, at most every REMEASURE_MS while it moves,
+  // and once more after it stops.
+  useEffect(() => {
+    let last = -Infinity;
+    let trailing: number | undefined;
+    const measure = () => {
+      last = performance.now();
+      measureDroppableContainers([]);
+    };
+    const unsubscribe = flow.subscribe((state, previous) => {
+      if (state.transform === previous.transform) return;
+      const { activeId, liftZoom } = useDragStore.getState();
+      if (activeId === null) return;
+      const zoom = state.transform[2];
+      if (liftZoom !== null && liftZoom !== zoom) useDragStore.setState({ liftZoom: zoom });
+      window.clearTimeout(trailing);
+      if (performance.now() - last >= REMEASURE_MS) measure();
+      trailing = window.setTimeout(measure, REMEASURE_MS);
+    });
+    return () => {
+      unsubscribe();
+      window.clearTimeout(trailing);
+    };
+  }, [flow, measureDroppableContainers]);
   return null;
 }
 
@@ -232,6 +335,7 @@ function BoardSurface({ label, layout, elements, openPersonId }: BoardSurfacePro
         }}
       >
         <RevealNewPeople layout={layout} reveal={bringIntoView} />
+        <BoardDrag surface={surface} layout={layout} />
       </ReactFlow>
       {/* After the cards in the DOM, so the tab order is board, cards, zoom buttons. */}
       <div className="absolute right-3 bottom-3 z-10 flex flex-col gap-2">

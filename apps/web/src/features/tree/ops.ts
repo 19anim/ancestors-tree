@@ -1,4 +1,5 @@
 import {
+  MAX_BATCH_OPS,
   newObjectId,
   type DateInfo,
   type Gender,
@@ -41,6 +42,17 @@ export function buildPerson(input: NewPersonInput, extra: Partial<Person> = {}):
 
 export function addFirstPersonOp(input: NewPersonInput): Extract<Op, { type: 'addPerson' }> {
   return { type: 'addPerson', payload: buildPerson(input) };
+}
+
+/** "Add several people" sends one batch, so at most a batch's ops (spec §7.6: 500 rows). */
+export const MAX_SEVERAL = MAX_BATCH_OPS;
+
+/** People without relationships, in one batch: one undo step; they start in Loose photos. */
+export function addSeveralOp(inputs: readonly NewPersonInput[]): Op {
+  return {
+    type: 'batch',
+    payload: { ops: inputs.map((input) => ({ type: 'addPerson', payload: buildPerson(input) })) },
+  };
 }
 
 /**

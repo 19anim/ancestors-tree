@@ -43,6 +43,7 @@ export {
   stitchEnds,
   stitchPath,
   THREAD_DROP,
+  threadBranchPath,
   threadPath,
   type Point,
   type Size,

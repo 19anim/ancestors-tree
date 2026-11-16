@@ -1,0 +1,122 @@
+import { applyOp, treeStateFromLists, type TreeState } from '@ancestors-tree/shared/tree';
+import { describe, expect, it } from 'vitest';
+import { decide, planChange, sameOutcome } from './changes';
+import {
+  FAMILY,
+  fixturePerson,
+  GRANDMA,
+  GRANDPA,
+  LOOSE,
+  PARENTS_UNION,
+  SIBLINGS,
+  SISTER,
+  SON,
+} from './fixtures';
+
+function stateOf(response: typeof FAMILY): TreeState {
+  return treeStateFromLists(response.progenitorId, response.persons, response.unions);
+}
+
+describe('planChange', () => {
+  it('describes a relate change by its effect', () => {
+    const result = planChange(stateOf(SIBLINGS), {
+      kind: 'relate',
+      personId: SISTER,
+      targetId: SON,
+      relation: 'before',
+    });
+    expect(result).toMatchObject({
+      kind: 'ok',
+      summary: { kind: 'relate', effect: { relation: 'before', personId: SISTER, targetId: SON } },
+    });
+  });
+
+  it('cuts a thread, and says when there is none', () => {
+    const tree = stateOf(FAMILY);
+    expect(planChange(tree, { kind: 'cutThread', childId: SON })).toMatchObject({
+      kind: 'ok',
+      summary: { kind: 'cutThread', childId: SON, parentIds: [GRANDPA, GRANDMA] },
+    });
+    expect(planChange(tree, { kind: 'cutThread', childId: LOOSE })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+  });
+
+  it('asks who keeps the children when a marriage is cut', () => {
+    const tree = stateOf(FAMILY);
+    const change = { kind: 'cutMarriage', unionId: PARENTS_UNION } as const;
+    expect(planChange(tree, change)).toEqual({
+      kind: 'ask',
+      question: { kind: 'keepChildren', partnerIds: [GRANDPA, GRANDMA] },
+    });
+    expect(planChange(tree, change, { keepWith: GRANDMA })).toMatchObject({
+      kind: 'ok',
+      summary: { kind: 'cutMarriage', partnerIds: [GRANDPA, GRANDMA] },
+    });
+  });
+
+  it('changes a marriage’s status, but not to the same one', () => {
+    const tree = stateOf(FAMILY);
+    expect(
+      planChange(tree, { kind: 'status', unionId: PARENTS_UNION, status: 'widowed' }),
+    ).toMatchObject({ kind: 'ok', summary: { kind: 'status', status: 'widowed' } });
+    expect(planChange(tree, { kind: 'status', unionId: PARENTS_UNION, status: 'married' })).toEqual(
+      { kind: 'blocked', reason: 'ALREADY' },
+    );
+  });
+
+  it('removes one parent, and refuses someone who is not a parent', () => {
+    const tree = stateOf(FAMILY);
+    expect(
+      planChange(tree, { kind: 'removeParent', childId: SON, parentId: GRANDMA }),
+    ).toMatchObject({ kind: 'ok', summary: { kind: 'removeParent', childId: SON } });
+    expect(planChange(tree, { kind: 'removeParent', childId: SON, parentId: LOOSE })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+  });
+});
+
+describe('decide (the tree changed meanwhile)', () => {
+  const change = { kind: 'relate', personId: LOOSE, targetId: GRANDPA, relation: 'child' } as const;
+
+  it('applies on the latest tree when the outcome is the same', () => {
+    const seen = stateOf(FAMILY);
+    const latest = applyOp(seen, {
+      type: 'updatePerson',
+      payload: { id: GRANDMA, changes: { fullName: 'Lê Thị Huệ' } },
+    }).tree;
+    expect(decide(latest, seen, change).kind).toBe('ok');
+  });
+
+  it('says out of date when the outcome is no longer the same', () => {
+    const seen = stateOf(FAMILY);
+    // Grandpa married again on another device: "child of Grandpa" now asks "with whom?".
+    const SECOND_WIFE = '64b7f0c2a1b2c3d4e5f6a0ff';
+    const latest = applyOp(seen, {
+      type: 'batch',
+      payload: {
+        ops: [
+          {
+            type: 'addPerson',
+            payload: fixturePerson(SECOND_WIFE, 'Đỗ Thị Sen', { gender: 'female' }),
+          },
+          {
+            type: 'addUnion',
+            payload: {
+              id: '64b7f0c2a1b2c3d4e5f6b0ff',
+              partnerIds: [GRANDPA, SECOND_WIFE],
+              order: 2,
+              status: 'married',
+            },
+          },
+        ],
+      },
+    }).tree;
+    expect(planChange(latest, change).kind).toBe('ask');
+    expect(decide(latest, seen, change)).toEqual({ kind: 'outOfDate' });
+    // Nothing changed: the same answer twice.
+    expect(sameOutcome(planChange(seen, change), planChange(seen, change))).toBe(true);
+  });
+});

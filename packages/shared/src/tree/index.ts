@@ -54,3 +54,25 @@ export {
   type TreeIndex,
 } from './lineage.ts';
 export { relativeOf, type RelativeDirection } from './relatives.ts';
+export {
+  ALONE,
+  relate,
+  type Relation,
+  type RelateAnswers,
+  type RelateBlock,
+  type RelateEffect,
+  type RelateQuestion,
+  type RelateResult,
+} from './relate.ts';
+export {
+  cutMarriage,
+  cutThreadOp,
+  detach,
+  relationshipsOf,
+  removeParentOp,
+  unionStatusOp,
+  type CutResult,
+  type Marriage,
+  type PersonRelationships,
+} from './relationships.ts';
+export { looseStacks, type LooseStack } from './looseStacks.ts';
