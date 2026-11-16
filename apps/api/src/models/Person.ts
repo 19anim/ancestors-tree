@@ -20,6 +20,7 @@ const personSchema = new Schema(
     birthFamily: { type: Schema.Types.Mixed },
     bio: { type: String },
     burialPlace: { type: String },
+    photo: { type: Schema.Types.Mixed },
   },
   { timestamps: true, minimize: false },
 );

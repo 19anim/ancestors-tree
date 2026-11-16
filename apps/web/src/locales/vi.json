@@ -110,8 +110,10 @@
     "VERSION_CONFLICT": "Cây gia phả vừa được người khác cập nhật.",
     "IDENTITY_MISMATCH": "Thay đổi này thuộc về một tài khoản khác với tài khoản đang đăng nhập.",
     "RULE_VIOLATION": "Thay đổi này không hợp lệ với cây gia phả.",
+    "PHOTO_REJECTED": "Ảnh này không dùng được: ảnh không còn, không thuộc người này hoặc nặng hơn 2 MB.",
     "RATE_LIMITED": "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.",
     "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
+    "PHOTOS_NOT_CONFIGURED": "Máy chủ chưa được cài đặt để lưu ảnh.",
     "NETWORK_ERROR": "Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.",
     "INVALID_RESPONSE": "Máy chủ trả về dữ liệu không như mong đợi."
   },

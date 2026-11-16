@@ -60,9 +60,24 @@ export const BirthFamilySchema = z.object({
   note: z.string().trim().max(1000).optional(),
 });
 
+/** Photos are at most 2 MB after the browser shrinks them (spec §12, image storage). */
+export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+
+/**
+ * A Cloudinary asset (spec §5, §12): lowercase path segments of letters, digits and dashes, as
+ * the API names them. The browser builds URLs from it; the server checks it on every save.
+ */
+export const PersonPhotoSchema = z.object({
+  publicId: z
+    .string()
+    .max(300)
+    .regex(/^[a-z0-9-]+(\/[a-z0-9-]+)+$/, { message: 'Not a photo id this API gives out' }),
+  version: z.number().int().positive(),
+});
+
 /**
  * A person in the genealogy (spec §5). `clanId`, `createdAt` and `updatedAt` stay on the
- * server. `treeLink` (P10), `photo` (P6) and `cardStyle` (P6e, tree themes) arrive with their features.
+ * server. `treeLink` (P10) and `cardStyle` (P6e, tree themes) arrive with their features.
  */
 export const PersonSchema = z.object({
   id: IdSchema,
@@ -79,6 +94,7 @@ export const PersonSchema = z.object({
   birthFamily: BirthFamilySchema.optional(),
   bio: BioSchema.optional(),
   burialPlace: BurialPlaceSchema.optional(),
+  photo: PersonPhotoSchema.optional(),
 });
 
 /** Changed fields only (spec §6.1). `id` and `parentUnionId` belong to other ops. */
@@ -95,6 +111,7 @@ export const PersonChangesSchema = z
     birthFamily: BirthFamilySchema.nullable().optional(),
     bio: BioSchema.nullable().optional(),
     burialPlace: BurialPlaceSchema.nullable().optional(),
+    photo: PersonPhotoSchema.nullable().optional(),
   })
   .refine((changes) => Object.values(changes).some((value) => value !== undefined), {
     message: 'Send at least one field to change',
@@ -145,6 +162,7 @@ export type Gender = z.infer<typeof GenderSchema>;
 export type DateInfo = z.infer<typeof DateInfoSchema>;
 export type Death = z.infer<typeof DeathSchema>;
 export type BirthFamily = z.infer<typeof BirthFamilySchema>;
+export type PersonPhoto = z.infer<typeof PersonPhotoSchema>;
 export type Person = z.infer<typeof PersonSchema>;
 export type PersonChanges = z.infer<typeof PersonChangesSchema>;
 export type UnionStatus = z.infer<typeof UnionStatusSchema>;

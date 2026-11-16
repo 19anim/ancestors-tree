@@ -14,8 +14,10 @@ describe('ERROR_CODES', () => {
       'VERSION_CONFLICT',
       'IDENTITY_MISMATCH',
       'RULE_VIOLATION',
+      'PHOTO_REJECTED',
       'RATE_LIMITED',
       'INTERNAL_ERROR',
+      'PHOTOS_NOT_CONFIGURED',
     ]);
   });
 

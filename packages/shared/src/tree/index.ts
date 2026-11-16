@@ -7,8 +7,10 @@ export {
   FullNameSchema,
   GenderSchema,
   MAX_PERSONS,
+  MAX_PHOTO_BYTES,
   MAX_UNIONS_PER_PERSON,
   PersonChangesSchema,
+  PersonPhotoSchema,
   PersonSchema,
   UnionChangesSchema,
   UnionSchema,
@@ -20,6 +22,7 @@ export {
   type Gender,
   type Person,
   type PersonChanges,
+  type PersonPhoto,
   type Union,
   type UnionChanges,
   type UnionStatus,
@@ -76,3 +79,4 @@ export {
   type PersonRelationships,
 } from './relationships.ts';
 export { looseStacks, type LooseStack } from './looseStacks.ts';
+export { photosInOp, type PhotoInOp } from './photos.ts';

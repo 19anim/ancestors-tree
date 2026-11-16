@@ -110,8 +110,10 @@
     "VERSION_CONFLICT": "Someone else just updated the family tree.",
     "IDENTITY_MISMATCH": "These changes belong to another account than the one signed in.",
     "RULE_VIOLATION": "This change is not valid for the family tree.",
+    "PHOTO_REJECTED": "This photo cannot be used: it is gone, belongs to someone else or is larger than 2 MB.",
     "RATE_LIMITED": "Too many attempts. Please try again later.",
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
+    "PHOTOS_NOT_CONFIGURED": "The server is not set up to store photos.",
     "NETWORK_ERROR": "Cannot reach the server. Check your connection and try again.",
     "INVALID_RESPONSE": "The server returned unexpected data."
   },
