@@ -367,7 +367,18 @@
       "stackList": "{{name}}’s stack"
     },
     "photo": {
-      "alt": "Photo of {{name}}"
+      "alt": "Photo of {{name}}",
+      "section": "Photo",
+      "change": "Change photo",
+      "remove": "Remove photo",
+      "uploading": "Uploading the photo…",
+      "errors": {
+        "type": "Only jpg, png or webp photos.",
+        "sourceTooLarge": "This photo is too large (over 25 MB). Choose another one.",
+        "unreadable": "This photo cannot be read. Choose another one.",
+        "tooLarge": "The photo is still over 2 MB after shrinking. Choose another one.",
+        "upload": "The upload failed. Try again."
+      }
     },
     "profile": {
       "close": "Close the profile",

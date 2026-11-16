@@ -367,7 +367,18 @@
       "stackList": "Xấp của {{name}}"
     },
     "photo": {
-      "alt": "Ảnh của {{name}}"
+      "alt": "Ảnh của {{name}}",
+      "section": "Ảnh",
+      "change": "Đổi ảnh",
+      "remove": "Gỡ ảnh",
+      "uploading": "Đang tải ảnh lên…",
+      "errors": {
+        "type": "Chỉ nhận ảnh jpg, png hoặc webp.",
+        "sourceTooLarge": "Ảnh này quá lớn (trên 25 MB). Hãy chọn ảnh khác.",
+        "unreadable": "Không đọc được ảnh này. Hãy chọn ảnh khác.",
+        "tooLarge": "Ảnh vẫn nặng hơn 2 MB sau khi thu nhỏ. Hãy chọn ảnh khác.",
+        "upload": "Tải ảnh lên không thành công. Hãy thử lại."
+      }
     },
     "profile": {
       "close": "Đóng hồ sơ",

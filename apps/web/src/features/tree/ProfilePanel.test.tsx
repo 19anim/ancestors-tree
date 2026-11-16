@@ -10,6 +10,7 @@ import { renderRoute, renderWithProviders } from '../../test/render';
 import { CLAN, CLAN_ID, FAMILY, GRANDMA, GRANDPA, LOOSE, ME, SON, treeRoutes } from './fixtures';
 import { PersonCard } from './PersonCard';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
+import { batchOps, editableTree, EDITOR } from './testKit';
 
 // Spy on the real card to count renders: opening a profile must not re-render the cards.
 vi.mock('./PersonCard', async (importOriginal) => {
@@ -26,6 +27,7 @@ beforeEach(() => {
 afterEach(() => {
   resetTreeStore();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 const NOBODY = '64b7f0c2a1b2c3d4e5f6ffff';
@@ -357,6 +359,34 @@ describe('the profile panel', () => {
     expect(card.closest('[inert]')).not.toBeNull();
     expect(screen.getByRole('group', { name: /^Cây gia phả/ }).closest('[inert]')).not.toBeNull();
     expect(panel.closest('[inert]')).toBeNull();
+  });
+
+  it('removes the photo as a change, with the toast and its Undo', async () => {
+    vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo');
+    const photo = { publicId: 'ancestors-tree/dev/clans/c/people/p/0123456789abcdef', version: 7 };
+    const sent = editableTree(
+      {
+        ...FAMILY,
+        persons: FAMILY.persons.map((person) =>
+          person.id === SON ? { ...person, photo } : person,
+        ),
+      },
+      EDITOR,
+    );
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree?person=${SON}`);
+    const panel = await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    await user.click(within(panel).getByRole('button', { name: 'Gỡ ảnh' }));
+    expect(screen.getByText('Đã đổi: Nguyễn Văn Nam không còn ảnh')).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Gỡ ảnh' })).not.toBeInTheDocument();
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    expect(batchOps(sent()[0])).toEqual([
+      { type: 'updatePerson', payload: { id: SON, changes: { photo: null } } },
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Hoàn tác thay đổi này' }));
+    expect(useTreeStore.getState().tree.persons[SON]?.photo).toEqual(photo);
+    expect(within(panel).getByRole('button', { name: 'Gỡ ảnh' })).toBeInTheDocument();
   });
 
   it('takes focus into the sheet when the window narrows with focus behind it', async () => {
