@@ -1,6 +1,7 @@
+import { useStore } from '@xyflow/react';
 import { Scissors } from 'lucide-react';
 import { Popover } from 'radix-ui';
-import { useRef, type ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../shared/ui';
 
@@ -11,12 +12,20 @@ interface CutPopoverProps {
   onOpenChange: (open: boolean) => void;
   onCut: () => void;
   /**
-   * Where focus goes when Escape closes the popover: the trigger is hidden from screen readers,
-   * so a person's card beside it.
+   * Where focus goes when the popover closes without a cut and focus would be lost: the trigger
+   * is hidden from screen readers, so a person's card beside it.
    */
-  focusOnEscape: () => HTMLElement | null;
-  /** The pin or knot button: pointer-only, so with tabIndex={-1}. */
+  focusOnClose: () => HTMLElement | null;
+  /** The pin or knot button: pointer-only, so with tabIndex={-1}. Inside the React Flow board. */
   children: ReactElement;
+}
+
+/**
+ * The board's view while `open`, else null: a string, so the selector is stable, and only an open
+ * popover re-renders when the view moves.
+ */
+function useViewWhileOpen(open: boolean): string | null {
+  return useStore((state) => (open ? state.transform.join(' ') : null));
 }
 
 /** "Cắt chỉ" beside a pin or a knot (spec §7.6). */
@@ -25,16 +34,28 @@ export function CutPopover({
   open,
   onOpenChange,
   onCut,
-  focusOnEscape,
+  focusOnClose,
   children,
 }: CutPopoverProps) {
   const { t } = useTranslation();
-  const escaped = useRef(false);
+  const trigger = useRef<HTMLSpanElement>(null);
+  const cut = useRef(false);
+
+  // A pan or zoom would leave the popover behind its pin, maybe off the board: it closes. (This
+  // rather than hideWhenDetached, which needs real layout: in jsdom it hides the popover always.)
+  const view = useViewWhileOpen(open);
+  const openedAt = useRef<string | null>(null);
+  useEffect(() => {
+    if (view === null) openedAt.current = null;
+    else if (openedAt.current === null) openedAt.current = view;
+    else if (view !== openedAt.current) onOpenChange(false);
+  }, [view, onOpenChange]);
+
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
       {/* Pointer-only (spec §7.6): hidden from screen readers, as "Change relationship…" is the
           way without a pointer. On a wrapper, as a button hidden itself would have no name. */}
-      <span aria-hidden="true">
+      <span ref={trigger} aria-hidden="true">
         <Popover.Trigger asChild>{children}</Popover.Trigger>
       </span>
       <Popover.Portal>
@@ -43,17 +64,21 @@ export function CutPopover({
           side="top"
           sideOffset={6}
           onOpenAutoFocus={() => {
-            escaped.current = false;
+            cut.current = false;
           }}
-          onEscapeKeyDown={() => {
-            escaped.current = true;
-          }}
-          // The trigger is not a tab stop and is hidden from screen readers. After a cut the
-          // runner places focus; after Escape a card beside the trigger gets it; a click
-          // elsewhere leaves focus where it lands.
+          // The trigger is not a tab stop and is hidden from screen readers, so focus never goes
+          // back to it. After a cut the runner places focus. Otherwise (Escape, the pin again, the
+          // view moving, a click on nothing focusable) a card beside the trigger gets it; a click
+          // on something focusable leaves it there.
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            if (escaped.current) focusOnEscape()?.focus();
+            if (cut.current) return;
+            const active = document.activeElement;
+            const lost =
+              active === null ||
+              active === document.body ||
+              trigger.current?.contains(active) === true;
+            if (lost) focusOnClose()?.focus();
           }}
           className="z-50 rounded-control border border-line bg-paper p-1 shadow-lift"
         >
@@ -61,6 +86,7 @@ export function CutPopover({
             variant="ghost"
             size="sm"
             onClick={() => {
+              cut.current = true;
               onOpenChange(false);
               onCut();
             }}

@@ -1,7 +1,7 @@
 import { EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
 import { memo, useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Thread, threadPath } from '../../shared/ui';
+import { Thread, threadBranchPath } from '../../shared/ui';
 import { ChangeContext } from './ChangeRunner';
 import { CutPopover } from './CutPopover';
 import type { ThreadFlowEdge } from './flowElements';
@@ -9,7 +9,10 @@ import { personCardButton } from './profileParams';
 import { names } from './relateText';
 import { useTreeStore } from './store';
 
-/** A target of at least 24 px around the pin (WCAG 2.5.8). */
+/**
+ * The pin's target, in board units: it scales with the zoom, so it can be under 24 px on screen.
+ * WCAG 2.5.8 is met by the equivalent control, Remove in "Change relationship…".
+ */
 const PIN_TARGET = 24;
 
 /**
@@ -28,10 +31,11 @@ function ThreadEdgeComponent({ data, target }: EdgeProps<ThreadFlowEdge>) {
       <Thread from={data.from} dropTo={data.dropTo} to={data.to} selected={open} />
       {requestChange === null ? null : (
         <>
-          {/* A wide invisible stroke: the thread itself opens the same popover. */}
+          {/* A wide invisible stroke: the thread itself opens the same popover. Only the child's
+              own part: the run down from the knot is shared with the siblings. */}
           <path
             data-cut-target="thread"
-            d={threadPath(data.from, data.dropTo, data.to)}
+            d={threadBranchPath(data.from, data.dropTo, data.to)}
             fill="none"
             stroke="transparent"
             strokeWidth={12}
@@ -50,7 +54,7 @@ function ThreadEdgeComponent({ data, target }: EdgeProps<ThreadFlowEdge>) {
                   focusPersonId: target,
                 })
               }
-              focusOnEscape={() => personCardButton(target)}
+              focusOnClose={() => personCardButton(target)}
             >
               <button
                 type="button"

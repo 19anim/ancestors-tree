@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { midpoint, pinPoint, stitchEnds, stitchPath, threadPath } from './threads';
+import {
+  midpoint,
+  pinPoint,
+  stitchEnds,
+  stitchPath,
+  threadBranchPath,
+  threadPath,
+} from './threads';
 
 const CARD = { width: 100, height: 124 };
 
@@ -27,6 +34,22 @@ describe('thread geometry', () => {
   it('drops straight down, then curves to the pin', () => {
     expect(threadPath({ x: 284, y: 102 }, 172, { x: 140, y: 224 })).toBe(
       'M284 102 L284 172 C284 198 140 198 140 224',
+    );
+  });
+
+  it("gives a child's own part of its thread: not the trunk its siblings share", () => {
+    const knot = { x: 284, y: 102 };
+    const own = threadBranchPath(knot, 172, { x: 140, y: 224 });
+    // It starts below the branch point, on the curve, and ends at the pin.
+    expect(own).toBe('M261.5 187.44 C221 199.63 140 204.5 140 224');
+    const startX = (path: string) => Number(/^M(\S+)/.exec(path)?.[1]);
+    // Two siblings a card apart: their own parts start further apart than a 12 px hit stroke.
+    const left = threadBranchPath(knot, 172, { x: 214, y: 224 });
+    const right = threadBranchPath(knot, 172, { x: 354, y: 224 });
+    expect(startX(right) - startX(left)).toBeGreaterThan(12);
+    // A child straight below the knot: a straight run from below the branch point.
+    expect(threadBranchPath(knot, 172, { x: 284, y: 224 })).toBe(
+      'M284 187.44 C284 199.63 284 204.5 284 224',
     );
   });
 

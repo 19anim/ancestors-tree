@@ -53,7 +53,7 @@ function UnionNodeComponent({ data, width = 0, height = 0 }: NodeProps<UnionFlow
               focusPersonId: firstPartner ?? undefined,
             })
           }
-          focusOnEscape={focusPartner}
+          focusOnClose={focusPartner}
         >
           <button
             type="button"

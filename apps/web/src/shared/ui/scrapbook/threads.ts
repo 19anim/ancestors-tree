@@ -44,3 +44,33 @@ export function threadPath(from: Point, dropTo: number, to: Point): string {
   const bend = Math.max(12, (to.y - dropTo) / 2);
   return `M${from.x} ${from.y} L${from.x} ${dropTo} C${from.x} ${dropTo + bend} ${to.x} ${to.y - bend} ${to.x} ${to.y}`;
 }
+
+/** How far along a thread's curve a child's own part starts: past where siblings overlap. */
+const BRANCH_START = 0.25;
+
+function lerp(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function rounded(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * A child's own part of its thread: the curve of `threadPath` from a quarter of the way along to
+ * the pin. The trunk from the knot down to `dropTo`, and the start of the curve, are shared with
+ * the child's siblings, so a target there could not tell which child is meant.
+ */
+export function threadBranchPath(from: Point, dropTo: number, to: Point): string {
+  const bend = Math.max(12, (to.y - dropTo) / 2);
+  const p0 = { x: from.x, y: dropTo };
+  const p1 = { x: from.x, y: dropTo + bend };
+  const p2 = { x: to.x, y: to.y - bend };
+  // de Casteljau: the part of the cubic after BRANCH_START.
+  const p12 = lerp(p1, p2, BRANCH_START);
+  const p23 = lerp(p2, to, BRANCH_START);
+  const p123 = lerp(p12, p23, BRANCH_START);
+  const start = lerp(lerp(lerp(p0, p1, BRANCH_START), p12, BRANCH_START), p123, BRANCH_START);
+  const point = (p: Point) => `${rounded(p.x)} ${rounded(p.y)}`;
+  return `M${point(start)} C${point(p123)} ${point(p23)} ${point(to)}`;
+}
