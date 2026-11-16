@@ -47,7 +47,16 @@ export function lookupWith(lookup: NameLookup, ops: readonly Op[]): NameLookup {
 
 /** What a change did, with the names it is about (null: nobody knows the name any more). */
 export type OpDescription =
-  | { kind: 'addPerson' | 'updatePerson' | 'deletePerson' | 'restorePerson'; name: string | null }
+  | {
+      kind:
+        | 'addPerson'
+        | 'updatePerson'
+        | 'changePhoto'
+        | 'removePhoto'
+        | 'deletePerson'
+        | 'restorePerson';
+      name: string | null;
+    }
   | { kind: 'addPeople' | 'changes'; count: number }
   | { kind: 'addUnion' | 'updateUnion' | 'deleteUnion' | 'restoreUnion'; names: (string | null)[] }
   | { kind: 'setParents'; name: string | null; parents: (string | null)[] }
@@ -62,8 +71,16 @@ function describeSingle(op: SingleOp, names: NameLookup): OpDescription {
   switch (op.type) {
     case 'addPerson':
       return { kind: 'addPerson', name: op.payload.fullName };
-    case 'updatePerson':
+    case 'updatePerson': {
+      const keys = Object.keys(op.payload.changes);
+      if (keys.length === 1 && keys[0] === 'photo') {
+        return {
+          kind: op.payload.changes.photo === null ? 'removePhoto' : 'changePhoto',
+          name: person(op.payload.id),
+        };
+      }
       return { kind: 'updatePerson', name: person(op.payload.id) };
+    }
     case 'deletePerson':
       return { kind: 'deletePerson', name: person(op.payload.id) };
     case 'restorePerson':
@@ -140,6 +157,8 @@ export function describeAction(t: TFunction, description: OpDescription): string
   switch (description.kind) {
     case 'addPerson':
     case 'updatePerson':
+    case 'changePhoto':
+    case 'removePhoto':
     case 'deletePerson':
     case 'restorePerson':
     case 'detachParents':

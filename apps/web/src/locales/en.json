@@ -452,6 +452,8 @@
       "addPerson": "add {{name}}",
       "addPeople": "add {{count}} people",
       "updatePerson": "edit the details of {{name}}",
+      "changePhoto": "change the photo of {{name}}",
+      "removePhoto": "remove the photo of {{name}}",
       "deletePerson": "delete {{name}}",
       "restorePerson": "restore {{name}}",
       "addUnion": "add the marriage of {{names}}",
@@ -494,7 +496,9 @@
         "cutMarriage": "{{a}} and {{b}} are no longer spouses",
         "cutAlone": "The children no longer have {{a}} as a parent",
         "status": "Marriage of {{a}} and {{b}}: {{status}}",
-        "detach": "{{a}} moves to Loose photos"
+        "detach": "{{a}} moves to Loose photos",
+        "photo": "photo of {{a}}",
+        "photoRemoved": "{{a}} has no photo"
       },
       "status": {
         "married": "Married",

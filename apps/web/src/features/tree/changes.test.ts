@@ -76,6 +76,58 @@ describe('planChange', () => {
       reason: 'ALREADY',
     });
   });
+
+  it('sets a photo as one person update', () => {
+    const photo = { publicId: 'a/b', version: 5 };
+    expect(planChange(stateOf(FAMILY), { kind: 'photo', personId: SON, photo })).toEqual({
+      kind: 'ok',
+      op: {
+        type: 'batch',
+        payload: { ops: [{ type: 'updatePerson', payload: { id: SON, changes: { photo } } }] },
+      },
+      summary: { kind: 'photo', personId: SON, removed: false },
+    });
+  });
+
+  it('removes a photo, and says when there is none to remove', () => {
+    const photo = { publicId: 'a/b', version: 5 };
+    const { tree } = applyOp(stateOf(FAMILY), {
+      type: 'updatePerson',
+      payload: { id: SON, changes: { photo } },
+    });
+    expect(planChange(tree, { kind: 'photo', personId: SON, photo: null })).toEqual({
+      kind: 'ok',
+      op: {
+        type: 'batch',
+        payload: {
+          ops: [{ type: 'updatePerson', payload: { id: SON, changes: { photo: null } } }],
+        },
+      },
+      summary: { kind: 'photo', personId: SON, removed: true },
+    });
+    expect(planChange(stateOf(FAMILY), { kind: 'photo', personId: SON, photo: null })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+  });
+
+  it('refuses the photo a person already has, and an unknown person', () => {
+    const photo = { publicId: 'a/b', version: 5 };
+    const { tree } = applyOp(stateOf(FAMILY), {
+      type: 'updatePerson',
+      payload: { id: SON, changes: { photo } },
+    });
+    expect(planChange(tree, { kind: 'photo', personId: SON, photo: { ...photo } })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+    expect(
+      planChange(tree, { kind: 'photo', personId: SON, photo: { ...photo, version: 6 } }),
+    ).toMatchObject({ kind: 'ok', summary: { kind: 'photo', removed: false } });
+    expect(
+      planChange(tree, { kind: 'photo', personId: '64b7f0c2a1b2c3d4e5f6afff', photo }),
+    ).toEqual({ kind: 'blocked', reason: 'PERSON_NOT_FOUND' });
+  });
 });
 
 describe('decide (the tree changed meanwhile)', () => {

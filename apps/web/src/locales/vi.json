@@ -452,6 +452,8 @@
       "addPerson": "thêm {{name}}",
       "addPeople": "thêm {{count}} người",
       "updatePerson": "sửa thông tin của {{name}}",
+      "changePhoto": "đổi ảnh của {{name}}",
+      "removePhoto": "gỡ ảnh của {{name}}",
       "deletePerson": "xoá {{name}}",
       "restorePerson": "khôi phục {{name}}",
       "addUnion": "thêm cuộc hôn nhân của {{names}}",
@@ -494,7 +496,9 @@
         "cutMarriage": "{{a}} và {{b}} không còn là vợ chồng",
         "cutAlone": "Các con không còn là con của {{a}}",
         "status": "Hôn nhân của {{a}} và {{b}}: {{status}}",
-        "detach": "{{a}} chuyển vào Ảnh chưa dán"
+        "detach": "{{a}} chuyển vào Ảnh chưa dán",
+        "photo": "ảnh của {{a}}",
+        "photoRemoved": "{{a}} không còn ảnh"
       },
       "status": {
         "married": "Vợ chồng",

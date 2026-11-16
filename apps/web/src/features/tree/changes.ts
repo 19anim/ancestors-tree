@@ -8,6 +8,7 @@ import {
   removeParentOp,
   unionStatusOp,
   type BatchOp,
+  type PersonPhoto,
   type Relation,
   type RelateAnswers,
   type RelateBlock,
@@ -24,7 +25,8 @@ export type Change =
   | { kind: 'cutThread'; childId: string }
   | { kind: 'cutMarriage'; unionId: string }
   | { kind: 'status'; unionId: string; status: UnionStatus }
-  | { kind: 'detach'; personId: string };
+  | { kind: 'detach'; personId: string }
+  | { kind: 'photo'; personId: string; photo: PersonPhoto | null };
 
 export type ChangeQuestion =
   RelateQuestion | { kind: 'keepChildren'; partnerIds: [string, string] };
@@ -41,7 +43,8 @@ export type ChangeSummary =
   | { kind: 'removeParent'; childId: string; parentId: string }
   | { kind: 'cutMarriage'; partnerIds: string[] }
   | { kind: 'status'; partnerIds: string[]; status: UnionStatus }
-  | { kind: 'detach'; personId: string };
+  | { kind: 'detach'; personId: string }
+  | { kind: 'photo'; personId: string; removed: boolean };
 
 export type ChangeResult =
   | { kind: 'ok'; op: BatchOp; summary: ChangeSummary }
@@ -125,6 +128,31 @@ export function planChange(
       return result.kind === 'ok'
         ? { kind: 'ok', op: result.op, summary: { kind: 'detach', personId: change.personId } }
         : result;
+    }
+    case 'photo': {
+      const person = tree.persons[change.personId];
+      if (person === undefined) return blocked('PERSON_NOT_FOUND');
+      const current = person.photo;
+      const same =
+        change.photo === null
+          ? current === undefined
+          : current?.publicId === change.photo.publicId && current.version === change.photo.version;
+      if (same) return blocked('ALREADY');
+      return checked(
+        tree,
+        () => ({
+          type: 'batch',
+          payload: {
+            ops: [
+              {
+                type: 'updatePerson',
+                payload: { id: change.personId, changes: { photo: change.photo } },
+              },
+            ],
+          },
+        }),
+        { kind: 'photo', personId: change.personId, removed: change.photo === null },
+      );
     }
   }
 }

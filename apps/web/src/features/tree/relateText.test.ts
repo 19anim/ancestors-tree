@@ -24,6 +24,15 @@ describe('relate sentences', () => {
     );
   });
 
+  it('says whose photo changed, or that it was removed', () => {
+    expect(changeSentence(t, tree, { kind: 'photo', personId: GRANDPA, removed: false })).toBe(
+      'ảnh của Nguyễn Văn Tư',
+    );
+    expect(changeSentence(t, tree, { kind: 'photo', personId: GRANDPA, removed: true })).toBe(
+      'Nguyễn Văn Tư không còn ảnh',
+    );
+  });
+
   it('says why a change is blocked, for relate and server rules alike', () => {
     expect(blockMessage(t, 'ALREADY')).toBe('Quan hệ này đã có rồi.');
     expect(blockMessage(t, 'CYCLE')).toBe(
