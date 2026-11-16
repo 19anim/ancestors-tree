@@ -1,11 +1,11 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { treeStateFromLists } from '@ancestors-tree/shared/tree';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
 import { CLICK_AFTER_DROP_MS, useDragStore, resetDrag } from './dragStore';
 import { zoneResults } from './dragZones';
-import { CLAN, CLAN_ID, FAMILY, GRANDPA, LOOSE, ME, SON } from './fixtures';
+import { CLAN, CLAN_ID, FAMILY, GRANDMA, GRANDPA, LOOSE, ME, SON } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { batchOps, card, EDITOR, editableTree } from './testKit';
 
@@ -152,5 +152,178 @@ describe('drag to relate (mouse)', () => {
     expect(
       await screen.findByRole('complementary', { name: 'Nguyễn Văn Nam' }),
     ).toBeInTheDocument();
+  });
+});
+
+/** The board's surface, whose edges pan it. */
+function board(): HTMLElement {
+  return screen.getByRole('group', { name: `Cây gia phả: ${CLAN.name}` });
+}
+
+function stubRect(element: HTMLElement, x: number, y: number, width: number, height: number) {
+  vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(
+    DOMRect.fromRect({ x, y, width, height }),
+  );
+}
+
+/** React Flow writes the viewport as `translate(Xpx, Ypx) scale(Z)` on its viewport element. */
+function viewportOf(surface: HTMLElement): { x: number; y: number; zoom: number } {
+  const element = surface.querySelector<HTMLElement>('.react-flow__viewport');
+  const match = element?.style.transform.match(
+    /translate\((-?[\d.]+)px, ?(-?[\d.]+)px\) scale\(([\d.]+)\)/,
+  );
+  if (!match) throw new Error(`no viewport transform: ${element?.style.transform ?? 'none'}`);
+  return { x: Number(match[1]), y: Number(match[2]), zoom: Number(match[3]) };
+}
+
+/** Lifts a card: a press, then a move past the drag distance. */
+async function lift(button: HTMLElement, x: number, y: number) {
+  fireEvent.mouseDown(button, { button: 0, clientX: x, clientY: y });
+  fireEvent.mouseMove(document, { clientX: x + 10, clientY: y });
+  await waitFor(() => expect(useDragStore.getState().activeId).not.toBeNull());
+}
+
+function frames(count: number): Promise<void> {
+  return act(
+    () =>
+      new Promise<void>((resolve) => {
+        const next = (left: number) => {
+          if (left === 0) resolve();
+          else requestAnimationFrame(() => next(left - 1));
+        };
+        next(count);
+      }),
+  );
+}
+
+describe('drag to relate: the board and the page moving under the drag', () => {
+  it('measures the cards again when the board moves, so the target is the card now there', async () => {
+    const sent = editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('button', { name: /^Nguyễn Văn Nam/ });
+    stubRect(board(), 0, 0, 800, 600);
+    stubRect(wrapperOf('Nguyễn Văn Nam'), 0, 250, 100, 150);
+    await lift(card('Trần Văn Bình'), 500, 500);
+    fireEvent.mouseMove(document, { clientX: 50, clientY: 380 });
+    expect(
+      await screen.findByText('Thả để: Trần Văn Bình thành con của Nguyễn Văn Nam'),
+    ).toBeInTheDocument();
+    // The board is about to move: Nam's card goes right, Tư's comes under the pointer.
+    stubRect(wrapperOf('Nguyễn Văn Nam'), 300, 250, 100, 150);
+    stubRect(wrapperOf('Nguyễn Văn Tư'), 0, 250, 100, 150);
+    const before = viewportOf(board());
+    // Near the left edge: the board pans.
+    fireEvent.mouseMove(document, { clientX: 20, clientY: 380 });
+    await waitFor(() => expect(viewportOf(board()).x).toBeGreaterThan(before.x));
+    expect(
+      await screen.findByText('Thả để: Trần Văn Bình thành con của Nguyễn Văn Tư và Lê Thị Hoa'),
+    ).toBeInTheDocument();
+    fireEvent.mouseUp(document, { clientX: 20, clientY: 380 });
+    // The drop is on Tư, the card now under the pointer.
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    expect(useTreeStore.getState().tree.persons[LOOSE]?.parentUnionId).toBe(
+      useTreeStore.getState().tree.persons[SON]?.parentUnionId,
+    );
+  });
+
+  it('pans near the board’s edge only, and with the board card’s zoom on the lifted card', async () => {
+    editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const nam = await screen.findByRole('button', { name: /^Nguyễn Văn Nam/ });
+    stubRect(board(), 0, 0, 800, 600);
+    await lift(nam, 400, 300);
+    expect(useDragStore.getState().liftZoom).toBeCloseTo(viewportOf(board()).zoom);
+    const start = viewportOf(board());
+    fireEvent.mouseMove(document, { clientX: 10, clientY: 300 });
+    await waitFor(() => expect(viewportOf(board()).x).toBeGreaterThan(start.x));
+    fireEvent.mouseMove(document, { clientX: 400, clientY: 300 });
+    await frames(2);
+    const stopped = viewportOf(board());
+    await frames(5);
+    expect(viewportOf(board())).toEqual(stopped);
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(useDragStore.getState().activeId).toBeNull());
+    fireEvent.mouseUp(document);
+  });
+
+  it('keeps the zone right when the page scrolls under a still pointer', async () => {
+    // jsdom has no scrolling element; a browser's is the root, which dnd-kit's rects follow.
+    const page = document.documentElement;
+    Object.defineProperty(document, 'scrollingElement', { configurable: true, value: page });
+    const sent = editableTree(FAMILY, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('button', { name: /^Nguyễn Văn Nam/ });
+    stubRect(wrapperOf('Nguyễn Văn Nam'), 100, 100, 100, 150);
+    await lift(card('Trần Văn Bình'), 500, 500);
+    // A loose photo is lifted as it looks in the tray.
+    expect(useDragStore.getState().liftZoom).toBeNull();
+    fireEvent.mouseMove(document, { clientX: 150, clientY: 140 });
+    await waitFor(() => expect(useDragStore.getState().zone).toBe('parent'));
+    // The page scrolls 40 px: the card moves up under the pointer, from its top third to the middle.
+    Object.defineProperty(page, 'scrollTop', { configurable: true, value: 40 });
+    try {
+      fireEvent.scroll(window);
+      await waitFor(() => expect(useDragStore.getState().zone).toBe('spouse'));
+      expect(
+        screen.getByText('Thả để: Trần Văn Bình và Nguyễn Văn Nam thành vợ chồng'),
+      ).toBeInTheDocument();
+      fireEvent.mouseUp(document, { clientX: 150, clientY: 140 });
+      await waitFor(() => expect(sent()).toHaveLength(1));
+      expect(
+        screen.getByText('Đã đổi: Trần Văn Bình và Nguyễn Văn Nam thành vợ chồng'),
+      ).toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(page, 'scrollTop');
+      Reflect.deleteProperty(document, 'scrollingElement');
+    }
+  });
+
+  it('leaves no drag behind when the page goes away mid-drag', async () => {
+    const sent = editableTree(FAMILY, EDITOR);
+    const { unmount } = renderRoute(`/clans/${CLAN_ID}/tree`);
+    const nam = await screen.findByRole('button', { name: /^Nguyễn Văn Nam/ });
+    await lift(nam, 0, 0);
+    unmount();
+    expect(useDragStore.getState().activeId).toBeNull();
+    fireEvent.mouseUp(document);
+    expect(sent()).toEqual([]);
+  });
+});
+
+/** A mouse event with its window, as a browser sends it (jsdom's constructor will not take one). */
+function withView(target: EventTarget, type: 'mousedown' | 'mouseup') {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 });
+  Object.defineProperty(event, 'view', { value: window });
+  act(() => {
+    target.dispatchEvent(event);
+  });
+}
+
+describe('drag to relate: what lifts a card', () => {
+  it('lifts a card from its button only, not from its tooltip or its menu', async () => {
+    const withFamily = {
+      ...FAMILY,
+      persons: FAMILY.persons.map((person) =>
+        person.id === GRANDMA ? { ...person, birthFamily: { fatherName: 'Lê Văn Ba' } } : person,
+      ),
+    };
+    editableTree(withFamily, EDITOR);
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const hoa = await screen.findByRole('button', { name: /^Lê Thị Hoa/ });
+    const tooltip = within(wrapperOf('Lê Thị Hoa')).getByRole('tooltip', { hidden: true });
+    // The tooltip pans the board instead (it is not "nopan"): React Flow reads the events' window.
+    withView(tooltip, 'mousedown');
+    fireEvent.mouseMove(document, { clientX: 20, clientY: 0 });
+    expect(useDragStore.getState().activeId).toBeNull();
+    withView(document, 'mouseup');
+
+    fireEvent.contextMenu(hoa);
+    const [item] = await screen.findAllByRole('menuitem');
+    if (item === undefined) throw new Error('no menu item');
+    fireEvent.mouseDown(item, { button: 0, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(document, { clientX: 20, clientY: 0 });
+    expect(useDragStore.getState().activeId).toBeNull();
+    fireEvent.mouseUp(document);
+    fireEvent.keyDown(item, { key: 'Escape', code: 'Escape' });
   });
 });

@@ -1,30 +1,49 @@
 import {
   DndContext,
   DragOverlay,
-  MeasuringStrategy,
   MouseSensor,
   pointerWithin,
+  useDndContext,
   useSensor,
   useSensors,
+  type ClientRect,
   type CollisionDetection,
   type DragEndEvent,
-  type DragMoveEvent,
   type DragStartEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
-import { useContext, type ReactNode } from 'react';
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { Polaroid, tiltFor } from '../../shared/ui';
+import { Polaroid, tiltFor, type Point } from '../../shared/ui';
 import { ChangeContext } from './ChangeRunner';
 import { IDLE_DRAG, resetDrag, useDragStore } from './dragStore';
-import { dropChange, pointerOf, zoneFor, zoneResults } from './dragZones';
+import { dropChange, pointerOf, zoneFor, zoneResults, type RectLike } from './dragZones';
+import { lifeYears } from './format';
 import { blockMessage, changeSentence } from './relateText';
 import { useTreeStore } from './store';
 
 /** A mouse drag starts after the pointer moves this far with the button down (spec §7.6). */
 export const MOUSE_DISTANCE = 6;
 
-// The board re-measures cards while dragging: the edge pan moves them.
-const MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
+// dnd-kit measures the cards when a drag starts (its default) and then only when one mounts or
+// resizes: a board that pans or zooms under the drag moves them without either, so the board
+// has them measured again itself (TreeBoard's BoardDrag).
+
+/**
+ * Only the window scrolls by itself, near its top or bottom tenth: enough to reach the tray below
+ * the board. Not sideways, and nothing inside the page (the board pans itself near its edges).
+ */
+const AUTO_SCROLL = {
+  canScroll: (element: Element) => element === document.scrollingElement,
+  threshold: { x: 0, y: 0.1 },
+};
 // The status line below speaks for the drag in the page's language; dnd-kit's own English
 // announcements and instructions stay silent.
 const SILENT = {
@@ -89,20 +108,30 @@ function DragStatus() {
   );
 }
 
+/**
+ * The lifted card, following the pointer (spec §7.6 "Starting a drag"): a board card at the
+ * board's zoom, as it looked there; a loose photo as in the tray.
+ */
 function LiftedCard() {
   const activeId = useDragStore((state) => state.activeId);
+  const liftZoom = useDragStore((state) => state.liftZoom);
   const person = useTreeStore((state) =>
     activeId === null ? undefined : state.tree.persons[activeId],
   );
   if (person === undefined) return null;
   return (
-    // Lifted: a slight extra tilt and the lift shadow (spec §7.6 "Starting a drag").
-    <div className="rotate-3 rounded-photo shadow-lift">
+    // Lifted: a slight extra tilt and the lift shadow. Scaled from the corner, where dnd-kit
+    // places the overlay on the card it came from.
+    <div
+      className="origin-top-left rotate-3 rounded-photo shadow-lift"
+      style={liftZoom === null ? undefined : { scale: String(liftZoom) }}
+    >
       <Polaroid
         aria-hidden="true"
-        lod="label"
+        lod={liftZoom === null ? 'label' : 'full'}
         name={person.fullName}
         label={person.fullName}
+        lifeYears={lifeYears(person)}
         tape="loose"
         tilt={tiltFor(person.id)}
       />
@@ -110,59 +139,109 @@ function LiftedCard() {
   );
 }
 
+/** Puts the target and its zone in the drag store. */
+function follow(overId: string | null, rect: RectLike | null, pointer: Point | null) {
+  const state = useDragStore.getState();
+  if (state.activeId === null) return;
+  if (overId !== state.overId) {
+    // A new target: plan its zones once, on the tree as it is now.
+    const tree = useTreeStore.getState().tree;
+    const results = zoneResults(tree, state.activeId, overId);
+    const zone = pointer === null ? null : zoneFor(overId, state.activeId, pointer, rect, results);
+    useDragStore.setState({ overId, zone, results, seenTree: tree });
+    return;
+  }
+  const zone =
+    pointer === null ? null : zoneFor(overId, state.activeId, pointer, rect, state.results);
+  if (zone !== state.zone) useDragStore.setState({ zone });
+}
+
+type Rects = ReadonlyMap<UniqueIdentifier, ClientRect>;
+
+/**
+ * Keeps the target and zone in step with the real pointer and the cards' latest places. dnd-kit
+ * re-renders this on a pointer move, after re-measuring the cards (the board moved: TreeBoard)
+ * and on a scroll (its rects follow scrolling), so each of them re-checks the zone. Only a new
+ * target plans the rules again.
+ */
+function DragTracker({ rects }: { rects: RefObject<Rects> }) {
+  const { active, over, droppableRects } = useDndContext();
+  const pointer = useDragStore((state) => state.pointer);
+  useLayoutEffect(() => {
+    rects.current = droppableRects;
+  });
+  useEffect(() => {
+    if (active === null) return;
+    const overId = over === null ? null : String(over.id);
+    follow(overId, overId === null ? null : (droppableRects.get(overId) ?? null), pointer);
+  });
+  return null;
+}
+
 /** Drag to relate (spec §7.6), around the board and the tray. Viewers get no sensors. */
 export function TreeDnd({ canEdit, children }: { canEdit: boolean; children: ReactNode }) {
   const requestChange = useContext(ChangeContext);
   const mouse = useSensor(MouseSensor, { activationConstraint: { distance: MOUSE_DISTANCE } });
   const sensors = useSensors(canEdit ? mouse : null);
+  const rects = useRef<Rects>(new Map());
+  const lastPointer = useRef<Point | null>(null);
+  const mounted = useRef(false);
 
-  const onDragStart = ({ active }: DragStartEvent) => {
+  // The page went away mid-drag (another tree, signed out): no drag is left behind, and a late
+  // drop does nothing.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // Not resetDrag: no drop happened, so the next click is a click (and React's development
+      // remount runs this too).
+      useDragStore.setState(IDLE_DRAG);
+    };
+  }, []);
+
+  // The real pointer, in client coordinates like the cards' rects: dnd-kit's own delta also
+  // counts any scrolling since the drag started. Captured on the window, so it is known before
+  // dnd-kit handles the same move.
+  useEffect(() => {
+    if (!canEdit) return;
+    const onMove = (event: MouseEvent) => {
+      const pointer = { x: event.clientX, y: event.clientY };
+      lastPointer.current = pointer;
+      const state = useDragStore.getState();
+      if (state.activeId === null) return;
+      if (state.pointer?.x === pointer.x && state.pointer.y === pointer.y) return;
+      useDragStore.setState({ pointer });
+    };
+    const options = { capture: true, passive: true };
+    window.addEventListener('pointermove', onMove, options);
+    window.addEventListener('mousemove', onMove, options);
+    return () => {
+      window.removeEventListener('pointermove', onMove, options);
+      window.removeEventListener('mousemove', onMove, options);
+    };
+  }, [canEdit]);
+
+  const onDragStart = ({ active, activatorEvent }: DragStartEvent) => {
     useDragStore.setState({
       ...IDLE_DRAG,
       activeId: String(active.id),
+      pointer: lastPointer.current ?? pointerOf({ activatorEvent, delta: { x: 0, y: 0 } }),
       seenTree: useTreeStore.getState().tree,
     });
   };
 
-  // Also on a drag over: dnd-kit works out the target after the move that reached it, so a move
-  // can still carry the previous target, and the over event brings the new one.
-  const onDragMove = (event: DragMoveEvent) => {
-    const state = useDragStore.getState();
-    if (state.activeId === null) return;
-    const pointer = pointerOf(event);
-    const overId = event.over === null ? null : String(event.over.id);
-    if (overId === state.overId) {
-      const zone = zoneFor(
-        overId,
-        state.activeId,
-        pointer,
-        event.over?.rect ?? null,
-        state.results,
-      );
-      useDragStore.setState({ pointer, zone });
-      return;
-    }
-    // A new target: plan its zones once, on the tree as it is now.
-    const tree = useTreeStore.getState().tree;
-    const results = zoneResults(tree, state.activeId, overId);
-    const zone = zoneFor(overId, state.activeId, pointer, event.over?.rect ?? null, results);
-    useDragStore.setState({ pointer, overId, zone, results, seenTree: tree });
-  };
-
   const onDragEnd = (event: DragEndEvent) => {
+    if (!mounted.current) return;
     const state = useDragStore.getState();
     const overId = event.over === null ? null : String(event.over.id);
     const tree = useTreeStore.getState().tree;
     const sameTarget = overId === state.overId;
     const results = sameTarget ? state.results : zoneResults(tree, state.activeId, overId);
-    // The pointer's last place decides the zone: the board may have panned under it.
-    const zone = zoneFor(
-      overId,
-      state.activeId,
-      pointerOf(event),
-      event.over?.rect ?? null,
-      results,
-    );
+    // The pointer's last place on the card's latest place decides the zone: the board may have
+    // panned under it, or the page scrolled.
+    const rect = overId === null ? null : (rects.current.get(overId) ?? event.over?.rect ?? null);
+    const pointer = state.pointer ?? pointerOf(event);
+    const zone = zoneFor(overId, state.activeId, pointer, rect, results);
     const change = dropChange(state.activeId, overId, zone);
     const activeId = state.activeId;
     const seenTree = (sameTarget ? state.seenTree : null) ?? tree;
@@ -175,15 +254,14 @@ export function TreeDnd({ canEdit, children }: { canEdit: boolean; children: Rea
     <DndContext
       sensors={sensors}
       collisionDetection={underPointer}
-      measuring={MEASURING}
+      autoScroll={AUTO_SCROLL}
       accessibility={SILENT}
       onDragStart={onDragStart}
-      onDragMove={onDragMove}
-      onDragOver={onDragMove}
       onDragEnd={onDragEnd}
       onDragCancel={resetDrag}
     >
       {children}
+      <DragTracker rects={rects} />
       <DragStatus />
       <DragOverlay dropAnimation={null}>
         <LiftedCard />

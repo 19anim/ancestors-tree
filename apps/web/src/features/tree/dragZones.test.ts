@@ -2,8 +2,13 @@ import { treeStateFromLists } from '@ancestors-tree/shared/tree';
 import { describe, expect, it } from 'vitest';
 import {
   areSiblings,
+  clampedPan,
   dropChange,
   edgePan,
+  MAX_PAN_FRAME_MS,
+  PAN_FRAME_MS,
+  PAN_STOP_MARGIN,
+  panFor,
   pointerOf,
   TRAY_ID,
   zoneAt,
@@ -91,5 +96,35 @@ describe('pointer and edges', () => {
     expect(edgePan({ x: 790, y: 590 }, board)).toEqual({ x: -12, y: -12 });
     expect(edgePan({ x: 400, y: 300 }, board)).toBeNull();
     expect(edgePan({ x: -5, y: 300 }, board)).toBeNull();
+  });
+
+  it('pans as far per second at any refresh rate, and no further after a stall', () => {
+    expect(panFor({ x: 12, y: 0 }, PAN_FRAME_MS)).toEqual({ x: 12, y: 0 });
+    // 120 Hz: half a 60 Hz step per frame.
+    expect(panFor({ x: -12, y: 12 }, PAN_FRAME_MS / 2)).toEqual({ x: -6, y: 6 });
+    expect(panFor({ x: 12, y: 0 }, 10_000)).toEqual(panFor({ x: 12, y: 0 }, MAX_PAN_FRAME_MS));
+  });
+
+  it('stops panning once the tree’s edge is in view', () => {
+    const board = { width: 800, height: 600 };
+    const tree = { width: 2000, height: 1000 };
+    // The tree's left edge is off screen: the pan reveals it, up to the margin.
+    expect(clampedPan({ x: -100, y: 0, zoom: 1 }, { x: 12, y: 0 }, board, tree)).toEqual({
+      x: -88,
+      y: 0,
+      zoom: 1,
+    });
+    expect(
+      clampedPan({ x: PAN_STOP_MARGIN - 5, y: 0, zoom: 1 }, { x: 12, y: 0 }, board, tree),
+    ).toEqual({ x: PAN_STOP_MARGIN, y: 0, zoom: 1 });
+    expect(
+      clampedPan({ x: PAN_STOP_MARGIN, y: 0, zoom: 1 }, { x: 12, y: 0 }, board, tree),
+    ).toBeNull();
+    // Its right edge (at half zoom, 1000 px wide) is already PAN_STOP_MARGIN inside the board.
+    const farRight = 800 - PAN_STOP_MARGIN - 1000;
+    expect(clampedPan({ x: farRight, y: 0, zoom: 0.5 }, { x: -12, y: 0 }, board, tree)).toBeNull();
+    // A tree smaller than the board never pans away.
+    const small = { width: 200, height: 100 };
+    expect(clampedPan({ x: 300, y: 250, zoom: 1 }, { x: 12, y: -12 }, board, small)).toBeNull();
   });
 });

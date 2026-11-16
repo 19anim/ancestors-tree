@@ -107,7 +107,49 @@ export function edgePan(point: Point, rect: RectLike): Point | null {
   return x === 0 && y === 0 ? null : { x, y };
 }
 
-/** Where the pointer is now: where the drag started, plus how far it moved. */
+/** EDGE_PAN_STEP is per frame at 60 Hz: a pan moves as fast on any refresh rate. */
+export const PAN_FRAME_MS = 1000 / 60;
+/** A longer gap between frames (a stalled or hidden tab) pans no further than this much time. */
+export const MAX_PAN_FRAME_MS = 50;
+
+/** An edge pan scaled to the time since the last frame. */
+export function panFor(move: Point, elapsedMs: number): Point {
+  const frames = Math.min(Math.max(elapsedMs, 0), MAX_PAN_FRAME_MS) / PAN_FRAME_MS;
+  return { x: move.x * frames, y: move.y * frames };
+}
+
+/** How near the tree's far edge may come to the board's edge when an edge pan stops (px). */
+export const PAN_STOP_MARGIN = 2 * EDGE_PAN_ZONE;
+
+/** One axis of `clampedPan`: `start` is where the tree begins on screen, `length` its size. */
+function clampAxis(start: number, delta: number, length: number, span: number): number {
+  // Towards the tree's start: no further than showing it PAN_STOP_MARGIN inside the board.
+  if (delta > 0) return Math.max(start, Math.min(start + delta, PAN_STOP_MARGIN));
+  // Towards its end, the same for its far edge.
+  if (delta < 0) return Math.min(start, Math.max(start + delta, span - PAN_STOP_MARGIN - length));
+  return start;
+}
+
+/**
+ * The view after an edge pan, which stops once the tree's edge is in view (the board has no
+ * translateExtent): a drag cannot pan the tree away. Null when the pan would not move it.
+ */
+export function clampedPan(
+  viewport: Point & { zoom: number },
+  move: Point,
+  board: { width: number; height: number },
+  tree: { width: number; height: number },
+): (Point & { zoom: number }) | null {
+  const { zoom } = viewport;
+  const x = clampAxis(viewport.x, move.x, tree.width * zoom, board.width);
+  const y = clampAxis(viewport.y, move.y, tree.height * zoom, board.height);
+  return x === viewport.x && y === viewport.y ? null : { x, y, zoom };
+}
+
+/**
+ * Where the pointer is from a dnd-kit event: where the drag started, plus how far it moved. Only
+ * a fallback before the real pointer is known: dnd-kit's delta includes any scroll since the start.
+ */
 export function pointerOf(event: { activatorEvent: Event; delta: Point }): Point {
   const start = event.activatorEvent as MouseEvent & { touches?: TouchList };
   const origin = start.touches?.[0] ?? start;

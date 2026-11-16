@@ -11,8 +11,11 @@ export interface DragState {
   zone: Zone | null;
   /** Every zone's answer for overId, planned on seenTree. */
   results: ZoneResults | null;
+  /** The real pointer, in client coordinates (not dnd-kit's scroll-adjusted delta). */
   pointer: Point | null;
   seenTree: TreeState | null;
+  /** The board's zoom while a board card is lifted, so the lifted card matches it; null otherwise. */
+  liftZoom: number | null;
   /** performance.now() when the last drag ended: the click that follows a drop is not a click. */
   endedAt: number;
 }
@@ -24,6 +27,7 @@ export const IDLE_DRAG = {
   results: null,
   pointer: null,
   seenTree: null,
+  liftZoom: null,
 } as const satisfies Omit<DragState, 'endedAt'>;
 
 /** The drag in progress, for the cards' zone labels, the status line and the edge pan. */
