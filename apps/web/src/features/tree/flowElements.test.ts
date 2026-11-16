@@ -31,7 +31,7 @@ describe('toFlowElements', () => {
       position: { x: 100, y: 0 },
       width: 48,
       height: 138,
-      data: { couple: true },
+      data: { couple: true, unionId: U },
       domAttributes: { 'aria-hidden': true },
     });
     expect(nodes[3]).toMatchObject({

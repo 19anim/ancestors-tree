@@ -518,6 +518,11 @@
         "keepWith": "With {{name}}"
       }
     },
+    "cut": {
+      "action": "Cut",
+      "thread": "Thread from {{name}} to the parents",
+      "knot": "Marriage knot of {{names}}"
+    },
     "form": {
       "firstTitle": "Add the first person",
       "childTitle": "Add a child of {{name}}",

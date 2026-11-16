@@ -28,7 +28,7 @@ function nameOf(t: TFunction, tree: TreeState, id: string): string {
 }
 
 /** "A and B", or one name. */
-function names(t: TFunction, tree: TreeState, ids: readonly string[]): string {
+export function names(t: TFunction, tree: TreeState, ids: readonly string[]): string {
   const [first, second] = ids.map((id) => nameOf(t, tree, id));
   return second === undefined ? (first ?? '') : t('tree.relate.and', { a: first, b: second });
 }

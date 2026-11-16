@@ -518,6 +518,11 @@
         "keepWith": "Ở với {{name}}"
       }
     },
+    "cut": {
+      "action": "Cắt chỉ",
+      "thread": "Chỉ nối {{name}} với cha mẹ",
+      "knot": "Nút hôn nhân của {{names}}"
+    },
     "form": {
       "firstTitle": "Thêm người đầu tiên",
       "childTitle": "Thêm con của {{name}}",

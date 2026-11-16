@@ -4,7 +4,7 @@ import { CARD, type TreeLayout } from './layout';
 
 // React Flow needs `type` aliases (not interfaces) for node and edge data.
 export type PersonNodeData = { personId: string; tape: TapeKind; generation: number };
-export type UnionNodeData = { couple: boolean };
+export type UnionNodeData = { couple: boolean; unionId: string };
 export type ThreadEdgeData = { from: Point; dropTo: number; to: Point };
 
 export type PersonFlowNode = Node<PersonNodeData, 'person'>;
@@ -73,7 +73,7 @@ export function toFlowElements(layout: TreeLayout, previous?: FlowElements): Flo
         position: { x: union.x, y: union.y },
         width: union.width,
         height: union.height,
-        data: { couple: union.couple },
+        data: { couple: union.couple, unionId: union.id },
         domAttributes: HIDDEN_FROM_SCREEN_READERS,
       }),
     ),
