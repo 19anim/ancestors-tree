@@ -28,6 +28,17 @@ export interface ChangeRequest {
   focusFallback?: () => HTMLElement | null;
   /** The tree the user saw the answer on (a drag's hover); defaults to the latest. */
   seenTree?: TreeState;
+  /** The change was applied (not cancelled, blocked or out of date). */
+  onDone?: (done: ChangeDone) => void;
+}
+
+/** An applied change, for an asker that shows it itself (a dialog, which covers the toast). */
+export interface ChangeDone {
+  op: Op;
+  /** The toast's sentence ("Đã đổi: …"). */
+  text: string;
+  /** The toast's Undo: undoes this change while it is the latest one, else does nothing. */
+  undo: () => void;
 }
 
 export type RequestChange = (request: ChangeRequest) => void;
@@ -84,6 +95,25 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
     });
   }, []);
 
+  /** Undoes the change while it is the latest one (spec §7.6 "Undo"); a failure is told. */
+  const undoChange = useCallback(
+    (op: Op, request: ChangeRequest) => {
+      const store = useTreeStore.getState();
+      if (store.undoStack.at(-1)?.op !== op) return;
+      const result = store.undo();
+      show(
+        result !== null && !result.ok
+          ? {
+              kind: 'error',
+              text: t('tree.undo.failed', { reason: applyFailureMessage(t, result.reason) }),
+              request,
+            }
+          : null,
+      );
+    },
+    [show, t],
+  );
+
   const run = useCallback(
     (request: ChangeRequest, answers: ChangeAnswers, seen: TreeState) => {
       const store = useTreeStore.getState();
@@ -103,27 +133,23 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
           request,
         });
       } else {
-        const applied = store.apply(decision.op);
-        show(
-          applied.ok
-            ? {
-                kind: 'done',
-                text: t('tree.relate.toast', {
-                  change: changeSentence(t, before, decision.summary),
-                }),
-                op: decision.op,
-                request,
-              }
-            : {
-                kind: 'error',
-                text: t('tree.relate.failed', { reason: applyFailureMessage(t, applied.reason) }),
-                request,
-              },
-        );
+        const { op, summary } = decision;
+        const applied = store.apply(op);
+        if (applied.ok) {
+          const text = t('tree.relate.toast', { change: changeSentence(t, before, summary) });
+          show({ kind: 'done', text, op, request });
+          request.onDone?.({ op, text, undo: () => undoChange(op, request) });
+        } else {
+          show({
+            kind: 'error',
+            text: t('tree.relate.failed', { reason: applyFailureMessage(t, applied.reason) }),
+            request,
+          });
+        }
       }
       focusAfter(request);
     },
-    [focusAfter, show, t],
+    [focusAfter, show, t, undoChange],
   );
 
   const requestChange = useCallback<RequestChange>(
@@ -138,17 +164,7 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
 
   // The Undo button goes away with it; its focus moves on as for any control of the toast.
   const undo = () => {
-    if (toast?.kind !== 'done') return;
-    const result = useTreeStore.getState().undo();
-    show(
-      result !== null && !result.ok
-        ? {
-            kind: 'error',
-            text: t('tree.undo.failed', { reason: applyFailureMessage(t, result.reason) }),
-            request: toast.request,
-          }
-        : null,
-    );
+    if (toast?.kind === 'done') undoChange(toast.op, toast.request);
   };
 
   const question =
@@ -218,7 +234,7 @@ function ChangeToast({
           </p>
         ) : null}
         {canUndo ? (
-          <ToastButton
+          <HandOffButton
             onFocusLost={focusLost}
             variant="secondary"
             size="sm"
@@ -226,10 +242,10 @@ function ChangeToast({
             onClick={onUndo}
           >
             {t('tree.undo.label')}
-          </ToastButton>
+          </HandOffButton>
         ) : null}
         {toast !== null ? (
-          <ToastButton
+          <HandOffButton
             onFocusLost={focusLost}
             variant="ghost"
             size="icon"
@@ -238,7 +254,7 @@ function ChangeToast({
             onClick={onDismiss}
           >
             <X aria-hidden="true" strokeWidth={1.75} className="size-4" />
-          </ToastButton>
+          </HandOffButton>
         ) : null}
       </div>
     </div>
@@ -246,10 +262,10 @@ function ChangeToast({
 }
 
 /**
- * A control of the toast that hands focus on when it goes away while holding it (WCAG 2.4.3):
- * its unmount cleanup runs before React removes the button, so it can still tell.
+ * A button that hands focus on when it goes away while holding it (WCAG 2.4.3), as the toast's
+ * controls do: its unmount cleanup runs before React removes the button, so it can still tell.
  */
-function ToastButton({
+export function HandOffButton({
   onFocusLost,
   ...props
 }: Omit<ButtonProps, 'ref'> & { onFocusLost: (() => void) | undefined }) {

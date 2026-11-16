@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute, renderWithProviders } from '../../test/render';
-import { useChangeRunner, type ChangeRequest } from './ChangeRunner';
+import { useChangeRunner, type ChangeDone, type ChangeRequest } from './ChangeRunner';
 import { CLAN_ID, FAMILY, fixturePerson, GRANDMA, LOOSE, ME, SON } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
 import { batchOps, card, cardName, EDITOR, editableTree } from './testKit';
@@ -203,5 +203,42 @@ describe('the change runner', () => {
     expect(undo).not.toBeInTheDocument();
     // Bình is back in the tray: focus goes to his card there.
     await waitFor(() => expect(document.activeElement).toHaveAttribute('data-person-open', LOOSE));
+  });
+  it('reports an applied change to its asker, with an Undo for it', async () => {
+    const user = userEvent.setup();
+    const done = vi.fn<(done: ChangeDone) => void>();
+    const { trigger } = await openWith(() => ({ ...CHILD_OF_NAM, onDone: done }));
+    // Not made (cancelled, then blocked): nothing to report.
+    await user.click(trigger);
+    await user.click(screen.getByRole('button', { name: 'Thôi, không đổi' }));
+    expect(done).not.toHaveBeenCalled();
+
+    await user.click(trigger);
+    await user.click(screen.getByRole('button', { name: WITH_MAI }));
+    expect(done).toHaveBeenCalledTimes(1);
+    const [report] = done.mock.calls[0] ?? [];
+    expect(report?.text).toBe('Đã đổi: Trần Văn Bình thành con của Nguyễn Văn Nam và Phan Thị Mai');
+    expect(report?.op).toBe(useTreeStore.getState().undoStack.at(-1)?.op);
+
+    await user.click(trigger);
+    expect(screen.getByRole('alert')).toHaveTextContent('Không đổi được');
+    expect(done).toHaveBeenCalledTimes(1);
+
+    // Its Undo is the toast's: one undo step, and the toast goes.
+    act(() => report?.undo());
+    expect(useTreeStore.getState().tree.persons[LOOSE]?.parentUnionId).toBeUndefined();
+    expect(useTreeStore.getState().undoStack).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Hoàn tác thay đổi này' })).not.toBeInTheDocument();
+    // Only while it is the latest change: later, it would undo someone else's edit.
+    await user.click(trigger);
+    await user.click(screen.getByRole('button', { name: WITH_MAI }));
+    const [, [later] = []] = done.mock.calls;
+    applyHere({
+      type: 'updatePerson',
+      payload: { id: SON, changes: { fullName: 'Nguyễn Văn Nam Anh' } },
+    });
+    act(() => later?.undo());
+    expect(useTreeStore.getState().tree.persons[SON]?.fullName).toBe('Nguyễn Văn Nam Anh');
+    expect(useTreeStore.getState().tree.persons[LOOSE]?.parentUnionId).toBe(FIRST_UNION);
   });
 });

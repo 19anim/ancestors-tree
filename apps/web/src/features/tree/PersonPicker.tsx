@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { cn } from '../../shared/lib/cn';
 
 export interface PickerOption {
@@ -13,7 +13,11 @@ export interface PickerOption {
 interface PersonPickerProps {
   label: string;
   listLabel: string;
-  empty: string;
+  /**
+   * What the search found ("Tìm thấy 3 người.", or that no one matches); empty before a search.
+   * A polite live region, so it is announced as the user types.
+   */
+  status: string;
   query: string;
   onQueryChange: (query: string) => void;
   options: PickerOption[];
@@ -28,7 +32,7 @@ interface PersonPickerProps {
 export function PersonPicker({
   label,
   listLabel,
-  empty,
+  status,
   query,
   onQueryChange,
   options,
@@ -36,10 +40,22 @@ export function PersonPicker({
   onSelect,
 }: PersonPickerProps) {
   const inputId = useId();
+  const statusId = useId();
+  const listId = useId();
   const listLabelId = useId();
   const optionPrefix = useId();
   const [active, setActive] = useState(0);
   const current = Math.min(active, Math.max(options.length - 1, 0));
+  const hasList = options.length > 0;
+  const activeId = hasList ? `${optionPrefix}-${current}` : null;
+
+  // The active option stays in view as the arrows move it through a long list.
+  useEffect(() => {
+    if (activeId === null) return;
+    const node = document.getElementById(activeId);
+    // jsdom has no scrollIntoView.
+    if (typeof node?.scrollIntoView === 'function') node.scrollIntoView({ block: 'nearest' });
+  }, [activeId]);
 
   const choose = (option: PickerOption | undefined) => {
     if (option === undefined || option.blockedReason !== undefined) return;
@@ -66,24 +82,34 @@ export function PersonPicker({
         type="search"
         autoComplete="off"
         value={query}
+        aria-describedby={statusId}
+        aria-controls={hasList ? listId : undefined}
         onChange={(event) => {
           setActive(0);
           onQueryChange(event.target.value);
         }}
         className="h-10 rounded-control border border-line-strong bg-surface px-3 text-base text-ink"
       />
-      {query.trim() === '' ? null : options.length === 0 ? (
-        <p className="text-sm text-ink-muted">{empty}</p>
-      ) : (
+      {/* Always in the accessibility tree, so each new count is announced. */}
+      <p
+        id={statusId}
+        role="status"
+        aria-live="polite"
+        className="text-sm text-ink-muted empty:sr-only"
+      >
+        {status}
+      </p>
+      {hasList ? (
         <>
           <span id={listLabelId} className="sr-only">
             {listLabel}
           </span>
           <ul
+            id={listId}
             role="listbox"
             tabIndex={0}
             aria-labelledby={listLabelId}
-            aria-activedescendant={`${optionPrefix}-${current}`}
+            aria-activedescendant={activeId ?? undefined}
             onKeyDown={onKeyDown}
             className="group max-h-60 overflow-y-auto rounded-control border border-line p-1"
           >
@@ -103,7 +129,9 @@ export function PersonPicker({
                 }}
                 className={cn(
                   'cursor-default rounded-control px-3 py-2 text-base',
-                  at === current && 'group-focus-visible:bg-paper-grid',
+                  // The keyboard's place in the list: the focus ring's colour (3:1 and more).
+                  at === current &&
+                    'group-focus-visible:bg-paper-grid group-focus-visible:outline-2 group-focus-visible:-outline-offset-2 group-focus-visible:outline-accent',
                   option.id === selectedId && 'font-bold',
                   option.blockedReason === undefined ? 'text-ink' : 'text-ink-muted',
                 )}
@@ -119,7 +147,7 @@ export function PersonPicker({
             ))}
           </ul>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

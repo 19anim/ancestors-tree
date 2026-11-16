@@ -49,6 +49,20 @@ describe('availableActions', () => {
 
   it('offers moving among siblings only towards a sibling', () => {
     const tree = treeStateFromLists(SIBLINGS.progenitorId, SIBLINGS.persons, SIBLINGS.unions);
+    expect(availableActions(tree, SON, false)).toEqual([
+      'addChild',
+      'addSpouse',
+      'changeRelationship',
+      'moveLater',
+      'delete',
+    ]);
+    expect(availableActions(tree, SISTER, false)).toEqual([
+      'addChild',
+      'addSpouse',
+      'changeRelationship',
+      'moveEarlier',
+      'delete',
+    ]);
     expect(availableActions(tree, SON, true)).toContain('moveLater');
     expect(availableActions(tree, SON, true)).not.toContain('moveEarlier');
     expect(availableActions(tree, SISTER, true)).toContain('moveEarlier');
