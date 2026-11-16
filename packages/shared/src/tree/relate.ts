@@ -97,6 +97,13 @@ function isAlone(union: Union, personId: string): boolean {
   return union.partnerIds.length === 1 && union.partnerIds[0] === personId;
 }
 
+/** The person's one-person union ("only B"), if they have one; a person never needs two. */
+function aloneUnionOf(tree: TreeState, personId: string): Union | undefined {
+  return buildTreeIndex(tree)
+    .unionsOf(personId)
+    .find((union) => isAlone(union, personId));
+}
+
 function parentIdsOf(tree: TreeState, personId: string): readonly string[] {
   const unionId = tree.persons[personId]?.parentUnionId;
   return unionId === undefined ? [] : (tree.unions[unionId]?.partnerIds ?? []);
@@ -141,6 +148,15 @@ function numberLast(draft: Draft, childId: string, unionId: string): void {
   });
 }
 
+/** The union's children move into another union, numbered after its own; the union goes. */
+function moveChildren(draft: Draft, fromId: string, toId: string): void {
+  for (const child of buildTreeIndex(draft.tree).childrenOf(fromId)) {
+    draft.push({ type: 'setParents', payload: { personId: child.id, parentUnionId: toId } });
+    numberLast(draft, child.id, toId);
+  }
+  draft.push({ type: 'deleteUnion', payload: { id: fromId } });
+}
+
 /** The child leaves one parent and keeps the other (in that parent's one-person union). */
 export function detachFromParent(draft: Draft, childId: string, parentId: string): void {
   const unionId = draft.tree.persons[childId]?.parentUnionId;
@@ -151,25 +167,29 @@ export function detachFromParent(draft: Draft, childId: string, parentId: string
     draft.push({ type: 'setParents', payload: { personId: childId, parentUnionId: null } });
     return;
   }
-  const alone = buildTreeIndex(draft.tree)
-    .unionsOf(other)
-    .find((candidate) => isAlone(candidate, other));
-  const target = alone?.id ?? newUnion(draft, [other]);
+  const target = aloneUnionOf(draft.tree, other)?.id ?? newUnion(draft, [other]);
   draft.push({ type: 'setParents', payload: { personId: childId, parentUnionId: target } });
   numberLast(draft, childId, target);
 }
 
-/** A couple splits; their children stay with `keeperId` (spec §7.6). */
+/**
+ * A couple splits; their children stay with `keeperId` (spec §7.6), in the keeper's own
+ * one-person union when they already have one, so "only B" stays a single knot.
+ */
 export function separateCouple(draft: Draft, union: Union, keeperId: string): void {
-  const hasChildren = buildTreeIndex(draft.tree).childrenOf(union.id).length > 0;
-  if (hasChildren) {
-    draft.push({
-      type: 'updateUnion',
-      payload: { id: union.id, changes: { partnerIds: [keeperId] } },
-    });
-  } else {
+  if (buildTreeIndex(draft.tree).childrenOf(union.id).length === 0) {
     draft.push({ type: 'deleteUnion', payload: { id: union.id } });
+    return;
   }
+  const alone = aloneUnionOf(draft.tree, keeperId);
+  if (alone !== undefined && alone.id !== union.id) {
+    moveChildren(draft, union.id, alone.id);
+    return;
+  }
+  draft.push({
+    type: 'updateUnion',
+    payload: { id: union.id, changes: { partnerIds: [keeperId] } },
+  });
 }
 
 /** Step 4 and 5: true when the relation already holds; otherwise removes A and B's direct link. */
@@ -246,7 +266,7 @@ function makeChild(draft: Draft, a: string, b: string, answers: RelateAnswers): 
   const unions = buildTreeIndex(draft.tree).unionsOf(b);
   let unionId: string;
   if (answers.union === ALONE || unions.length === 0) {
-    unionId = unions.find((union) => isAlone(union, b))?.id ?? newUnion(draft, [b]);
+    unionId = aloneUnionOf(draft.tree, b)?.id ?? newUnion(draft, [b]);
   } else if (answers.union !== undefined) {
     // An answer for a union that is no longer B's (the tree changed): ask again.
     if (!unions.some((union) => union.id === answers.union)) return withWhom(unions, b);
@@ -272,8 +292,10 @@ function coupleUnion(tree: TreeState, x: string, y: string): Union | undefined {
 function makeParent(draft: Draft, a: string, b: string, answers: RelateAnswers): Step {
   const unionId = draft.tree.persons[b]?.parentUnionId;
   if (unionId === undefined) {
-    const id = newUnion(draft, [a]);
+    // A's own one-person union when there is one: "only A" stays a single knot.
+    const id = aloneUnionOf(draft.tree, a)?.id ?? newUnion(draft, [a]);
     draft.push({ type: 'setParents', payload: { personId: b, parentUnionId: id } });
+    numberLast(draft, b, id);
     return done(null);
   }
   const union = draft.tree.unions[unionId] as Union;
@@ -288,14 +310,7 @@ function makeParent(draft: Draft, a: string, b: string, answers: RelateAnswers):
       return done(kept);
     }
     // Replace, don't stack: the children join the couple's marriage, not a second one.
-    for (const child of buildTreeIndex(draft.tree).childrenOf(unionId)) {
-      draft.push({
-        type: 'setParents',
-        payload: { personId: child.id, parentUnionId: marriage.id },
-      });
-      numberLast(draft, child.id, marriage.id);
-    }
-    draft.push({ type: 'deleteUnion', payload: { id: unionId } });
+    moveChildren(draft, unionId, marriage.id);
     return done(kept);
   }
   const [first, second] = union.partnerIds as [string, string];

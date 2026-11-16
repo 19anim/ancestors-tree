@@ -28,4 +28,28 @@ describe('RelateQuestionDialog', () => {
     await user.keyboard('{Escape}');
     expect(onCancel).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps two answers with the same words apart (two partners with one name)', async () => {
+    const user = userEvent.setup();
+    const onAnswer = vi.fn();
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    renderWithProviders(
+      <RelateQuestionDialog
+        title="Con của Nam với ai?"
+        answers={[
+          { label: 'Với Lê Thị Hoa', answers: { union: 'a' } },
+          { label: 'Với Lê Thị Hoa', answers: { union: 'b' } },
+        ]}
+        onAnswer={onAnswer}
+        onCancel={vi.fn()}
+      />,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Con của Nam với ai?' });
+    const [, second] = within(dialog).getAllByRole('button', { name: 'Với Lê Thị Hoa' });
+    await user.click(second as HTMLElement);
+    expect(onAnswer).toHaveBeenCalledWith({ union: 'b' });
+    // React warns about two children with the same key.
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+    errors.mockRestore();
+  });
 });

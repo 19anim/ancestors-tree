@@ -60,6 +60,10 @@ describe('relate: blocks', () => {
       kind: 'blocked',
       reason: 'PERSON_NOT_FOUND',
     });
+    expect(relate(tree, testId(99), SON, 'before')).toEqual({
+      kind: 'blocked',
+      reason: 'PERSON_NOT_FOUND',
+    });
     expect(relate(tree, SON, WIFE, 'spouse')).toEqual({ kind: 'blocked', reason: 'ALREADY' });
     expect(relate(tree, SON, GRANDPA, 'child')).toEqual({ kind: 'blocked', reason: 'ALREADY' });
     expect(relate(tree, GRANDPA, SON, 'parent')).toEqual({ kind: 'blocked', reason: 'ALREADY' });
@@ -243,5 +247,49 @@ describe('relate: sibling order', () => {
     expect(next.persons[SON]?.siblingOrder).toBe(2);
     expect(relate(tree, DAUGHTER, SON, 'after')).toEqual({ kind: 'blocked', reason: 'ALREADY' });
     expect(relate(tree, KID, SON, 'before')).toEqual({ kind: 'blocked', reason: 'NOT_SIBLINGS' });
+  });
+
+  it('refuses to renumber more than 99 siblings', () => {
+    // Son, Daughter and 98 more: 100 children of Grandpa and Grandma.
+    const many = Array.from({ length: 98 }, (_, at) =>
+      makePerson(testId(1000 + at), { parentUnionId: OLD }),
+    );
+    const tree = treeOf(
+      [...Object.values(family().persons), ...many],
+      Object.values(family().unions),
+      GRANDPA,
+    );
+    expect(relate(tree, DAUGHTER, SON, 'before')).toEqual({
+      kind: 'blocked',
+      reason: 'TOO_MANY_SIBLINGS',
+    });
+  });
+});
+
+describe('relate: the schema’s 99 caps', () => {
+  it('clears the number of a child who would come after sibling 99', () => {
+    const tree = treeOf(
+      Object.values(family().persons).map((person) =>
+        person.id === DAUGHTER ? { ...person, siblingOrder: 99 } : person,
+      ),
+      Object.values(family().unions),
+      GRANDPA,
+    );
+    const next = after(tree, relate(tree, LOOSE, GRANDMA, 'child'));
+    expect(parentsOf(next, LOOSE)).toEqual([GRANDPA, GRANDMA].sort());
+    expect(next.persons[LOOSE]?.siblingOrder).toBeUndefined();
+  });
+
+  it('keeps a new marriage’s order at 99 at most', () => {
+    const tree = treeOf(
+      Object.values(family().persons),
+      [makeUnion(OLD, [GRANDPA, GRANDMA]), makeUnion(YOUNG, [SON, WIFE], { order: 99 })],
+      GRANDPA,
+    );
+    const next = after(tree, relate(tree, LOOSE, SON, 'spouse'));
+    const marriage = buildTreeIndex(next)
+      .unionsOf(SON)
+      .find((union) => union.partnerIds.includes(LOOSE));
+    expect(marriage?.order).toBe(99);
   });
 });

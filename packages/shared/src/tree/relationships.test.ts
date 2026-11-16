@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp } from './apply-op.ts';
-import { classifyLineage } from './lineage.ts';
+import { buildTreeIndex, classifyLineage } from './lineage.ts';
 import {
   cutMarriage,
   cutThreadOp,
@@ -83,6 +83,33 @@ describe('removing and cutting', () => {
     expect(next.unions[YOUNG]?.partnerIds).toEqual([WIFE]);
   });
 
+  it('moves the children into the keeper’s own one-person union, not a second one', () => {
+    // Son already has a child of his own (Step, in a one-person union) besides Kid with Wife.
+    const SOLO = testId(103);
+    const STEP = testId(8);
+    const tree = treeOf(
+      [
+        ...Object.values(family().persons),
+        makePerson(STEP, { parentUnionId: SOLO, siblingOrder: 1 }),
+      ],
+      [...Object.values(family().unions), makeUnion(SOLO, [SON], { order: 2 })],
+      GRANDPA,
+    );
+    const cut = cutMarriage(tree, YOUNG, SON);
+    if (cut.kind !== 'ok') throw new Error('expected ok');
+    const next = valid(tree, cut.op);
+    expect(next.unions[YOUNG]).toBeUndefined();
+    expect(buildTreeIndex(next).unionsOf(SON)).toEqual([next.unions[SOLO]]);
+    expect(next.persons[KID]?.parentUnionId).toBe(SOLO);
+    expect(next.persons[KID]?.siblingOrder).toBe(2);
+    // The same when Wife, an in-law, is dropped on the tray.
+    const detached = detach(tree, WIFE);
+    if (detached.kind !== 'ok') throw new Error('expected ok');
+    const alone = valid(tree, detached.op);
+    expect(buildTreeIndex(alone).unionsOf(SON)).toEqual([alone.unions[SOLO]]);
+    expect(alone.persons[KID]?.parentUnionId).toBe(SOLO);
+  });
+
   it('deletes a marriage without children, with no question', () => {
     const tree = valid(family(), {
       type: 'setParents',
@@ -116,7 +143,7 @@ describe('removing and cutting', () => {
 });
 
 describe('detach (a card dropped on the tray)', () => {
-  it('takes someone with parents away with their branch', () => {
+  it('takes a blood member away with their branch', () => {
     const tree = family();
     const result = detach(tree, SON);
     if (result.kind !== 'ok') throw new Error('expected ok');

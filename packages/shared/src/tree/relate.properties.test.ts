@@ -2,7 +2,10 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { applyOp } from './apply-op.ts';
 import { OpError } from './op-error.ts';
+import { OpSchema, type BatchOp } from './ops.ts';
 import { ALONE, relate, type Relation, type RelateResult } from './relate.ts';
+import { cutMarriage, detach } from './relationships.ts';
+import type { TreeState } from './state.ts';
 import { arbitraryTree, invariantViolations } from './testing.ts';
 
 const RELATIONS: Relation[] = ['parent', 'spouse', 'child', 'before', 'after'];
@@ -14,6 +17,32 @@ function answered(result: RelateResult, again: (answers: object) => RelateResult
   if (question.kind === 'withWhom') return again({ union: question.unions[0]?.unionId ?? ALONE });
   if (question.kind === 'replaceParent') return again({ replaces: question.parentIds[0] });
   return again({ shareChildren: true });
+}
+
+/** How many one-person unions each person is the partner of. */
+function aloneCounts(tree: TreeState): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const union of Object.values(tree.unions)) {
+    const [only] = union.partnerIds;
+    if (union.partnerIds.length === 1 && only !== undefined) {
+      counts.set(only, (counts.get(only) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * The op passes the server's schema and applyOp, keeps the tree valid, and gives no one a second
+ * one-person union (two knots for "only B"; a tree that already had two keeps them).
+ */
+function checkOp(tree: TreeState, op: BatchOp): void {
+  expect(() => OpSchema.parse(op)).not.toThrow();
+  const next = applyOp(tree, op).tree;
+  expect(invariantViolations(next)).toEqual([]);
+  const before = aloneCounts(tree);
+  for (const [personId, count] of aloneCounts(next)) {
+    expect(count).toBeLessThanOrEqual(Math.max(1, before.get(personId) ?? 0));
+  }
 }
 
 describe('relate (properties)', () => {
@@ -33,11 +62,31 @@ describe('relate (properties)', () => {
             relate(tree, a, b, relation, answers),
           );
           if (result.kind !== 'ok') return;
-          const next = applyOp(tree, result.op).tree;
-          expect(invariantViolations(next)).toEqual([]);
+          checkOp(tree, result.op);
         },
       ),
       { numRuns: 300 },
+    );
+  });
+
+  it('cuts a marriage, or drops someone on the tray, with ops of the same quality', () => {
+    fc.assert(
+      fc.property(arbitraryTree(), fc.nat(), fc.nat(), (tree, i, j) => {
+        const unionIds = Object.keys(tree.unions);
+        const unionId = unionIds[i % Math.max(1, unionIds.length)];
+        if (unionId !== undefined) {
+          const union = tree.unions[unionId];
+          for (const keepWith of [undefined, ...(union?.partnerIds ?? [])]) {
+            const result = cutMarriage(tree, unionId, keepWith);
+            if (result.kind === 'ok') checkOp(tree, result.op);
+          }
+        }
+        const ids = Object.keys(tree.persons);
+        const personId = ids[j % ids.length] as string;
+        const result = detach(tree, personId);
+        if (result.kind === 'ok') checkOp(tree, result.op);
+      }),
+      { numRuns: 500 },
     );
   });
 

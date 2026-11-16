@@ -30,7 +30,8 @@ export function RelateQuestionDialog({
         <div className="flex flex-col gap-2">
           {answers.map((answer) => (
             <Button
-              key={answer.label}
+              // Two answers can read the same (two partners with one name); their values differ.
+              key={JSON.stringify(answer.answers)}
               variant="secondary"
               className="justify-start"
               onClick={() => onAnswer(answer.answers)}
