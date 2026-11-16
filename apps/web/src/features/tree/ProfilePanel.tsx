@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, inertOthers, useMediaQuery } from '../../shared/ui';
 import { ProfileDetails } from './ProfileDetails';
 import { ProfileForm } from './ProfileForm';
+import { ProfilePhoto } from './ProfilePhoto';
 import { useTreeStore } from './store';
 import {
   ACTION_ICONS,
@@ -169,6 +170,7 @@ export function ProfilePanel({
           </Button>
         </div>
       </div>
+      <ProfilePhoto person={person} />
       {editing ? (
         <ProfileForm
           person={person}

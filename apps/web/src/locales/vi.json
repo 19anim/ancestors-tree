@@ -366,6 +366,9 @@
       "stackToggle": "+{{count}} người trong xấp của {{name}}",
       "stackList": "Xấp của {{name}}"
     },
+    "photo": {
+      "alt": "Ảnh của {{name}}"
+    },
     "profile": {
       "close": "Đóng hồ sơ",
       "edit": "Sửa",

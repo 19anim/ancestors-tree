@@ -27,6 +27,7 @@ import { ChangeContext } from './ChangeRunner';
 import { IDLE_DRAG, resetDrag, useDragStore } from './dragStore';
 import { dropChange, pointerOf, zoneFor, zoneResults, type RectLike } from './dragZones';
 import { lifeYears } from './format';
+import { photoUrl } from './photoUrl';
 import { blockMessage, changeSentence } from './relateText';
 import { useTreeStore } from './store';
 
@@ -137,6 +138,7 @@ function LiftedCard() {
         name={person.fullName}
         label={person.fullName}
         lifeYears={lifeYears(person)}
+        photoUrl={photoUrl(person.photo, 'card')}
         tape="loose"
         tilt={tiltFor(person.id)}
       />

@@ -366,6 +366,9 @@
       "stackToggle": "+{{count}} more in {{name}}’s stack",
       "stackList": "{{name}}’s stack"
     },
+    "photo": {
+      "alt": "Photo of {{name}}"
+    },
     "profile": {
       "close": "Close the profile",
       "edit": "Edit",

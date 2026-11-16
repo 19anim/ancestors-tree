@@ -1,4 +1,4 @@
-import type { ComponentProps, CSSProperties, ReactNode } from 'react';
+import { useState, type ComponentProps, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { initialsOf } from './initials';
 import { BRANCH_TAPE_COUNT, tapeColor, type TapeKind } from './tape';
@@ -52,6 +52,10 @@ export function Polaroid({
   style,
   ...props
 }: PolaroidProps) {
+  // The URL that failed to load: its card shows the initials until the URL changes. Before the
+  // early returns, so the hook always runs.
+  const [failedUrl, setFailedUrl] = useState<string | undefined>(undefined);
+  const showPhoto = photoUrl !== undefined && failedUrl !== photoUrl;
   const tapeBackground = tapeColor(tape);
   const { width, height } = POLAROID_SIZE[lod];
   // `rotate` (not `transform`) so it combines with Tailwind's translate/scale utilities.
@@ -109,8 +113,15 @@ export function Polaroid({
       />
       {/* Stickers are stuck on the photo's corner, so they never cover the caption. */}
       <div data-part="photo" className="relative">
-        {photoUrl ? (
-          <img src={photoUrl} alt="" className="h-[74px] w-full object-cover" />
+        {showPhoto ? (
+          <img
+            src={photoUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="h-[74px] w-full object-cover"
+            onError={() => setFailedUrl(photoUrl)}
+          />
         ) : (
           <span
             aria-hidden="true"

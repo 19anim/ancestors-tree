@@ -1,6 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Polaroid, POLAROID_SIZE } from './Polaroid';
+import { initialsOf } from './initials';
 
 const LABEL = 'Ông Thịnh, 1931–2004';
 
@@ -21,6 +22,22 @@ describe('Polaroid', () => {
     expect(card.querySelector('img')).toHaveAttribute('src', '/hoa.jpg');
     expect(card.querySelector('img')).toHaveAttribute('alt', '');
     expect(within(card).queryByText('H')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the initials when the photo fails to load', () => {
+    const { container } = render(
+      <Polaroid
+        name="Nguyễn Văn Tư"
+        label="x"
+        tape={1}
+        photoUrl="https://res.cloudinary.com/demo/x"
+      />,
+    );
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    fireEvent.error(img as HTMLImageElement);
+    expect(screen.getByText(initialsOf('Nguyễn Văn Tư'))).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('makes the full card tall enough for the line under the caption', () => {
