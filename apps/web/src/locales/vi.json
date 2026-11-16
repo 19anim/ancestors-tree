@@ -518,6 +518,28 @@
         "keepWith": "Ở với {{name}}"
       }
     },
+    "drag": {
+      "lifted": "Đang kéo {{name}}. Thả lên một thẻ khác, hoặc nhấn Esc để huỷ.",
+      "willDo": "Thả để: {{change}}",
+      "willAsk": "{{target}}: khi thả sẽ hỏi thêm một câu.",
+      "blocked": "{{target}}: không được. {{reason}}",
+      "zone": {
+        "parent": "Làm cha/mẹ",
+        "spouse": "Làm vợ/chồng",
+        "child": "Làm con",
+        "before": "Xếp trước",
+        "after": "Xếp sau"
+      },
+      "target": {
+        "parent": "Làm cha/mẹ của {{name}}",
+        "spouse": "Làm vợ/chồng của {{name}}",
+        "child": "Làm con của {{name}}",
+        "before": "Xếp trước {{name}}",
+        "after": "Xếp sau {{name}}",
+        "tray": "Chuyển vào Ảnh chưa dán"
+      },
+      "trayDrop": "Thả vào đây để chuyển vào Ảnh chưa dán."
+    },
     "cut": {
       "action": "Cắt chỉ",
       "thread": "Chỉ nối {{name}} với cha mẹ",

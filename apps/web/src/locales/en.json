@@ -518,6 +518,28 @@
         "keepWith": "With {{name}}"
       }
     },
+    "drag": {
+      "lifted": "Dragging {{name}}. Drop on another card, or press Esc to cancel.",
+      "willDo": "Drop to: {{change}}",
+      "willAsk": "{{target}}: one more question when you drop.",
+      "blocked": "{{target}}: not possible. {{reason}}",
+      "zone": {
+        "parent": "Parent",
+        "spouse": "Spouse",
+        "child": "Child",
+        "before": "Before",
+        "after": "After"
+      },
+      "target": {
+        "parent": "Parent of {{name}}",
+        "spouse": "Spouse of {{name}}",
+        "child": "Child of {{name}}",
+        "before": "Before {{name}}",
+        "after": "After {{name}}",
+        "tray": "Move to Loose photos"
+      },
+      "trayDrop": "Drop here to move to Loose photos."
+    },
     "cut": {
       "action": "Cut",
       "thread": "Thread from {{name}} to the parents",

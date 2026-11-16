@@ -10,7 +10,10 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DateMark, Polaroid, tiltFor, type TapeKind } from '../../shared/ui';
+import { CardDrag } from './CardDrag';
 import { CardMenu } from './CardMenu';
+import { justDropped } from './dragStore';
+import { CardZones } from './DropZones';
 import {
   birthdayOf,
   birthFamilySubtitle,
@@ -89,7 +92,15 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
           },
         };
   return (
-    <div className="group relative" style={POINTER_EVENTS} {...tooltipHandlers}>
+    // Drag to relate (spec §7.6): editors drag the card from its button, and drop on it.
+    <CardDrag
+      personId={person.id}
+      drag
+      drop
+      className="group relative"
+      style={POINTER_EVENTS}
+      {...tooltipHandlers}
+    >
       {/* The photo, hidden from screen readers: the button over it names the person. */}
       <Polaroid
         aria-hidden="true"
@@ -113,6 +124,7 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
           ) : undefined
         }
       />
+      <CardZones personId={person.id} />
       {/* Right-click, the menu key or Shift+F10: the panel's actions (spec §7.6). */}
       <CardMenu personId={person.id}>
         <button
@@ -125,7 +137,10 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
           aria-describedby={describedBy === '' ? undefined : describedBy}
           // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
           data-person-open={person.id}
-          onClick={() => openPerson?.(person.id)}
+          onClick={() => {
+            // The click the browser fires on the dragged card right after a drop is not a click.
+            if (!justDropped()) openPerson?.(person.id);
+          }}
           // On the button, not the wrapper: keys in an open card menu bubble to the wrapper
           // through the portal, never to the button, so the menu keeps its own arrows.
           onKeyDown={(event) => {
@@ -159,6 +174,6 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
           </span>
         </span>
       ) : null}
-    </div>
+    </CardDrag>
   );
 }

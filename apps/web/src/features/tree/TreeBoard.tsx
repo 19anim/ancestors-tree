@@ -22,6 +22,8 @@ import {
   pannedToShow,
   personRect,
 } from './boardView';
+import { useDragStore } from './dragStore';
+import { edgePan } from './dragZones';
 import { toFlowElements, type FlowElements } from './flowElements';
 import { layoutTree, type TreeLayout } from './layout';
 import { PersonNode } from './PersonNode';
@@ -102,6 +104,33 @@ function RevealNewPeople({
     const frame = requestAnimationFrame(() => reveal(added));
     return () => cancelAnimationFrame(frame);
   }, [layout, reveal]);
+  return null;
+}
+
+/** Dragging near the board's edge pans it, so far cards can be reached (spec §7.6). */
+function EdgePan({ surface }: { surface: RefObject<HTMLDivElement | null> }) {
+  const { getViewport, setViewport } = useReactFlow();
+  useEffect(() => {
+    let frame = 0;
+    const step = () => {
+      frame = 0;
+      const { activeId, pointer } = useDragStore.getState();
+      const element = surface.current;
+      if (activeId === null || pointer === null || element === null) return;
+      const move = edgePan(pointer, element.getBoundingClientRect());
+      if (move === null) return;
+      const viewport = getViewport();
+      void setViewport({ ...viewport, x: viewport.x + move.x, y: viewport.y + move.y });
+      frame = requestAnimationFrame(step);
+    };
+    const unsubscribe = useDragStore.subscribe((state) => {
+      if (state.pointer !== null && frame === 0) frame = requestAnimationFrame(step);
+    });
+    return () => {
+      unsubscribe();
+      cancelAnimationFrame(frame);
+    };
+  }, [getViewport, setViewport, surface]);
   return null;
 }
 
@@ -232,6 +261,7 @@ function BoardSurface({ label, layout, elements, openPersonId }: BoardSurfacePro
         }}
       >
         <RevealNewPeople layout={layout} reveal={bringIntoView} />
+        <EdgePan surface={surface} />
       </ReactFlow>
       {/* After the cards in the DOM, so the tab order is board, cards, zoom buttons. */}
       <div className="absolute right-3 bottom-3 z-10 flex flex-col gap-2">

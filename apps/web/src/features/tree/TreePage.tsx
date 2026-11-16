@@ -14,6 +14,7 @@ import { OpenPersonContext, personCardButton, useProfileParam } from './profileP
 import { useTreeStore } from './store';
 import { TreeBoard } from './TreeBoard';
 import { TreeDialogs, useTreeDialog } from './TreeDialogs';
+import { TreeDnd } from './TreeDnd';
 import { TreeSkeleton } from './TreeSkeleton';
 import { TreeToolbar } from './TreeToolbar';
 import { UnlinkedTray } from './UnlinkedTray';
@@ -196,13 +197,13 @@ export function TreePage() {
                   onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined}
                 />
               ) : (
-                <>
+                <TreeDnd canEdit={canEdit}>
                   <TreeBoard
                     label={t('tree.board.label', { name: clan.name })}
                     openPersonId={personId}
                   />
                   <UnlinkedTray onAddSeveral={addSeveral} />
-                </>
+                </TreeDnd>
               )}
             </div>
             {personId !== null ? (

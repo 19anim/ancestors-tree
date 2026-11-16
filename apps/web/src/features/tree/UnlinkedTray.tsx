@@ -1,14 +1,23 @@
+import { useDroppable } from '@dnd-kit/core';
 import { looseStacks, type LooseStack, type Person } from '@ancestors-tree/shared/tree';
 import { UsersRound } from 'lucide-react';
-import { useContext, useId, useMemo, useState } from 'react';
+import { useContext, useId, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '../../shared/lib/cn';
 import { Button, Polaroid, tiltFor } from '../../shared/ui';
+import { CardDrag } from './CardDrag';
+import { ChangeContext } from './ChangeRunner';
+import { justDropped, useDragStore } from './dragStore';
+import { TRAY_ID } from './dragZones';
 import { lifeYears, lifeYearsSpoken } from './format';
 import { OpenPersonContext } from './profileParams';
 import { useTreeStore } from './store';
 
-/** One loose photo, opening the person's profile. */
-export function TrayPhoto({ person }: { person: Person }) {
+/**
+ * One loose photo, opening the person's profile. A draggable one (a stack's top person) can be
+ * dragged onto the board by editors, bringing its branch along (spec §7.6).
+ */
+export function TrayPhoto({ person, draggable = false }: { person: Person; draggable?: boolean }) {
   const { t } = useTranslation();
   const openPerson = useContext(OpenPersonContext);
   const years = lifeYears(person);
@@ -18,7 +27,7 @@ export function TrayPhoto({ person }: { person: Person }) {
       ? person.fullName
       : t('scrapbook.personLabel', { name: person.fullName, years: spokenYears });
   return (
-    <div className="relative">
+    <CardDrag personId={person.id} drag={draggable} drop={false} className="relative">
       <Polaroid
         aria-hidden="true"
         lod="label"
@@ -37,9 +46,12 @@ export function TrayPhoto({ person }: { person: Person }) {
         aria-label={label}
         // Focus returns here when the profile or a dialog closes (TreePage, TreeDialogs).
         data-person-open={person.id}
-        onClick={() => openPerson?.(person.id)}
+        onClick={() => {
+          // The click the browser fires on the dragged photo right after a drop is not a click.
+          if (!justDropped()) openPerson?.(person.id);
+        }}
       />
-    </div>
+    </CardDrag>
   );
 }
 
@@ -65,7 +77,8 @@ function TrayStack({ stack }: { stack: LooseStack }) {
             className="absolute inset-0 translate-x-1.5 translate-y-1.5 rotate-2 rounded-photo border border-line bg-photo"
           />
         ) : null}
-        <TrayPhoto person={root} />
+        {/* Only the top person is dragged: the branch comes with them (spec §7.6). */}
+        <TrayPhoto person={root} draggable />
       </div>
       {others.length > 0 ? (
         <>
@@ -109,25 +122,59 @@ export function UnlinkedTray({ onAddSeveral }: { onAddSeveral?: () => void }) {
   const headingId = useId();
   const tree = useTreeStore((state) => state.tree);
   const stacks = useMemo(() => looseStacks(tree), [tree]);
+  // An empty tray is there only while dragging, to drop on. A boolean that stays false while the
+  // tray has photos, so a drag starting or ending does not re-render them.
+  const emptyWhileDragging = useDragStore(
+    (state) => stacks.length === 0 && state.activeId !== null,
+  );
 
-  if (stacks.length === 0) return null;
+  if (stacks.length === 0 && !emptyWhileDragging) return null;
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+    <TrayDrop headingId={headingId}>
       <h2 id={headingId} className="text-lg font-bold text-ink">
         {t('tree.unlinked.title')}
       </h2>
-      <p className="text-sm text-ink-muted">{t('tree.unlinked.hint')}</p>
-      {onAddSeveral ? (
-        <Button variant="secondary" size="sm" className="self-start" onClick={onAddSeveral}>
-          <UsersRound aria-hidden="true" strokeWidth={1.75} className="size-4" />
-          {t('tree.several.open')}
-        </Button>
-      ) : null}
-      <ul className="flex flex-wrap items-start gap-4">
-        {stacks.map((stack) => (
-          <TrayStack key={stack.rootId} stack={stack} />
-        ))}
-      </ul>
+      {stacks.length === 0 ? (
+        // Shown only while dragging: the empty tray is there to drop on.
+        <p className="text-sm text-ink-muted">{t('tree.drag.trayDrop')}</p>
+      ) : (
+        <>
+          <p className="text-sm text-ink-muted">{t('tree.unlinked.hint')}</p>
+          {onAddSeveral ? (
+            <Button variant="secondary" size="sm" className="self-start" onClick={onAddSeveral}>
+              <UsersRound aria-hidden="true" strokeWidth={1.75} className="size-4" />
+              {t('tree.several.open')}
+            </Button>
+          ) : null}
+          <ul className="flex flex-wrap items-start gap-4">
+            {stacks.map((stack) => (
+              <TrayStack key={stack.rootId} stack={stack} />
+            ))}
+          </ul>
+        </>
+      )}
+    </TrayDrop>
+  );
+}
+
+/**
+ * The tray as a drop target: a drop here detaches the dragged person (spec §7.6). Its own
+ * component, so the drag context's changes re-render only this section, not the photos in it.
+ */
+function TrayDrop({ headingId, children }: { headingId: string; children: ReactNode }) {
+  const canDrag = useContext(ChangeContext) !== null;
+  const drop = useDroppable({ id: TRAY_ID, disabled: !canDrag });
+  const over = useDragStore((state) => state.overId === TRAY_ID);
+  return (
+    <section
+      ref={drop.setNodeRef}
+      aria-labelledby={headingId}
+      className={cn(
+        'flex flex-col gap-3',
+        over && 'rounded-control outline-2 outline-ink outline-dashed',
+      )}
+    >
+      {children}
     </section>
   );
 }
