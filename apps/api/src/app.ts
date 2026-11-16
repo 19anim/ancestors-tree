@@ -27,6 +27,8 @@ import { registerMemberRoutes } from './routes/members.ts';
 import { registerInviteRoutes } from './routes/invites.ts';
 import { registerTreeRoutes } from './routes/tree.ts';
 import { registerHistoryRoutes } from './routes/history.ts';
+import { registerPhotoRoutes } from './routes/photos.ts';
+import type { PhotoStore } from './photos/store.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
 import { createPasswordResets } from './auth/passwordResets.ts';
@@ -61,6 +63,8 @@ export interface AppOptions {
   mailer: Mailer;
   /** Google sign-in; off when GOOGLE_CLIENT_ID is not set. */
   google?: GoogleOAuthClient;
+  /** Cloudinary (spec §12); undefined when CLOUDINARY_URL is not set. */
+  photos?: PhotoStore;
   auth: {
     /** JWT_SECRET: signs the access tokens. */
     jwtSecret: string;
@@ -115,6 +119,7 @@ export function createApp(options: AppOptions): CreatedApp {
   registerInviteRoutes(api);
   registerTreeRoutes(api);
   registerHistoryRoutes(api);
+  registerPhotoRoutes(api, { photos: options.photos });
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();

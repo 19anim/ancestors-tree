@@ -6,6 +6,7 @@ import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
 import { createMailer } from './mail/mailer.ts';
 import { connectDatabase, disconnectDatabase } from './db/connect.ts';
 import { ensureIndexes } from './db/indexes.ts';
+import { createCloudinaryPhotoStore } from './photos/cloudinary.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -53,6 +54,9 @@ const { app } = createApp({
           clientSecret: config.GOOGLE_CLIENT_SECRET,
         })
       : undefined,
+  photos: config.CLOUDINARY_URL
+    ? createCloudinaryPhotoStore({ url: config.CLOUDINARY_URL, folder: config.CLOUDINARY_FOLDER })
+    : undefined,
   auth: {
     jwtSecret: requireSetting(config.JWT_SECRET, 'JWT_SECRET'),
     secureCookies: config.NODE_ENV === 'production',

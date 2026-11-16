@@ -1,6 +1,7 @@
 import { pino } from 'pino';
 import { createMemoryMailer } from '../mail/mailer.ts';
 import { createApp, type AppOptions, type CreatedApp } from '../app.ts';
+import { createMemoryPhotoStore } from '../photos/store.ts';
 
 /** The web origin tests use: the only origin allowed to send writes. */
 export const TEST_ORIGIN = 'http://localhost:5173';
@@ -22,6 +23,8 @@ export function testAppOptions(overrides: Partial<AppOptions> = {}): AppOptions 
       bcryptCost: 4,
     },
     mailer: createMemoryMailer(),
+    // Pass `{ photos: undefined }` for a server without photos: the spread keeps that undefined.
+    photos: createMemoryPhotoStore(),
     ...overrides,
   };
 }
