@@ -20,6 +20,7 @@ import {
   LOOSE,
   ME,
   PARENTS_UNION,
+  SISTER,
   SON,
   treeRoutes,
 } from './fixtures';
@@ -30,7 +31,6 @@ const SECOND_WIFE = '64b7f0c2a1b2c3d4e5f6a004';
 const SECOND_UNION = '64b7f0c2a1b2c3d4e5f6b002';
 const NAM_ALONE_UNION = '64b7f0c2a1b2c3d4e5f6b003';
 const GRANDCHILD = '64b7f0c2a1b2c3d4e5f6a005';
-const SISTER = '64b7f0c2a1b2c3d4e5f6a006';
 
 /** The id of the person or union an op adds. */
 function idOf(op: Op | undefined): string | undefined {

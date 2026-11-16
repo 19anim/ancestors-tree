@@ -1,6 +1,6 @@
 import { treeStateFromLists } from '@ancestors-tree/shared/tree';
 import { describe, expect, it } from 'vitest';
-import { FAMILY, GRANDMA, GRANDPA, LOOSE, SON } from './fixtures';
+import { FAMILY, GRANDMA, GRANDPA, LOOSE, SIBLINGS, SISTER, SON } from './fixtures';
 import { availableActions } from './usePersonActions';
 
 const tree = treeStateFromLists(FAMILY.progenitorId, FAMILY.persons, FAMILY.unions);
@@ -23,5 +23,13 @@ describe('availableActions', () => {
 
   it('offers it to an unlinked person without parents', () => {
     expect(availableActions(tree, LOOSE, false)).toContain('addParent');
+  });
+
+  it('offers moving among siblings only towards a sibling', () => {
+    const tree = treeStateFromLists(SIBLINGS.progenitorId, SIBLINGS.persons, SIBLINGS.unions);
+    expect(availableActions(tree, SON, true)).toContain('moveLater');
+    expect(availableActions(tree, SON, true)).not.toContain('moveEarlier');
+    expect(availableActions(tree, SISTER, true)).toContain('moveEarlier');
+    expect(availableActions(tree, SISTER, true)).not.toContain('moveLater');
   });
 });

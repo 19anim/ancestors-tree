@@ -1,9 +1,11 @@
 import { hasRoleAtLeast, type Clan } from '@ancestors-tree/shared';
+import { buildTreeIndex } from '@ancestors-tree/shared/tree';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOutletContext } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
+import { ChangeContext, useChangeRunner } from './ChangeRunner';
 import { EmptyTree } from './EmptyTree';
 import { applyFailureMessage } from './format';
 import { setProgenitorOp } from './ops';
@@ -15,7 +17,12 @@ import { TreeDialogs, useTreeDialog } from './TreeDialogs';
 import { TreeSkeleton } from './TreeSkeleton';
 import { TreeToolbar } from './TreeToolbar';
 import { UnlinkedTray } from './UnlinkedTray';
-import { availableActions, PersonActionsContext, type PersonActionsApi } from './usePersonActions';
+import {
+  availableActions,
+  PersonActionsContext,
+  siblingNeighbour,
+  type PersonActionsApi,
+} from './usePersonActions';
 import { useClanTree } from './useClanTree';
 
 export function TreePage() {
@@ -24,6 +31,8 @@ export function TreePage() {
   const view = useClanTree(clan.id);
   const isEmpty = useTreeStore((state) => Object.keys(state.tree.persons).length === 0);
   const { dialog, changeDialog, firstPersonAdded, returnFocus } = useTreeDialog();
+  const runner = useChangeRunner();
+  const { requestChange } = runner;
   // openPerson and closeProfile are stable, so the cards (context consumers) do not re-render
   // when the page does.
   const { personId, openPerson, closeProfile } = useProfileParam();
@@ -70,6 +79,24 @@ export function TreePage() {
           case 'addParent':
             changeDialog({ kind: 'parent', personId: id });
             return;
+          case 'moveEarlier':
+          case 'moveLater': {
+            const tree = useTreeStore.getState().tree;
+            const side = action === 'moveEarlier' ? 'earlier' : 'later';
+            const targetId = siblingNeighbour(tree, buildTreeIndex(tree), id, side);
+            if (targetId !== null) {
+              requestChange({
+                change: {
+                  kind: 'relate',
+                  personId: id,
+                  targetId,
+                  relation: side === 'earlier' ? 'before' : 'after',
+                },
+                focusPersonId: id,
+              });
+            }
+            return;
+          }
           default: {
             const unknown: never = action;
             throw new Error(`Unknown person action: ${String(unknown)}`);
@@ -77,7 +104,7 @@ export function TreePage() {
         }
       },
     };
-  }, [canEdit, changeDialog, isOwner, t]);
+  }, [canEdit, changeDialog, isOwner, requestChange, t]);
 
   // An open profile form went away with unsaved changes (ProfileForm's onDraftLost). Its
   // unmount comes before the panel reports a missing person, and before the tree is back from a
@@ -146,55 +173,60 @@ export function TreePage() {
   return (
     <OpenPersonContext value={openPerson}>
       <PersonActionsContext value={actions}>
-        {/* From md up the profile is a column beside the content, so nothing hides under it. */}
-        <div className="md:flex md:items-start md:gap-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <TreeToolbar canEdit={canEdit} onAddSeveral={addSeveral} />
-            {/* Always in the accessibility tree, so a later message is announced; while empty,
-              sr-only takes it out of the layout without hiding it from screen readers. */}
-            <p role="status" className="font-medium text-ink empty:sr-only">
-              {notice}
-            </p>
-            {actionError ? (
-              <p role="alert" className="font-medium text-stamp">
-                {actionError}
+        <ChangeContext value={canEdit ? requestChange : null}>
+          {/* From md up the profile is a column beside the content, so nothing hides under it. */}
+          <div className="md:flex md:items-start md:gap-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <TreeToolbar canEdit={canEdit} onAddSeveral={addSeveral} />
+              {/* Always in the accessibility tree, so a later message is announced; while empty,
+                sr-only takes it out of the layout without hiding it from screen readers. */}
+              <p role="status" className="font-medium text-ink empty:sr-only">
+                {notice}
               </p>
-            ) : null}
-            {isEmpty ? (
-              <EmptyTree onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined} />
-            ) : (
-              <>
-                <TreeBoard
-                  label={t('tree.board.label', { name: clan.name })}
-                  openPersonId={personId}
+              {actionError ? (
+                <p role="alert" className="font-medium text-stamp">
+                  {actionError}
+                </p>
+              ) : null}
+              {isEmpty ? (
+                <EmptyTree
+                  onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined}
                 />
-                <UnlinkedTray onAddSeveral={addSeveral} />
-              </>
-            )}
+              ) : (
+                <>
+                  <TreeBoard
+                    label={t('tree.board.label', { name: clan.name })}
+                    openPersonId={personId}
+                  />
+                  <UnlinkedTray onAddSeveral={addSeveral} />
+                </>
+              )}
+            </div>
+            {personId !== null ? (
+              <ProfilePanel
+                key={personId}
+                personId={personId}
+                isOwner={isOwner}
+                actions={actions}
+                onClose={closeProfile}
+                onMissing={onMissing}
+                onDraftLost={onDraftLost}
+              />
+            ) : null}
           </div>
-          {personId !== null ? (
-            <ProfilePanel
-              key={personId}
-              personId={personId}
-              isOwner={isOwner}
-              actions={actions}
-              onClose={closeProfile}
-              onMissing={onMissing}
-              onDraftLost={onDraftLost}
+          {canEdit ? (
+            <TreeDialogs
+              dialog={dialog}
+              onDialogChange={changeDialog}
+              onFirstPersonAdded={firstPersonAdded}
+              onPersonDeleted={(id) => {
+                if (id === personId) removedHere.current = id;
+              }}
+              onCloseAutoFocus={returnFocus}
             />
           ) : null}
-        </div>
-        {canEdit ? (
-          <TreeDialogs
-            dialog={dialog}
-            onDialogChange={changeDialog}
-            onFirstPersonAdded={firstPersonAdded}
-            onPersonDeleted={(id) => {
-              if (id === personId) removedHere.current = id;
-            }}
-            onCloseAutoFocus={returnFocus}
-          />
-        ) : null}
+          {canEdit ? runner.element : null}
+        </ChangeContext>
       </PersonActionsContext>
     </OpenPersonContext>
   );

@@ -325,6 +325,8 @@
       "addChild": "Thêm con",
       "addSpouse": "Thêm vợ/chồng",
       "addParent": "Thêm cha/mẹ",
+      "moveEarlier": "Xếp lên trước",
+      "moveLater": "Xếp ra sau",
       "setProgenitor": "Chọn làm thuỷ tổ",
       "delete": "Xoá người này"
     },
@@ -441,6 +443,53 @@
       "row": "Người thứ {{n}}",
       "none": "Nhập ít nhất một họ tên.",
       "full": "Mỗi lần thêm được tối đa 500 người."
+    },
+    "relate": {
+      "someone": "(người đã bị xoá)",
+      "and": "{{a}} và {{b}}",
+      "toast": "Đã đổi: {{change}}",
+      "failed": "Không đổi được: {{reason}}",
+      "undoThis": "Hoàn tác thay đổi này",
+      "dismiss": "Đóng thông báo",
+      "done": {
+        "parent": "{{a}} thành cha/mẹ của {{b}}",
+        "spouse": "{{a}} và {{b}} thành vợ chồng",
+        "child": "{{a}} thành con của {{b}}",
+        "childWith": "{{a}} thành con của {{b}} và {{with}}",
+        "before": "{{a}} xếp trước {{b}}",
+        "after": "{{a}} xếp sau {{b}}",
+        "notChildOf": "{{a}} không còn là con của {{parents}}",
+        "cutMarriage": "{{a}} và {{b}} không còn là vợ chồng",
+        "cutAlone": "Các con không còn là con của {{a}}",
+        "status": "Hôn nhân của {{a}} và {{b}}: {{status}}",
+        "detach": "{{a}} chuyển vào Ảnh chưa dán"
+      },
+      "status": {
+        "married": "Vợ chồng",
+        "divorced": "Đã ly hôn",
+        "widowed": "Goá"
+      },
+      "blocked": {
+        "SAME_PERSON": "Không thể nối một người với chính họ.",
+        "ALREADY": "Quan hệ này đã có rồi.",
+        "IN_LAW_PARENT": "Cha mẹ của dâu, rể được ghi ở mục Gia đình gốc trong hồ sơ của họ.",
+        "NOT_SIBLINGS": "Chỉ xếp được thứ tự giữa anh chị em cùng cha mẹ.",
+        "TOO_MANY_SIBLINGS": "Nhóm anh chị em này có hơn 99 người nên không đánh số lại được.",
+        "IS_PROGENITOR": "Không thể chuyển thuỷ tổ vào Ảnh chưa dán. Hãy chọn thuỷ tổ khác trước."
+      },
+      "ask": {
+        "cancel": "Thôi, không đổi",
+        "withWhom": "{{a}} là con của {{b}} với ai?",
+        "withPartner": "Con của {{b}} và {{partner}}",
+        "onlyOf": "Chỉ con của {{b}}",
+        "replaceParent": "{{b}} đã có đủ cha và mẹ. {{a}} thay cho ai?",
+        "replaces": "Thay {{name}}",
+        "sharedChildren": "{{names}} có phải là con chung của {{a}} và {{b}} không?",
+        "shared": "Có, là con chung",
+        "notShared": "Không phải con chung",
+        "keepChildren": "Các con ở với ai?",
+        "keepWith": "Ở với {{name}}"
+      }
     },
     "form": {
       "firstTitle": "Thêm người đầu tiên",

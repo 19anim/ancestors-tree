@@ -79,6 +79,17 @@ export const LOOSE_BRANCH: TreeResponse = {
   ],
 };
 
+export const SISTER = '64b7f0c2a1b2c3d4e5f6a006';
+
+/** FAMILY with Nam's younger sister Lan (neither is numbered: Lan's id sorts after Nam's). */
+export const SIBLINGS: TreeResponse = {
+  ...FAMILY,
+  persons: [
+    ...FAMILY.persons,
+    fixturePerson(SISTER, 'Nguyễn Thị Lan', { gender: 'female', parentUnionId: PARENTS_UNION }),
+  ],
+};
+
 export const EMPTY_TREE_RESPONSE: TreeResponse = {
   version: 0,
   progenitorId: null,

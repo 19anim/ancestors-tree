@@ -325,6 +325,8 @@
       "addChild": "Add a child",
       "addSpouse": "Add a spouse",
       "addParent": "Add parent",
+      "moveEarlier": "Move earlier",
+      "moveLater": "Move later",
       "setProgenitor": "Set as progenitor",
       "delete": "Delete this person"
     },
@@ -441,6 +443,53 @@
       "row": "Person {{n}}",
       "none": "Enter at least one full name.",
       "full": "You can add up to 500 people at a time."
+    },
+    "relate": {
+      "someone": "(a deleted person)",
+      "and": "{{a}} and {{b}}",
+      "toast": "Changed: {{change}}",
+      "failed": "Could not change it: {{reason}}",
+      "undoThis": "Undo this change",
+      "dismiss": "Dismiss",
+      "done": {
+        "parent": "{{a}} becomes a parent of {{b}}",
+        "spouse": "{{a}} and {{b}} become spouses",
+        "child": "{{a}} becomes the child of {{b}}",
+        "childWith": "{{a}} becomes the child of {{b}} and {{with}}",
+        "before": "{{a}} goes before {{b}}",
+        "after": "{{a}} goes after {{b}}",
+        "notChildOf": "{{a}} is no longer the child of {{parents}}",
+        "cutMarriage": "{{a}} and {{b}} are no longer spouses",
+        "cutAlone": "The children no longer have {{a}} as a parent",
+        "status": "Marriage of {{a}} and {{b}}: {{status}}",
+        "detach": "{{a}} moves to Loose photos"
+      },
+      "status": {
+        "married": "Married",
+        "divorced": "Divorced",
+        "widowed": "Widowed"
+      },
+      "blocked": {
+        "SAME_PERSON": "A person cannot be linked to themselves.",
+        "ALREADY": "This relationship is already there.",
+        "IN_LAW_PARENT": "The parents of someone who married in go under Birth family in their profile.",
+        "NOT_SIBLINGS": "Only siblings with the same parents can be put in order.",
+        "TOO_MANY_SIBLINGS": "This group has more than 99 siblings, so it cannot be renumbered.",
+        "IS_PROGENITOR": "The progenitor cannot move to Loose photos. Choose another progenitor first."
+      },
+      "ask": {
+        "cancel": "Cancel, change nothing",
+        "withWhom": "{{a}} is the child of {{b}} with whom?",
+        "withPartner": "Child of {{b}} and {{partner}}",
+        "onlyOf": "Only the child of {{b}}",
+        "replaceParent": "{{b}} already has two parents. Who does {{a}} replace?",
+        "replaces": "Replace {{name}}",
+        "sharedChildren": "Are {{names}} the children of both {{a}} and {{b}}?",
+        "shared": "Yes, they are both theirs",
+        "notShared": "No",
+        "keepChildren": "Who do the children stay with?",
+        "keepWith": "With {{name}}"
+      }
     },
     "form": {
       "firstTitle": "Add the first person",
