@@ -95,6 +95,28 @@ async function boxOf(locator: Locator) {
   return box;
 }
 
+/**
+ * Where an element is once it stops moving: the board animates its view after a change (it
+ * brings a new card into view), so a card measured too early is no longer there.
+ */
+export async function settledBox(locator: Locator) {
+  let box = await boxOf(locator);
+  let last = '';
+  await expect
+    .poll(
+      async () => {
+        box = await boxOf(locator);
+        const now = JSON.stringify(box);
+        const settled = now === last;
+        last = now;
+        return settled;
+      },
+      { intervals: [100] },
+    )
+    .toBe(true);
+  return box;
+}
+
 function pointIn(box: { x: number; y: number; width: number; height: number }, where: DropZone) {
   const point = ZONE_POINT[where];
   return { x: box.x + box.width * point.x, y: box.y + box.height * point.y };
@@ -106,7 +128,7 @@ export function dropStatus(page: Page): Locator {
 }
 
 /** The drag's status line while a card is lifted, over a zone or not. */
-function liftedStatus(page: Page): Locator {
+export function liftedStatus(page: Page): Locator {
   return page
     .getByRole('status')
     .filter({ hasText: /^(Đang kéo|Thả để|.*: khi thả|.*: không được)/ });
@@ -127,7 +149,7 @@ export async function dragOnto(
   // have moved since (the page scrolled).
   await page.mouse.move(startAt.x + 12, startAt.y, { steps: 3 });
   await expect(liftedStatus(page)).toBeVisible();
-  const end = pointIn(await boxOf(to), where);
+  const end = pointIn(await settledBox(to), where);
   await page.mouse.move(end.x, end.y, { steps: 12 });
   await expect(dropStatus(page)).toBeVisible();
   await page.mouse.up();
@@ -148,18 +170,21 @@ export async function longPressDrag(
       type,
       touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
     });
-  await touchAt('touchStart', start.x, start.y);
-  // No fixed sleep: the status line says when the card is lifted (after about 400 ms).
-  await expect(liftedStatus(page)).toBeVisible();
-  const end = pointIn(await boxOf(to), where);
-  for (let step = 1; step <= 12; step += 1) {
-    await touchAt(
-      'touchMove',
-      start.x + ((end.x - start.x) * step) / 12,
-      start.y + ((end.y - start.y) * step) / 12,
-    );
+  try {
+    await touchAt('touchStart', start.x, start.y);
+    // No fixed sleep: the status line says when the card is lifted (after about 400 ms).
+    await expect(liftedStatus(page)).toBeVisible();
+    const end = pointIn(await settledBox(to), where);
+    for (let step = 1; step <= 12; step += 1) {
+      await touchAt(
+        'touchMove',
+        start.x + ((end.x - start.x) * step) / 12,
+        start.y + ((end.y - start.y) * step) / 12,
+      );
+    }
+    await expect(dropStatus(page)).toBeVisible();
+    await touchAt('touchEnd', end.x, end.y);
+  } finally {
+    await cdp.detach();
   }
-  await expect(dropStatus(page)).toBeVisible();
-  await touchAt('touchEnd', end.x, end.y);
-  await cdp.detach();
 }
