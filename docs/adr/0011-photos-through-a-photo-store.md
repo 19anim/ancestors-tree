@@ -34,6 +34,7 @@ P6d puts a photo on each person's card and profile (spec §7.6 "Photo", §12). T
 
 - One more API dependency, `cloudinary`, used only in `apps/api/src/photos/cloudinary.ts`.
 - A replaced or removed photo stays on Cloudinary, because undo and revert may bring it back. Unreferenced assets are cleaned up in Phase 2 (spec §12).
-- A Cloudinary outage fails photo saves with a 5xx that the queue retries; other edits carry no photo, so they never call the host.
+- A Cloudinary outage, rate limit or network error fails a photo save with a 5xx that the web queue retries. The queue is serial, so while that op is retried the editor's later edits in that tab wait behind it; they are kept and sent once the host recovers.
+- A lasting refusal answers `PHOTO_REJECTED` (422) instead and is logged, so it never holds the queue: a configuration or credential error from the host (400, 401 or 403, e.g. a revoked `CLOUDINARY_URL`), and an oversized photo whose delete fails.
 - Netlify needs `VITE_CLOUDINARY_CLOUD_NAME` at build time. Without it the web app hides the photo controls and draws initials.
 - The CSP allows the two Cloudinary hosts: `res.cloudinary.com` for images, `api.cloudinary.com` for the upload.

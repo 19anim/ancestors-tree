@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
-import { uploadParameters, type PhotoAsset, type PhotoStore } from './store.ts';
+import { PhotoHostError, uploadParameters, type PhotoAsset, type PhotoStore } from './store.ts';
 
 const URL_PATTERN = /^cloudinary:\/\/([^:@/]+):([^@/]+)@([\w-]+)$/;
 /** delete_resources_by_prefix removes at most 1000 per call; a clan is far smaller. */
@@ -20,8 +20,32 @@ export function parseCloudinaryUrl(url: string): {
   return { apiKey: match[1], apiSecret: match[2], cloudName: match[3] };
 }
 
-function httpCode(error: unknown): number | undefined {
-  return (error as { error?: { http_code?: number } } | null)?.error?.http_code;
+interface SdkErrorBody {
+  message?: unknown;
+  http_code?: unknown;
+}
+
+/**
+ * The SDK (2.11) rejects with plain objects, not Errors: the Admin API with
+ * `{ request_options, query_params, error: { message, http_code } }` for the codes it expects and
+ * `{ message, http_code, request_options, query_params }` for any other; the uploader with
+ * `{ message, http_code }`; a request that gets no answer with the socket's Error. This keeps the
+ * code and message only: request_options holds the API key and secret.
+ */
+function hostError(call: string, error: unknown): PhotoHostError {
+  if (error instanceof Error) {
+    return new PhotoHostError(`Cloudinary ${call} failed`, undefined, { cause: error });
+  }
+  const outer = (error ?? {}) as SdkErrorBody & { error?: SdkErrorBody };
+  const body = outer.error ?? outer;
+  const status = typeof body.http_code === 'number' ? body.http_code : undefined;
+  const reason = body.message instanceof Error ? body.message.message : body.message;
+  const message = typeof reason === 'string' ? reason : 'No message';
+  return new PhotoHostError(
+    `Cloudinary ${call} failed${status === undefined ? '' : ` (HTTP ${status})`}`,
+    status,
+    { cause: { message, http_code: status } },
+  );
 }
 
 /** The real image host (spec §12). Upload signing is local; inspect and delete use the Admin API. */
@@ -54,20 +78,29 @@ export function createCloudinaryPhotoStore(options: { url: string; folder: strin
         })) as { bytes: number; version: number };
         return { bytes: resource.bytes, version: resource.version };
       } catch (error) {
-        if (httpCode(error) === 404) return null;
-        throw error;
+        const failure = hostError('inspect', error);
+        if (failure.status === 404) return null;
+        throw failure;
       }
     },
     async destroy(publicId) {
-      await cloudinary.uploader.destroy(publicId, { resource_type: 'image', invalidate: true });
+      try {
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'image', invalidate: true });
+      } catch (error) {
+        throw hostError('destroy', error);
+      }
     },
     async deletePrefix(prefix) {
-      for (let round = 0; round < MAX_DELETE_ROUNDS; round += 1) {
-        const result = (await cloudinary.api.delete_resources_by_prefix(prefix, {
-          resource_type: 'image',
-          type: 'upload',
-        })) as { partial?: boolean };
-        if (!result.partial) return;
+      try {
+        for (let round = 0; round < MAX_DELETE_ROUNDS; round += 1) {
+          const result = (await cloudinary.api.delete_resources_by_prefix(prefix, {
+            resource_type: 'image',
+            type: 'upload',
+          })) as { partial?: boolean };
+          if (!result.partial) return;
+        }
+      } catch (error) {
+        throw hostError('deletePrefix', error);
       }
     },
   };

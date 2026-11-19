@@ -65,7 +65,7 @@ export const ERROR_CODES = {
   PHOTO_REJECTED: {
     status: 422,
     description:
-      "The photo is outside this person's folder, missing, a different version or larger than 2 MB, or photos are not set up on this server.",
+      "The photo is outside this person's folder, missing, a different version or larger than 2 MB, or photos are not set up on this server (or the image host refuses its keys).",
     clientAction: 'Show the reason; the change is rolled back.',
   },
   RATE_LIMITED: {

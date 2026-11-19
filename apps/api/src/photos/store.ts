@@ -9,7 +9,39 @@ export interface PhotoAsset {
   version: number;
 }
 
-/** Everything the API asks of the image host. The real one is Cloudinary (cloudinary.ts). */
+/**
+ * A failed call to the image host. `status` is the host's HTTP status, or undefined when no
+ * answer came (a network error). `cause` holds only the host's message and code: the SDK's own
+ * rejection can carry the request options, API secret included.
+ */
+export class PhotoHostError extends Error {
+  readonly status: number | undefined;
+
+  constructor(message: string, status: number | undefined, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'PhotoHostError';
+    this.status = status;
+  }
+}
+
+/** Answers a retry cannot change; rate limits (420, 429) and timeouts (408) pass on their own. */
+const PASSING_CLIENT_STATUSES = new Set([408, 420, 429]);
+
+/**
+ * True when the host refused for a reason that lasts until an operator acts: a 4xx such as a bad
+ * request (400) or a wrong or revoked CLOUDINARY_URL (401, 403). Those must answer the editor
+ * with a 4xx, because the web's send queue retries 5xx forever and holds every later edit behind
+ * them. A host 5xx, a rate limit or a network error is false: it passes, so a retry is right.
+ */
+export function isLastingPhotoHostFailure(error: unknown): boolean {
+  if (!(error instanceof PhotoHostError) || error.status === undefined) return false;
+  return error.status >= 400 && error.status < 500 && !PASSING_CLIENT_STATUSES.has(error.status);
+}
+
+/**
+ * Everything the API asks of the image host. The real one is Cloudinary (cloudinary.ts). A call
+ * that fails rejects with a PhotoHostError.
+ */
 export interface PhotoStore {
   /** CLOUDINARY_FOLDER, e.g. ancestors-tree/dev. */
   readonly folder: string;

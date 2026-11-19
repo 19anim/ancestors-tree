@@ -80,13 +80,13 @@ Notes:
 
 What `netlify.toml` sets:
 
-| Setting           | Value                                                                                                                                             | Why                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `/api/*` redirect | 200 proxy to the Render URL                                                                                                                       | same-origin API, first-party cookies (spec §4)                                        |
-| `/*` redirect     | `/index.html` (200)                                                                                                                               | client-side routing for the single-page app                                           |
-| Security headers  | `nosniff`, `X-Frame-Options: DENY`, referrer and permissions policy, Content-Security-Policy (self-hosted scripts, styles, fonts and images only) | baseline hardening; `e2e/design-system.spec.ts` replays the CSP against the built app |
-| Asset caching     | `/assets/*` immutable for 1 year                                                                                                                  | Vite fingerprints file names                                                          |
-| Ignore command    | skip when `apps/web`, `packages/shared` and root tooling are unchanged                                                                            | production deploys cost 15 credits each                                               |
+| Setting           | Value                                                                                                                                                                                                   | Why                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `/api/*` redirect | 200 proxy to the Render URL                                                                                                                                                                             | same-origin API, first-party cookies (spec §4)                                        |
+| `/*` redirect     | `/index.html` (200)                                                                                                                                                                                     | client-side routing for the single-page app                                           |
+| Security headers  | `nosniff`, `X-Frame-Options: DENY`, referrer and permissions policy, Content-Security-Policy (self-hosted scripts, styles and fonts; photos from `res.cloudinary.com`, uploads to `api.cloudinary.com`) | baseline hardening; `e2e/design-system.spec.ts` replays the CSP against the built app |
+| Asset caching     | `/assets/*` immutable for 1 year                                                                                                                                                                        | Vite fingerprints file names                                                          |
+| Ignore command    | skip when `apps/web`, `packages/shared` and root tooling are unchanged                                                                                                                                  | production deploys cost 15 credits each                                               |
 
 ### Deploy previews and deploy order
 

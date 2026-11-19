@@ -2,12 +2,12 @@ import { OPS_PAGE_SIZE } from '@ancestors-tree/shared';
 import { newObjectId, type Op, type Person, type SingleOp } from '@ancestors-tree/shared/tree';
 import { Types } from 'mongoose';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Clan } from '../models/Clan.ts';
 import { OperationModel } from '../models/Operation.ts';
 import { PersonModel } from '../models/Person.ts';
 import { personPhotoPrefix } from '../photos/paths.ts';
-import { createMemoryPhotoStore } from '../photos/store.ts';
+import { createMemoryPhotoStore, PhotoHostError } from '../photos/store.ts';
 import { createTestApp } from '../test/app.ts';
 import { addMember, createClan } from '../test/clans.ts';
 import { useTestDatabase } from '../test/database.ts';
@@ -449,6 +449,20 @@ describe('photos on save', () => {
     const response = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1);
     expect(response.status).toBe(422);
     expect(response.body.error.code).toBe('PHOTO_REJECTED');
+    expect((await Clan.findById(clanId))?.version).toBe(1);
+  });
+
+  it('refuses with a 422 when the host refuses the credentials, and a 500 when it is down', async () => {
+    const { editor, clanId, tu, publicId } = await withPerson();
+    const inspect = vi.spyOn(photos, 'inspect');
+    inspect.mockRejectedValueOnce(new PhotoHostError('Cloudinary inspect failed', 401));
+    const refused = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1);
+    expect(refused.status).toBe(422);
+    expect(refused.body.error.code).toBe('PHOTO_REJECTED');
+    inspect.mockRejectedValueOnce(new PhotoHostError('Cloudinary inspect failed', 503));
+    const down = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1);
+    expect(down.status).toBe(500);
+    inspect.mockRestore();
     expect((await Clan.findById(clanId))?.version).toBe(1);
   });
 

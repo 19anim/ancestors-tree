@@ -117,7 +117,7 @@ export function createApp(options: AppOptions): CreatedApp {
   registerClanRoutes(api, { photos: options.photos, logger: options.logger });
   registerMemberRoutes(api);
   registerInviteRoutes(api);
-  registerTreeRoutes(api, { photos: options.photos });
+  registerTreeRoutes(api, { photos: options.photos, logger: options.logger });
   registerHistoryRoutes(api);
   registerPhotoRoutes(api, { photos: options.photos });
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
