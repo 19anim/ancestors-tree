@@ -14,6 +14,7 @@ import { Button, inertOthers, useMediaQuery } from '../../shared/ui';
 import { PhotoControl } from './PhotoControl';
 import { ProfileDetails } from './ProfileDetails';
 import { ProfileForm } from './ProfileForm';
+import { SIDE_PANEL_CLASS, WIDE_QUERY } from './sidePanel';
 import { useTreeStore } from './store';
 import {
   ACTION_ICONS,
@@ -36,8 +37,6 @@ interface ProfilePanelProps {
 }
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
-/** Tailwind's md (48rem): from here up the panel is a column beside the board, not a sheet. */
-const WIDE_QUERY = '(min-width: 48rem)';
 
 /** The profile (spec §7.6): a side panel on wide screens, a bottom sheet on small ones. */
 export function ProfilePanel({
@@ -141,9 +140,8 @@ export function ProfilePanel({
       onKeyDown={onKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
-      // A bottom sheet on small screens. From md up, a sticky column beside the board, in the
-      // page flow under the header: it never covers the header or the notices (WCAG 2.4.11).
-      className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75vh] flex-col gap-4 overflow-y-auto rounded-t-control border-t border-line bg-paper p-4 shadow-lift md:sticky md:inset-x-auto md:top-4 md:bottom-auto md:z-auto md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:shrink-0 md:rounded-control md:border md:shadow-none"
+      // See SIDE_PANEL_CLASS.
+      className={SIDE_PANEL_CLASS}
     >
       <div className="flex items-start justify-between gap-2">
         <h2

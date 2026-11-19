@@ -617,6 +617,28 @@
       "discardProfile": "Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất."
     },
     "decor": {
+      "open": "Trang trí",
+      "title": "Trang trí cây",
+      "cardTitle": "Trang trí thẻ của {{name}}",
+      "close": "Đóng trang trí",
+      "applyTo": "Áp dụng cho",
+      "mode": { "me": "Chỉ mình tôi", "clan": "Cả họ" },
+      "viewerHint": "Người xem chỉ trang trí được cho riêng mình.",
+      "saveFirst": "Hãy lưu hoặc huỷ thay đổi trong hồ sơ trước khi trang trí.",
+      "card": {
+        "open": "Trang trí thẻ này…",
+        "useTree": "Dùng kiểu của cây",
+        "different": "Khác với cây"
+      },
+      "banner": {
+        "text": "Bạn đang xem chủ đề của riêng mình.",
+        "back": "Về chủ đề chung",
+        "useForClan": "Dùng cho cả họ"
+      },
+      "save": {
+        "failed": "Chưa lưu được phần trang trí của bạn.",
+        "retry": "Thử lưu lại"
+      },
       "parts": {
         "surface": "Mặt bảng",
         "frame": "Khung ảnh",

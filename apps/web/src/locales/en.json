@@ -617,6 +617,28 @@
       "discardProfile": "Your unsaved profile changes will be lost too."
     },
     "decor": {
+      "open": "Decorate",
+      "title": "Decorate the tree",
+      "cardTitle": "Decorate the card of {{name}}",
+      "close": "Close decorating",
+      "applyTo": "Apply to",
+      "mode": { "me": "Only me", "clan": "Whole family" },
+      "viewerHint": "Viewers can decorate only for themselves.",
+      "saveFirst": "Save or cancel the profile changes before decorating.",
+      "card": {
+        "open": "Decorate this card…",
+        "useTree": "Use the tree's style",
+        "different": "Different from the tree"
+      },
+      "banner": {
+        "text": "You are viewing your own theme.",
+        "back": "Back to the shared theme",
+        "useForClan": "Use for the whole family"
+      },
+      "save": {
+        "failed": "Your decoration was not saved.",
+        "retry": "Try saving again"
+      },
       "parts": {
         "surface": "Surface",
         "frame": "Frame",

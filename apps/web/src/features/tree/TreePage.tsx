@@ -6,10 +6,13 @@ import { useOutletContext } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
 import { ChangeContext, useChangeRunner } from './ChangeRunner';
+import type { DecorMode, DecorTarget } from './decor';
+import { DecoratePanel } from './DecoratePanel';
 import { PersonalThemeContext } from './decorContext';
 import { EmptyTree } from './EmptyTree';
 import { applyFailureMessage } from './format';
 import { setProgenitorOp } from './ops';
+import { useProfileDraft } from './profileDraft';
 import { ProfilePanel } from './ProfilePanel';
 import { OpenPersonContext, personCardButton, useProfileParam } from './profileParams';
 import { useTreeStore } from './store';
@@ -164,6 +167,48 @@ export function TreePage() {
     (personCardButton(was) ?? document.querySelector<HTMLElement>('main'))?.focus();
   }, [personId]);
 
+  // Decorate (spec §13.4). Viewers decorate only for themselves. Editors start where they are:
+  // on their own theme while it is on, else on the family's; a switch they made stays.
+  const [decorating, setDecorating] = useState<DecorTarget | null>(null);
+  const [chosenMode, setChosenMode] = useState<DecorMode | null>(null);
+  const mode: DecorMode = !canEdit
+    ? 'me'
+    : (chosenMode ?? (decor.preference?.enabled === true ? 'me' : 'clan'));
+  const decorOpener = useRef<HTMLElement | null>(null);
+  const openDecorate = useCallback(
+    (target: DecorTarget) => {
+      // The panel takes the profile's column: a profile form with unsaved changes would lose them.
+      if (useProfileDraft.getState().dirty) {
+        setNotice(t('tree.decor.saveFirst'));
+        return;
+      }
+      const active = document.activeElement;
+      decorOpener.current =
+        active instanceof HTMLElement && active !== document.body ? active : null;
+      setDecorating(target);
+    },
+    [t],
+  );
+  const closeDecorate = useCallback(() => setDecorating(null), []);
+
+  // Opening someone's profile closes Decorate: the profile takes the column.
+  useEffect(() => {
+    setDecorating(null);
+  }, [personId]);
+
+  // Decorate closed with focus inside it: back to what opened it, else the card it decorated.
+  const lastTarget = useRef<DecorTarget | null>(null);
+  useEffect(() => {
+    const previous = lastTarget.current;
+    lastTarget.current = decorating;
+    if (previous === null || decorating !== null) return;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    const opener = decorOpener.current;
+    const card = previous.kind === 'card' ? personCardButton(previous.personId) : null;
+    (opener?.isConnected ? opener : (card ?? document.querySelector<HTMLElement>('main')))?.focus();
+  }, [decorating]);
+
   if (view.state === 'error') {
     return (
       <div className="flex flex-col items-start gap-3">
@@ -185,7 +230,11 @@ export function TreePage() {
             {/* From md up the profile is a column beside the content, so nothing hides under it. */}
             <div className="md:flex md:items-start md:gap-4">
               <div className="flex min-w-0 flex-1 flex-col gap-4">
-                <TreeToolbar canEdit={canEdit} onAddSeveral={addSeveral} />
+                <TreeToolbar
+                  canEdit={canEdit}
+                  onAddSeveral={addSeveral}
+                  onDecorate={isEmpty ? undefined : () => openDecorate({ kind: 'tree' })}
+                />
                 {/* Always in the accessibility tree, so a later message is announced; while empty,
                   sr-only takes it out of the layout without hiding it from screen readers. */}
                 <p role="status" className="font-medium text-ink empty:sr-only">
@@ -210,7 +259,17 @@ export function TreePage() {
                   </TreeDnd>
                 )}
               </div>
-              {personId !== null ? (
+              {decorating !== null ? (
+                <DecoratePanel
+                  key={decorating.kind === 'card' ? decorating.personId : 'tree'}
+                  target={decorating}
+                  mode={mode}
+                  onModeChange={setChosenMode}
+                  canEdit={canEdit}
+                  decor={decor}
+                  onClose={closeDecorate}
+                />
+              ) : personId !== null ? (
                 <ProfilePanel
                   key={personId}
                   clanId={clan.id}

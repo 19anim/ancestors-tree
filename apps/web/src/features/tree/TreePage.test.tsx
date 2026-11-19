@@ -6,7 +6,9 @@ import { apiErrorReply, mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
 import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, treeRoutes } from './fixtures';
+import { useProfileDraft } from './profileDraft';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
+import { batchOps, editableTree } from './testKit';
 
 const VIEWER = { ...CLAN, role: 'viewer' as const };
 
@@ -197,5 +199,96 @@ describe('TreePage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('3 thay đổi chưa lưu đã bị bỏ.');
     await user.click(screen.getByRole('button', { name: 'Đã hiểu' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('Decorate on the tree page', () => {
+  const PREFERENCE = `/clans/${CLAN_ID}/view-preference`;
+
+  it('opens the panel; a whole-family pick is one undoable change', async () => {
+    const sent = editableTree(FAMILY);
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    const panel = screen.getByRole('complementary', { name: 'Trang trí cây' });
+    expect(within(panel).getByRole('radio', { name: 'Cả họ' })).toBeChecked();
+
+    await user.click(within(panel).getByRole('radio', { name: 'Bảng gỗ bần' }));
+    expect(board).toHaveAttribute('data-surface', 'corkboard');
+    expect(await screen.findByText('Đã đổi: chủ đề cây')).toBeInTheDocument();
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    expect(batchOps(sent()[0])).toEqual([
+      { type: 'setTreeTheme', payload: { changes: { surface: 'corkboard', fastener: 'pushpin' } } },
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Hoàn tác thay đổi này' }));
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+  });
+
+  it("re-picking the family's choice sends nothing and shows no error", async () => {
+    const sent = editableTree({ ...FAMILY, theme: { surface: 'corkboard', fastener: 'pushpin' } });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    const corkboard = screen.getByRole('radio', { name: 'Bảng gỗ bần' });
+    expect(corkboard).toBeChecked();
+    // As a radio whose checked state went stale would send it: React reports a change.
+    (corkboard as HTMLInputElement).checked = false;
+    await user.click(corkboard);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Quan hệ này đã có rồi/)).not.toBeInTheDocument();
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('only me: the board changes at once and one PUT saves it, with no op', async () => {
+    const api = mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    await user.click(screen.getByRole('radio', { name: 'Chỉ mình tôi' }));
+    await user.click(screen.getByRole('radio', { name: 'Cửa tủ lạnh' }));
+    expect(board).toHaveAttribute('data-surface', 'fridge');
+    await waitFor(
+      () =>
+        expect(
+          api.calls.filter((call) => call.method === 'PUT' && call.path === PREFERENCE),
+        ).toHaveLength(1),
+      { timeout: 2000 },
+    );
+    expect(api.calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
+  it('closes the panel when a profile opens, and gives focus back on close', async () => {
+    mockApi(treeRoutes(FAMILY, VIEWER));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    const open = screen.getByRole('button', { name: 'Trang trí' });
+    await user.click(open);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Trang trí cây' })).not.toBeInTheDocument();
+    expect(open).toHaveFocus();
+
+    await user.click(open);
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    expect(screen.queryByRole('complementary', { name: 'Trang trí cây' })).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' })).toBeInTheDocument();
+  });
+
+  it('does not open over unsaved profile changes', async () => {
+    mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    act(() => useProfileDraft.setState({ dirty: true }));
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    expect(screen.queryByRole('complementary', { name: 'Trang trí cây' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Hãy lưu hoặc huỷ thay đổi trong hồ sơ trước khi trang trí.'),
+    ).toBeInTheDocument();
+    act(() => useProfileDraft.setState({ dirty: false }));
   });
 });
