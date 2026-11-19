@@ -32,7 +32,7 @@ export default defineConfig({
       command:
         'pnpm --filter @ancestors-tree/web build && pnpm --filter @ancestors-tree/web preview --port 4173 --strictPort',
       url: 'http://localhost:4173',
-      env: { API_PORT: '3100' },
+      env: { API_PORT: '3100', VITE_CLOUDINARY_CLOUD_NAME: 'e2e-cloud' },
       reuseExistingServer: !isCI,
       timeout: 180_000,
     },

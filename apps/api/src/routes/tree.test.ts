@@ -2,10 +2,12 @@ import { OPS_PAGE_SIZE } from '@ancestors-tree/shared';
 import { newObjectId, type Op, type Person, type SingleOp } from '@ancestors-tree/shared/tree';
 import { Types } from 'mongoose';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Clan } from '../models/Clan.ts';
 import { OperationModel } from '../models/Operation.ts';
 import { PersonModel } from '../models/Person.ts';
+import { personPhotoPrefix } from '../photos/paths.ts';
+import { createMemoryPhotoStore, PhotoHostError } from '../photos/store.ts';
 import { createTestApp } from '../test/app.ts';
 import { addMember, createClan } from '../test/clans.ts';
 import { useTestDatabase } from '../test/database.ts';
@@ -13,7 +15,8 @@ import { signUp } from '../test/users.ts';
 
 useTestDatabase();
 
-const { app } = createTestApp();
+const photos = createMemoryPhotoStore();
+const { app } = createTestApp({ photos });
 
 function person(overrides: Partial<Person> = {}): Person {
   return {
@@ -414,5 +417,64 @@ describe('reverts on POST /api/clans/:id/ops', () => {
     expect(denied.status).toBe(403);
     expect((await submit(owner, clanId, back, 2, { revertsToSeq: 1 })).status).toBe(200);
     expect((await OperationModel.findOne({ clanId, seq: 3 }).lean())?.revertsToSeq).toBe(1);
+  });
+});
+
+describe('photos on save', () => {
+  /** A family tree with one person, saved without a photo at version 1. */
+  async function withPerson() {
+    const { editor, viewer, clanId } = await setup();
+    const tu = person();
+    expect((await submit(editor, clanId, addPerson(tu), 0)).status).toBe(200);
+    const publicId = `${personPhotoPrefix(photos.folder, clanId, tu.id)}0123456789abcdef`;
+    return { editor, viewer, clanId, tu, publicId };
+  }
+
+  const setPhoto = (id: string, photo: { publicId: string; version: number } | null): Op => ({
+    type: 'updatePerson',
+    payload: { id, changes: { photo } },
+  });
+
+  it("saves the person's uploaded photo", async () => {
+    const { editor, viewer, clanId, tu, publicId } = await withPerson();
+    photos.put(publicId, { bytes: 1000, version: 7 });
+    const response = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 7 }), 1);
+    expect(response.status).toBe(200);
+    const tree = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(tree.body.persons).toEqual([{ ...tu, photo: { publicId, version: 7 } }]);
+  });
+
+  it('refuses a photo that was never uploaded, and the version does not move', async () => {
+    const { editor, clanId, tu, publicId } = await withPerson();
+    const response = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1);
+    expect(response.status).toBe(422);
+    expect(response.body.error.code).toBe('PHOTO_REJECTED');
+    expect((await Clan.findById(clanId))?.version).toBe(1);
+  });
+
+  it('refuses with a 422 when the host refuses the credentials, and a 500 when it is down', async () => {
+    const { editor, clanId, tu, publicId } = await withPerson();
+    const inspect = vi.spyOn(photos, 'inspect');
+    inspect.mockRejectedValueOnce(new PhotoHostError('Cloudinary inspect failed', 401));
+    const refused = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1);
+    expect(refused.status).toBe(422);
+    expect(refused.body.error.code).toBe('PHOTO_REJECTED');
+    inspect.mockRejectedValueOnce(new PhotoHostError('Cloudinary inspect failed', 503));
+    const down = await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1);
+    expect(down.status).toBe(500);
+    inspect.mockRestore();
+    expect((await Clan.findById(clanId))?.version).toBe(1);
+  });
+
+  it('removes the photo with null', async () => {
+    const { editor, viewer, clanId, tu, publicId } = await withPerson();
+    photos.put(publicId, { bytes: 1000, version: 1 });
+    expect(
+      (await submit(editor, clanId, setPhoto(tu.id, { publicId, version: 1 }), 1)).status,
+    ).toBe(200);
+    expect((await submit(editor, clanId, setPhoto(tu.id, null), 2)).status).toBe(200);
+    const tree = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(tree.body.persons).toEqual([tu]);
+    expect(tree.body.persons[0]).not.toHaveProperty('photo');
   });
 });

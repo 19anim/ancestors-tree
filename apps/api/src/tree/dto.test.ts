@@ -72,11 +72,34 @@ describe('tree DTOs', () => {
             branch: '',
             birthFamily: '',
             burialPlace: '',
+            photo: '',
           },
         },
         upsert: true,
       },
     });
+  });
+
+  it('reads a stored photo back and unsets it when the person has none', () => {
+    const id = new Types.ObjectId();
+    const photo = { publicId: 'ancestors-tree/dev/clans/a/people/b/0123456789abcdef', version: 3 };
+    const person = toPerson({
+      _id: id,
+      fullName: 'Nguyễn Văn Tư',
+      gender: 'male',
+      death: { isDeceased: false },
+      isAdopted: false,
+      photo,
+    });
+    expect(person.photo).toEqual(photo);
+    const { photo: _removed, ...withoutPhoto } = person;
+    const { update } = (
+      personWrite(clanId, withoutPhoto) as {
+        updateOne: { update: { $set: Record<string, unknown>; $unset: Record<string, ''> } };
+      }
+    ).updateOne;
+    expect(update.$unset.photo).toBe('');
+    expect(update.$set).not.toHaveProperty('photo');
   });
 
   it('writes a union with ObjectId partners', () => {

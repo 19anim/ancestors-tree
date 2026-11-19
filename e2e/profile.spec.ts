@@ -308,7 +308,10 @@ test.describe('the profile on a phone', () => {
   test('is a modal sheet: Tab and Shift+Tab stay inside it', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'A phone layout check');
     const panel = await openProfile(page, 'Phạm Văn Cả');
-    const stops = await panel.locator('button, a[href], input, textarea, select').count();
+    // Tab stops only: the photo's file input is hidden from Tab (tabindex -1).
+    const stops = await panel
+      .locator(':is(button, a[href], input, textarea, select):not([tabindex="-1"])')
+      .count();
     /** Focus is in the sheet, or has left the page for the browser itself; never behind it. */
     const focusStaysInSheet = () =>
       panel.evaluate((element) => {

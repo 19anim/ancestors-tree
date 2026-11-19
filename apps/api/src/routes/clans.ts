@@ -7,6 +7,7 @@ import {
   type ClanRole,
 } from '@ancestors-tree/shared';
 import mongoose, { Types } from 'mongoose';
+import type { Logger } from 'pino';
 import { z } from 'zod';
 import { toClan } from '../clans/dto.ts';
 import { deleteClanData } from '../clans/scoped.ts';
@@ -14,6 +15,8 @@ import { AppError } from '../http/AppError.ts';
 import type { RouteRegistry } from '../http/routeRegistry.ts';
 import { Clan } from '../models/Clan.ts';
 import { Membership } from '../models/Membership.ts';
+import { clanPhotoPrefix } from '../photos/paths.ts';
+import type { PhotoStore } from '../photos/store.ts';
 
 const ClanParamsSchema = z.object({ id: IdSchema });
 
@@ -31,7 +34,10 @@ async function loadClan(clanId: string) {
   return clan;
 }
 
-export function registerClanRoutes(api: RouteRegistry): void {
+export function registerClanRoutes(
+  api: RouteRegistry,
+  deps: { photos?: PhotoStore; logger: Logger },
+): void {
   api.define({
     method: 'get',
     path: '/clans',
@@ -127,6 +133,13 @@ export function registerClanRoutes(api: RouteRegistry): void {
         await deleteClanData(params.id, session);
         await Clan.deleteOne({ _id: params.id }, { session });
       });
+      // After the database, never instead of it: a Cloudinary failure leaves files to find by prefix.
+      if (deps.photos) {
+        const prefix = clanPhotoPrefix(deps.photos.folder, params.id);
+        await deps.photos.deletePrefix(prefix).catch((error: unknown) => {
+          deps.logger.error({ err: error, prefix }, 'Could not delete the clan photos');
+        });
+      }
       return { status: 204 };
     },
   });

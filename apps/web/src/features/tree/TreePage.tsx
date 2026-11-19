@@ -209,6 +209,7 @@ export function TreePage() {
             {personId !== null ? (
               <ProfilePanel
                 key={personId}
+                clanId={clan.id}
                 personId={personId}
                 isOwner={isOwner}
                 actions={actions}

@@ -78,6 +78,10 @@ export function changeSentence(t: TFunction, tree: TreeState, summary: ChangeSum
     }
     case 'detach':
       return t('tree.relate.done.detach', { a: name(summary.personId) });
+    case 'photo':
+      return t(summary.removed ? 'tree.relate.done.photoRemoved' : 'tree.relate.done.photo', {
+        a: name(summary.personId),
+      });
   }
 }
 

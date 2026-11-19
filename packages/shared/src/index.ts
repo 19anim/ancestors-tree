@@ -80,3 +80,4 @@ export {
   type HistoryEntry,
   type HistoryPage,
 } from './api/history.ts';
+export { PhotoUploadResponseSchema, type PhotoUploadResponse } from './api/photos.ts';

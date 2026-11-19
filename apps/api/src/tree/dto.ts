@@ -16,6 +16,7 @@ export interface PersonRecord {
   birthFamily?: Person['birthFamily'] | null;
   bio?: string | null;
   burialPlace?: string | null;
+  photo?: Person['photo'] | null;
 }
 
 /** A Union document as `.lean()` returns it. */

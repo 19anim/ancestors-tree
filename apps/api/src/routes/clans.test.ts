@@ -8,6 +8,8 @@ import { Membership } from '../models/Membership.ts';
 import { OperationModel } from '../models/Operation.ts';
 import { PersonModel } from '../models/Person.ts';
 import { UnionModel } from '../models/Union.ts';
+import { clanPhotoPrefix } from '../photos/paths.ts';
+import { createMemoryPhotoStore } from '../photos/store.ts';
 import { createTestApp } from '../test/app.ts';
 import { addMember, createClan } from '../test/clans.ts';
 import { useTestDatabase } from '../test/database.ts';
@@ -171,5 +173,28 @@ describe('DELETE /api/clans/:id', () => {
     expect((await editor.agent.delete(`/api/clans/${clan.id}`)).status).toBe(403);
     expect((await stranger.agent.delete(`/api/clans/${clan.id}`)).status).toBe(404);
     expect(await Clan.countDocuments({ _id: clan.id })).toBe(1);
+  });
+
+  it("deletes the family tree's photos by prefix", async () => {
+    const photos = createMemoryPhotoStore();
+    const { app: withPhotos } = createTestApp({ photos });
+    const owner = await signUp(withPhotos);
+    const clan = await createClan(owner.agent);
+
+    expect((await owner.agent.delete(`/api/clans/${clan.id}`)).status).toBe(204);
+    expect(photos.deletedPrefixes).toEqual([clanPhotoPrefix(photos.folder, clan.id)]);
+  });
+
+  it('still deletes the family tree when its photos cannot be deleted', async () => {
+    const photos = {
+      ...createMemoryPhotoStore(),
+      deletePrefix: () => Promise.reject(new Error('down')),
+    };
+    const { app: failing } = createTestApp({ photos });
+    const owner = await signUp(failing);
+    const clan = await createClan(owner.agent);
+
+    expect((await owner.agent.delete(`/api/clans/${clan.id}`)).status).toBe(204);
+    expect(await Clan.countDocuments({ _id: clan.id })).toBe(0);
   });
 });

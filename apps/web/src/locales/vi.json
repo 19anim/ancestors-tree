@@ -110,8 +110,10 @@
     "VERSION_CONFLICT": "Cây gia phả vừa được người khác cập nhật.",
     "IDENTITY_MISMATCH": "Thay đổi này thuộc về một tài khoản khác với tài khoản đang đăng nhập.",
     "RULE_VIOLATION": "Thay đổi này không hợp lệ với cây gia phả.",
+    "PHOTO_REJECTED": "Ảnh này không dùng được: ảnh không còn, không thuộc người này hoặc nặng hơn 2 MB.",
     "RATE_LIMITED": "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.",
     "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại.",
+    "PHOTOS_NOT_CONFIGURED": "Máy chủ chưa được cài đặt để lưu ảnh.",
     "NETWORK_ERROR": "Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.",
     "INVALID_RESPONSE": "Máy chủ trả về dữ liệu không như mong đợi."
   },
@@ -364,6 +366,20 @@
       "stackToggle": "+{{count}} người trong xấp của {{name}}",
       "stackList": "Xấp của {{name}}"
     },
+    "photo": {
+      "alt": "Ảnh của {{name}}",
+      "section": "Ảnh",
+      "change": "Đổi ảnh",
+      "remove": "Gỡ ảnh",
+      "uploading": "Đang tải ảnh lên…",
+      "errors": {
+        "type": "Chỉ nhận ảnh jpg, png hoặc webp.",
+        "sourceTooLarge": "Ảnh này quá lớn (trên 25 MB). Hãy chọn ảnh khác.",
+        "unreadable": "Không đọc được ảnh này. Hãy chọn ảnh khác.",
+        "tooLarge": "Ảnh vẫn nặng hơn 2 MB sau khi thu nhỏ. Hãy chọn ảnh khác.",
+        "upload": "Tải ảnh lên không thành công. Hãy thử lại."
+      }
+    },
     "profile": {
       "close": "Đóng hồ sơ",
       "edit": "Sửa",
@@ -447,6 +463,8 @@
       "addPerson": "thêm {{name}}",
       "addPeople": "thêm {{count}} người",
       "updatePerson": "sửa thông tin của {{name}}",
+      "changePhoto": "đổi ảnh của {{name}}",
+      "removePhoto": "gỡ ảnh của {{name}}",
       "deletePerson": "xoá {{name}}",
       "restorePerson": "khôi phục {{name}}",
       "addUnion": "thêm cuộc hôn nhân của {{names}}",
@@ -489,7 +507,9 @@
         "cutMarriage": "{{a}} và {{b}} không còn là vợ chồng",
         "cutAlone": "Các con không còn là con của {{a}}",
         "status": "Hôn nhân của {{a}} và {{b}}: {{status}}",
-        "detach": "{{a}} chuyển vào Ảnh chưa dán"
+        "detach": "{{a}} chuyển vào Ảnh chưa dán",
+        "photo": "ảnh của {{a}}",
+        "photoRemoved": "{{a}} không còn ảnh"
       },
       "status": {
         "married": "Vợ chồng",

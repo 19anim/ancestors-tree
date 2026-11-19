@@ -8,6 +8,7 @@ import { pino } from 'pino';
 import { createApp } from '../src/app.ts';
 import { connectDatabase } from '../src/db/connect.ts';
 import { createMemoryMailer } from '../src/mail/mailer.ts';
+import { createMemoryPhotoStore } from '../src/photos/store.ts';
 
 const PORT = Number(process.env.PORT ?? 3100);
 const APP_ORIGIN = process.env.APP_ORIGIN ?? 'http://localhost:4173';
@@ -27,6 +28,10 @@ const { app } = createApp({
   // A fresh random secret per run: nothing to leak, sessions die with the process.
   auth: { jwtSecret: randomBytes(48).toString('base64'), secureCookies: false, bcryptCost: 4 },
   mailer: createMemoryMailer(),
+  photos: createMemoryPhotoStore({
+    folder: 'ancestors-tree/e2e',
+    assumeUploaded: { bytes: 50_000, version: 1 },
+  }),
 });
 
 const server = app.listen(PORT, () => {

@@ -17,10 +17,13 @@ import {
   type TreeState,
 } from '@ancestors-tree/shared/tree';
 import mongoose, { type Types } from 'mongoose';
+import type { Logger } from 'pino';
 import { z } from 'zod';
 import { AppError } from '../http/AppError.ts';
 import type { RouteRegistry } from '../http/routeRegistry.ts';
 import { OperationModel } from '../models/Operation.ts';
+import type { PhotoStore } from '../photos/store.ts';
+import { verifyOpPhotos } from '../photos/verify.ts';
 import { findClan, loadTreeState, saveTreeChanges } from '../tree/store.ts';
 
 const ClanParamsSchema = z.object({ id: IdSchema });
@@ -59,7 +62,10 @@ function toOperationEntry(record: OperationRecord): OperationEntry {
   };
 }
 
-export function registerTreeRoutes(api: RouteRegistry): void {
+export function registerTreeRoutes(
+  api: RouteRegistry,
+  deps: { photos?: PhotoStore; logger: Logger },
+): void {
   api.define({
     method: 'get',
     path: '/clans/:id/tree',
@@ -108,6 +114,7 @@ export function registerTreeRoutes(api: RouteRegistry): void {
       if (revertsToSeq !== undefined && !isOwner) {
         throw new AppError('FORBIDDEN', 'Only the Manager can revert the family tree to a point');
       }
+      await verifyOpPhotos(deps.photos, params.id, op, deps.logger);
       const seq = await mongoose.connection.transaction(async (session) => {
         const clan = await findClan(params.id, session);
         if (clan.version !== baseVersion) {

@@ -112,7 +112,7 @@ describe('treeStateFromLists', () => {
 describe('CLEARABLE_PERSON_FIELDS', () => {
   it('lists exactly the fields updatePerson may clear with null', () => {
     expect([...CLEARABLE_PERSON_FIELDS].sort()).toEqual(
-      ['bio', 'birth', 'birthFamily', 'branch', 'burialPlace', 'siblingOrder'].sort(),
+      ['bio', 'birth', 'birthFamily', 'branch', 'burialPlace', 'photo', 'siblingOrder'].sort(),
     );
     for (const field of CLEARABLE_PERSON_FIELDS) {
       expect(PersonChangesSchema.safeParse({ [field]: null }).success).toBe(true);

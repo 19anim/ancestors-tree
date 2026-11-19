@@ -62,6 +62,12 @@ export const ERROR_CODES = {
     description: 'The change breaks a genealogy business rule enforced by applyOp.',
     clientAction: 'Show the reason and discard the change.',
   },
+  PHOTO_REJECTED: {
+    status: 422,
+    description:
+      "The photo is outside this person's folder, missing, a different version or larger than 2 MB, or photos are not set up on this server (or the image host refuses its keys).",
+    clientAction: 'Show the reason; the change is rolled back.',
+  },
   RATE_LIMITED: {
     status: 429,
     description: 'Too many requests in a short time window.',
@@ -71,6 +77,11 @@ export const ERROR_CODES = {
     status: 500,
     description: 'An unexpected server error occurred; details are only in the server logs.',
     clientAction: 'Show a generic error with a retry button.',
+  },
+  PHOTOS_NOT_CONFIGURED: {
+    status: 503,
+    description: 'Photo storage is not set up on this server (CLOUDINARY_URL is missing).',
+    clientAction: 'Say that photos are not available; do not retry.',
   },
 } as const satisfies Record<string, ErrorCodeInfo>;
 

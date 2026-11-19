@@ -33,6 +33,25 @@ describe('describeOp', () => {
     );
   });
 
+  it('says a photo change as such, unless other details change with it', () => {
+    const photo = { publicId: 'a/b', version: 5 };
+    expect(say({ type: 'updatePerson', payload: { id: GRANDPA, changes: { photo } } })).toBe(
+      'đổi ảnh của Nguyễn Văn Tư',
+    );
+    expect(say({ type: 'updatePerson', payload: { id: GRANDPA, changes: { photo: null } } })).toBe(
+      'gỡ ảnh của Nguyễn Văn Tư',
+    );
+    expect(
+      say({
+        type: 'batch',
+        payload: { ops: [{ type: 'updatePerson', payload: { id: GRANDPA, changes: { photo } } }] },
+      }),
+    ).toBe('đổi ảnh của Nguyễn Văn Tư');
+    expect(
+      say({ type: 'updatePerson', payload: { id: GRANDPA, changes: { photo, bio: 'x' } } }),
+    ).toBe('sửa thông tin của Nguyễn Văn Tư');
+  });
+
   it('describes a batch by the one person it adds, or counts', () => {
     const spouse: Op = {
       type: 'batch',

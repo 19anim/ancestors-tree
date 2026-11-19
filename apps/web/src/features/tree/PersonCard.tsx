@@ -23,6 +23,7 @@ import {
   deathAnniversaryOf,
   lifeYears,
 } from './format';
+import { photoUrl } from './photoUrl';
 import { OpenPersonContext, personCardButton } from './profileParams';
 import { isRelativeKey, relativeTarget } from './relativeNav';
 import { useTreeStore } from './store';
@@ -110,6 +111,7 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
         name={person.fullName}
         label={label}
         lifeYears={lifeYears(person)}
+        photoUrl={photoUrl(person.photo, 'card')}
         tape={tape}
         tilt={tiltFor(person.id)}
         dateLine={

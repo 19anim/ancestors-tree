@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, inertOthers, useMediaQuery } from '../../shared/ui';
+import { PhotoControl } from './PhotoControl';
 import { ProfileDetails } from './ProfileDetails';
 import { ProfileForm } from './ProfileForm';
 import { useTreeStore } from './store';
@@ -22,6 +23,7 @@ import {
 } from './usePersonActions';
 
 interface ProfilePanelProps {
+  clanId: string;
   personId: string;
   isOwner: boolean;
   /** Null for viewers. */
@@ -39,6 +41,7 @@ const WIDE_QUERY = '(min-width: 48rem)';
 
 /** The profile (spec §7.6): a side panel on wide screens, a bottom sheet on small ones. */
 export function ProfilePanel({
+  clanId,
   personId,
   isOwner,
   actions,
@@ -169,6 +172,7 @@ export function ProfilePanel({
           </Button>
         </div>
       </div>
+      <PhotoControl clanId={clanId} person={person} />
       {editing ? (
         <ProfileForm
           person={person}
