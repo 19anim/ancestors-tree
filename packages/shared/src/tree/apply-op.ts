@@ -10,6 +10,7 @@ import {
   type UnionChanges,
 } from './schemas.ts';
 import type { TreeState } from './state.ts';
+import type { TreeTheme, TreeThemeChanges } from './theme.ts';
 
 export interface ApplyOpResult {
   tree: TreeState;
@@ -299,6 +300,23 @@ function setProgenitor(tree: TreeState, personId: string | null): SingleResult {
   };
 }
 
+function setTreeTheme(tree: TreeState, changes: TreeThemeChanges): SingleResult {
+  const current = tree.theme as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...tree.theme };
+  const previous: Record<string, unknown> = {};
+  for (const [part, value] of Object.entries(changes)) {
+    if (value === undefined) continue;
+    // As in updatePerson: null resets a part, and an absent old value goes back as null.
+    previous[part] = current[part] ?? null;
+    if (value === null) delete next[part];
+    else next[part] = value;
+  }
+  return {
+    tree: { ...tree, theme: next as TreeTheme },
+    inverse: { type: 'setTreeTheme', payload: { changes: previous as TreeThemeChanges } },
+  };
+}
+
 function applySingle(tree: TreeState, op: SingleOp): SingleResult {
   switch (op.type) {
     case 'addPerson':
@@ -320,6 +338,8 @@ function applySingle(tree: TreeState, op: SingleOp): SingleResult {
       return restorePerson(tree, op.payload.person, op.payload.unions);
     case 'setProgenitor':
       return setProgenitor(tree, op.payload.personId);
+    case 'setTreeTheme':
+      return setTreeTheme(tree, op.payload.changes);
   }
 }
 

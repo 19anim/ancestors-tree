@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { OpSchema } from '../tree/ops.ts';
 import { PersonSchema, UnionSchema } from '../tree/schemas.ts';
+import { TreeThemeSchema } from '../tree/theme.ts';
 import { IdSchema } from './common.ts';
 
 /** GET /api/clans/:id/tree: the whole tree at one version. */
@@ -9,6 +10,8 @@ export const TreeResponseSchema = z.object({
   progenitorId: IdSchema.nullable(),
   persons: z.array(PersonSchema),
   unions: z.array(UnionSchema),
+  /** The clan's tree theme. Always sent; optional so older payloads and fixtures still parse. */
+  theme: TreeThemeSchema.optional(),
 });
 
 /** POST /api/clans/:id/ops: one op, made against `baseVersion` (spec §6.1, §6.2). */

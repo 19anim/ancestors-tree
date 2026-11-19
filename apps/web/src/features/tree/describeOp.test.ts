@@ -31,6 +31,9 @@ describe('describeOp', () => {
     expect(say({ type: 'deleteUnion', payload: { id: PARENTS_UNION } })).toBe(
       'xoá cuộc hôn nhân của Nguyễn Văn Tư và Lê Thị Hoa',
     );
+    expect(say({ type: 'setTreeTheme', payload: { changes: { surface: 'fridge' } } })).toBe(
+      'đổi chủ đề cây',
+    );
   });
 
   it('says a photo change as such, unless other details change with it', () => {

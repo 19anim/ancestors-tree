@@ -62,7 +62,8 @@ export type OpDescription =
   | { kind: 'setParents'; name: string | null; parents: (string | null)[] }
   | { kind: 'detachParents'; name: string | null }
   | { kind: 'setProgenitor'; name: string | null }
-  | { kind: 'clearProgenitor' };
+  | { kind: 'clearProgenitor' }
+  | { kind: 'treeTheme' };
 
 function describeSingle(op: SingleOp, names: NameLookup): OpDescription {
   const person = (id: string) => names.person(id) ?? null;
@@ -104,6 +105,8 @@ function describeSingle(op: SingleOp, names: NameLookup): OpDescription {
       return op.payload.personId === null
         ? { kind: 'clearProgenitor' }
         : { kind: 'setProgenitor', name: person(op.payload.personId) };
+    case 'setTreeTheme':
+      return { kind: 'treeTheme' };
   }
 }
 
@@ -181,5 +184,7 @@ export function describeAction(t: TFunction, description: OpDescription): string
       });
     case 'clearProgenitor':
       return t('tree.change.clearProgenitor');
+    case 'treeTheme':
+      return t('tree.change.treeTheme');
   }
 }

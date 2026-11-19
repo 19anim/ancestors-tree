@@ -73,6 +73,7 @@ describe('tree DTOs', () => {
             birthFamily: '',
             burialPlace: '',
             photo: '',
+            cardStyle: '',
           },
         },
         upsert: true,

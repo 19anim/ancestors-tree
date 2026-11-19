@@ -475,6 +475,7 @@
       "detachParents": "gỡ {{name}} khỏi cha mẹ",
       "setProgenitor": "chọn {{name}} làm thuỷ tổ",
       "clearProgenitor": "bỏ chọn thuỷ tổ",
+      "treeTheme": "đổi chủ đề cây",
       "changes": "{{count}} thay đổi",
       "someone": "một người",
       "parents": "cha mẹ",

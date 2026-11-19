@@ -475,6 +475,7 @@
       "detachParents": "detach {{name}} from their parents",
       "setProgenitor": "choose {{name}} as the progenitor",
       "clearProgenitor": "clear the progenitor",
+      "treeTheme": "change the tree's theme",
       "changes": "a set of changes ({{count}})",
       "someone": "someone",
       "parents": "the parents",

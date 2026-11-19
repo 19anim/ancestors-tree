@@ -21,6 +21,7 @@ const personSchema = new Schema(
     bio: { type: String },
     burialPlace: { type: String },
     photo: { type: Schema.Types.Mixed },
+    cardStyle: { type: Schema.Types.Mixed },
   },
   { timestamps: true, minimize: false },
 );
