@@ -11,6 +11,7 @@ export const CLAN_SCOPED_MODEL_NAMES = [
   'Invite',
   'ClanRemoval',
   'Membership',
+  'ViewPreference',
 ] as const;
 
 export async function deleteClanData(clanId: string, session: ClientSession): Promise<void> {

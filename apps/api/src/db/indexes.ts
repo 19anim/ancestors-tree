@@ -8,6 +8,7 @@ import { PersonModel } from '../models/Person.ts';
 import { Session } from '../models/Session.ts';
 import { UnionModel } from '../models/Union.ts';
 import { User } from '../models/User.ts';
+import { ViewPreferenceModel } from '../models/ViewPreference.ts';
 
 /** Every model: add new ones here, or their unique and TTL indexes are never awaited at boot. */
 export const MODELS = [
@@ -21,6 +22,7 @@ export const MODELS = [
   PersonModel,
   UnionModel,
   OperationModel,
+  ViewPreferenceModel,
 ];
 
 /**

@@ -28,6 +28,7 @@ import { registerInviteRoutes } from './routes/invites.ts';
 import { registerTreeRoutes } from './routes/tree.ts';
 import { registerHistoryRoutes } from './routes/history.ts';
 import { registerPhotoRoutes } from './routes/photos.ts';
+import { registerViewPreferenceRoutes } from './routes/viewPreference.ts';
 import type { PhotoStore } from './photos/store.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
@@ -120,6 +121,7 @@ export function createApp(options: AppOptions): CreatedApp {
   registerTreeRoutes(api, { photos: options.photos, logger: options.logger });
   registerHistoryRoutes(api);
   registerPhotoRoutes(api, { photos: options.photos });
+  registerViewPreferenceRoutes(api);
   const openApiDocument = buildOpenApiDocument(api.openApi, { version: options.version });
 
   const app = express();
