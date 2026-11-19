@@ -29,8 +29,10 @@ interface SdkErrorBody {
  * The SDK (2.11) rejects with plain objects, not Errors: the Admin API with
  * `{ request_options, query_params, error: { message, http_code } }` for the codes it expects and
  * `{ message, http_code, request_options, query_params }` for any other; the uploader with
- * `{ message, http_code }`; a request that gets no answer with the socket's Error. This keeps the
- * code and message only: request_options holds the API key and secret.
+ * `{ error: { message, http_code } }` (a timeout as http_code 499, a socket failure with the Error as
+ * `error`); a request that gets no answer from the Admin API with the socket's Error. This keeps
+ * the code and message only: request_options holds the API key and secret (hide_sensitive drops
+ * them from Admin API errors too, but this wrapper is the barrier we test).
  */
 function hostError(call: string, error: unknown): PhotoHostError {
   if (error instanceof Error) {
@@ -56,6 +58,8 @@ export function createCloudinaryPhotoStore(options: { url: string; folder: strin
     api_key: apiKey,
     api_secret: apiSecret,
     secure: true,
+    // Drop the key and secret from the request options the SDK attaches to Admin API errors.
+    hide_sensitive: true,
   });
   return {
     folder: options.folder,
