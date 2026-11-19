@@ -85,6 +85,7 @@ export function registerTreeRoutes(
           return {
             version: clan.version,
             progenitorId: tree.progenitorId,
+            theme: tree.theme,
             persons: Object.values(tree.persons),
             unions: Object.values(tree.unions),
           };
@@ -167,6 +168,12 @@ export function registerTreeRoutes(
           throw new AppError('VERSION_CONFLICT', 'Another change was saved first');
         }
         clan.set({ version: next, progenitorId: after.progenitorId });
+        // applyOp keeps the theme object unless the op changed it.
+        if (after.theme !== before.theme) {
+          clan.set('theme', after.theme);
+          // A Mixed path: Mongoose cannot see changes inside it on its own.
+          clan.markModified('theme');
+        }
         await clan.save({ session });
         return next;
       });

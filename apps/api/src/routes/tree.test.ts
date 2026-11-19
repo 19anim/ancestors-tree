@@ -63,7 +63,13 @@ describe('GET /api/clans/:id/tree', () => {
     const { viewer, clanId } = await setup();
     const response = await viewer.agent.get(`/api/clans/${clanId}/tree`);
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ version: 0, progenitorId: null, persons: [], unions: [] });
+    expect(response.body).toEqual({
+      version: 0,
+      progenitorId: null,
+      persons: [],
+      unions: [],
+      theme: {},
+    });
   });
 
   it('is for members only', async () => {
@@ -101,7 +107,13 @@ describe('POST /api/clans/:id/ops', () => {
     expect(response.body).toEqual({ seq: 1 });
 
     const tree = await viewer.agent.get(`/api/clans/${clanId}/tree`);
-    expect(tree.body).toEqual({ version: 1, progenitorId: null, persons: [tu], unions: [] });
+    expect(tree.body).toEqual({
+      version: 1,
+      progenitorId: null,
+      persons: [tu],
+      unions: [],
+      theme: {},
+    });
     const logged = await OperationModel.findOne({ clanId }).lean();
     expect(logged).toMatchObject({
       seq: 1,
@@ -476,5 +488,69 @@ describe('photos on save', () => {
     const tree = await viewer.agent.get(`/api/clans/${clanId}/tree`);
     expect(tree.body.persons).toEqual([tu]);
     expect(tree.body.persons[0]).not.toHaveProperty('photo');
+  });
+});
+
+describe('tree themes on save', () => {
+  it('saves the clan theme with the op, and its logged inverse restores it', async () => {
+    const { editor, viewer, clanId } = await setup();
+    const pick: Op = {
+      type: 'setTreeTheme',
+      payload: { changes: { surface: 'corkboard', fastener: 'pushpin' } },
+    };
+    expect((await submit(editor, clanId, pick, 0)).status).toBe(200);
+    const after = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(after.body.theme).toEqual({ surface: 'corkboard', fastener: 'pushpin' });
+    const logged = await OperationModel.findOne({ clanId, seq: 1 }).lean();
+    expect(logged?.inverse).toEqual({
+      type: 'setTreeTheme',
+      payload: { changes: { surface: null, fastener: null } },
+    });
+
+    // The inverse, sent as an undo of seq 1, puts the defaults back.
+    const undo = await submit(editor, clanId, logged?.inverse as Op, 1, { revertsSeq: 1 });
+    expect(undo.status).toBe(200);
+    expect((await viewer.agent.get(`/api/clans/${clanId}/tree`)).body.theme).toEqual({});
+  });
+
+  it('answers 403 to a viewer, and changes nothing', async () => {
+    const { viewer, clanId } = await setup();
+    const pick: Op = { type: 'setTreeTheme', payload: { changes: { thread: 'yarn' } } };
+    expect((await submit(viewer, clanId, pick, 0)).status).toBe(403);
+    expect((await viewer.agent.get(`/api/clans/${clanId}/tree`)).body).toMatchObject({
+      version: 0,
+      theme: {},
+    });
+  });
+
+  it('rejects an unknown option with 400', async () => {
+    const { editor, clanId } = await setup();
+    const response = await editor.agent.post(`/api/clans/${clanId}/ops`).send({
+      op: { type: 'setTreeTheme', payload: { changes: { surface: 'chalkboard' } } },
+      baseVersion: 0,
+      expectedUserId: editor.user.id,
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("stores a card's style with updatePerson and clears it with null", async () => {
+    const { editor, viewer, clanId } = await setup();
+    const tu = person();
+    await submit(editor, clanId, addPerson(tu), 0);
+    const style: Op = {
+      type: 'updatePerson',
+      payload: { id: tu.id, changes: { cardStyle: { frame: 'vintage' } } },
+    };
+    expect((await submit(editor, clanId, style, 1)).status).toBe(200);
+    let tree = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(tree.body.persons[0].cardStyle).toEqual({ frame: 'vintage' });
+
+    const clear: Op = {
+      type: 'updatePerson',
+      payload: { id: tu.id, changes: { cardStyle: null } },
+    };
+    expect((await submit(editor, clanId, clear, 2)).status).toBe(200);
+    tree = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(tree.body.persons[0]).not.toHaveProperty('cardStyle');
   });
 });
