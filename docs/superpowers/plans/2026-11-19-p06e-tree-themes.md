@@ -1498,7 +1498,7 @@ Expected: FAIL. There are no option blocks, no `--yarn`, no `ThemeSwatch` and no
     var(--paper-grid) 50%,
     transparent 65% 100%
   );
-  --surface-size: 560px 100%;
+  --surface-size: 100% 100%; /* one sheen per board (changed in Task 5: a 560px tile striped wide boards) */
 }
 
 :root[data-theme='dark'] [data-surface='grid-paper'] {
