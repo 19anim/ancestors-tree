@@ -513,14 +513,24 @@ describe('tree themes on save', () => {
     expect((await viewer.agent.get(`/api/clans/${clanId}/tree`)).body.theme).toEqual({});
   });
 
+  it('keeps the theme through a later person op', async () => {
+    const { editor, viewer, clanId } = await setup();
+    const pick: Op = { type: 'setTreeTheme', payload: { changes: { thread: 'yarn' } } };
+    expect((await submit(editor, clanId, pick, 0)).status).toBe(200);
+    expect((await submit(editor, clanId, addPerson(person()), 1)).status).toBe(200);
+    const { body } = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(body.version).toBe(2);
+    expect(body.persons).toHaveLength(1);
+    expect(body.theme).toEqual({ thread: 'yarn' });
+  });
+
   it('answers 403 to a viewer, and changes nothing', async () => {
     const { viewer, clanId } = await setup();
     const pick: Op = { type: 'setTreeTheme', payload: { changes: { thread: 'yarn' } } };
     expect((await submit(viewer, clanId, pick, 0)).status).toBe(403);
-    expect((await viewer.agent.get(`/api/clans/${clanId}/tree`)).body).toMatchObject({
-      version: 0,
-      theme: {},
-    });
+    const { body } = await viewer.agent.get(`/api/clans/${clanId}/tree`);
+    expect(body.version).toBe(0);
+    expect(body.theme).toEqual({});
   });
 
   it('rejects an unknown option with 400', async () => {

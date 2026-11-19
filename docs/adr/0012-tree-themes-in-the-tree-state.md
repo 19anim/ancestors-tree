@@ -36,7 +36,7 @@ Spec §13.4 lets a family dress its board: the surface, the parent–child line,
 - Removing a member keeps their `ViewPreference`; deleting the clan removes them all.
 - `cardStyle` changes still re-run the layout, like any person edit; tree theme switches do not.
 - P10's exports and share links must draw the family's theme, never the viewer's own (the rule of spec §13.4, recorded here for P10).
-- `PUT /view-preference` has no expected-version check, so when two of my own devices save at once, the last write wins. This is acceptable: it is only my own look.
+- `PUT /view-preference` has no expected-version check, so when two of my own devices save at once, the last write wins. It has no expected-user check either, unlike ops: after an account switch in another tab, a pending save lands in the new account's preference. Both are accepted for a personal look; the second is on the roadmap.
 
 ## Decisions taken during implementation
 

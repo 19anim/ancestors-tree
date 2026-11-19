@@ -53,6 +53,9 @@ describe('GET /api/clans/:id/view-preference', () => {
     const { clanId } = await setup();
     const stranger = await signUp(app);
     expect((await stranger.agent.get(path(clanId))).status).toBe(404);
+    const saved = await put(stranger, clanId, { enabled: true, theme: {}, cards: {} });
+    expect(saved.status).toBe(404);
+    expect(await ViewPreferenceModel.countDocuments({ clanId })).toBe(0);
   });
 });
 

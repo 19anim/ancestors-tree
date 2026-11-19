@@ -103,6 +103,29 @@ describe('tree DTOs', () => {
     expect(update.$set).not.toHaveProperty('photo');
   });
 
+  it("round-trips a card's own style, and unsets it once cleared", () => {
+    const stored = {
+      _id: new Types.ObjectId(),
+      fullName: 'Nguyễn Văn Tư',
+      gender: 'male' as const,
+      death: { isDeceased: false },
+      isAdopted: false,
+    };
+    const cardStyle = { frame: 'vintage', fastener: 'magnet' } as const;
+    const person = toPerson({ ...stored, cardStyle });
+    expect(person.cardStyle).toEqual(cardStyle);
+    expect(toPerson({ ...stored, cardStyle: null })).not.toHaveProperty('cardStyle');
+
+    type Update = { $set: Record<string, unknown>; $unset?: Record<string, ''> };
+    const updateOf = (written: Person) =>
+      (personWrite(clanId, written) as { updateOne: { update: Update } }).updateOne.update;
+    expect(updateOf(person).$set.cardStyle).toEqual(cardStyle);
+    expect(updateOf(person).$unset).not.toHaveProperty('cardStyle');
+    const { cardStyle: _cleared, ...withoutStyle } = person;
+    expect(updateOf(withoutStyle).$unset?.cardStyle).toBe('');
+    expect(updateOf(withoutStyle).$set).not.toHaveProperty('cardStyle');
+  });
+
   it('writes a union with ObjectId partners', () => {
     const union: Union = {
       id: newObjectId(),
