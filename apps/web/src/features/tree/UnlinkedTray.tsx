@@ -1,5 +1,10 @@
 import { useDroppable } from '@dnd-kit/core';
-import { looseStacks, type LooseStack, type Person } from '@ancestors-tree/shared/tree';
+import {
+  looseStacks,
+  resolveCardStyle,
+  type LooseStack,
+  type Person,
+} from '@ancestors-tree/shared/tree';
 import { UsersRound } from 'lucide-react';
 import { useContext, useId, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +12,7 @@ import { cn } from '../../shared/lib/cn';
 import { Button, Polaroid, tiltFor } from '../../shared/ui';
 import { CardDrag } from './CardDrag';
 import { ChangeContext } from './ChangeRunner';
+import { useThemeLayers } from './decorContext';
 import { justDropped, useDragStore } from './dragStore';
 import { TRAY_ID } from './dragZones';
 import { lifeYears, lifeYearsSpoken } from './format';
@@ -26,6 +32,8 @@ export function TrayPhoto({ person, draggable = false }: { person: Person; dragg
     spokenYears === undefined
       ? person.fullName
       : t('scrapbook.personLabel', { name: person.fullName, years: spokenYears });
+  const layers = useThemeLayers();
+  const style = resolveCardStyle(layers, person.id, person.cardStyle);
   return (
     <CardDrag personId={person.id} drag={draggable} drop={false} className="relative">
       <Polaroid
@@ -36,6 +44,8 @@ export function TrayPhoto({ person, draggable = false }: { person: Person; dragg
         lifeYears={years}
         tape="loose"
         tilt={tiltFor(person.id)}
+        frame={style.frame}
+        fastener={style.fastener}
       />
       <button
         type="button"

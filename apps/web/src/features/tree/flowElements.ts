@@ -1,9 +1,22 @@
+import {
+  THEME_DEFAULTS,
+  type CardFastener,
+  type CardFrame,
+  type ResolvedCardStyle,
+} from '@ancestors-tree/shared/tree';
 import type { Edge, Node } from '@xyflow/react';
 import type { Point, TapeKind } from '../../shared/ui';
 import { CARD, type TreeLayout } from './layout';
 
 // React Flow needs `type` aliases (not interfaces) for node and edge data.
-export type PersonNodeData = { personId: string; tape: TapeKind; generation: number };
+export type PersonNodeData = {
+  personId: string;
+  tape: TapeKind;
+  generation: number;
+  /** The card's resolved style (spec §13.4): a change reaches only the cards it alters. */
+  frame: CardFrame;
+  fastener: CardFastener;
+};
 export type UnionNodeData = { couple: boolean; unionId: string };
 export type ThreadEdgeData = { from: Point; dropTo: number; to: Point };
 
@@ -23,6 +36,15 @@ export interface FlowElements {
  * relationships are in the cards' generation labels (spec §7.8).
  */
 const HIDDEN_FROM_SCREEN_READERS = { 'aria-hidden': true } as const;
+
+const DEFAULT_STYLE: ResolvedCardStyle = {
+  frame: THEME_DEFAULTS.frame,
+  fastener: THEME_DEFAULTS.fastener,
+};
+
+function defaultStyleOf(): ResolvedCardStyle {
+  return DEFAULT_STYLE;
+}
 
 export function unionNodeId(unionId: string): string {
   return `union-${unionId}`;
@@ -55,9 +77,14 @@ function sameEdge(a: ThreadFlowEdge, b: ThreadFlowEdge): boolean {
 /**
  * Nodes and edges for React Flow. Objects that did not change are reused from `previous`, so
  * React Flow and the memoised node components skip them (spec §7.4). Unions come first so the
- * cards are drawn on top of the stitches.
+ * cards are drawn on top of the stitches. Each card's data holds its resolved style, so a theme
+ * change replaces only the cards it changes.
  */
-export function toFlowElements(layout: TreeLayout, previous?: FlowElements): FlowElements {
+export function toFlowElements(
+  layout: TreeLayout,
+  previous?: FlowElements,
+  styleOf: (personId: string) => ResolvedCardStyle = defaultStyleOf,
+): FlowElements {
   const oldNodes = new Map(previous?.nodes.map((node) => [node.id, node] as const));
   const oldEdges = new Map(previous?.edges.map((edge) => [edge.id, edge] as const));
   const keepNode = (node: TreeFlowNode): TreeFlowNode => {
@@ -84,7 +111,12 @@ export function toFlowElements(layout: TreeLayout, previous?: FlowElements): Flo
         position: { x: person.x, y: person.y },
         width: CARD.width,
         height: CARD.height,
-        data: { personId: person.id, tape: person.tape, generation: person.generation },
+        data: {
+          personId: person.id,
+          tape: person.tape,
+          generation: person.generation,
+          ...styleOf(person.id),
+        },
       }),
     ),
   ];

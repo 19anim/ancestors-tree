@@ -117,7 +117,7 @@
   --surface-size: 14px 14px, 9px 9px;
 }
 
-/* Cool enamel: a smooth door with a soft, wide sheen. */
+/* Cool enamel: a smooth door with one soft, wide sheen across the whole board (not tiled). */
 [data-surface='fridge'] {
   --paper: #eef3f6;
   --paper-grid: #dde6ec;
@@ -129,7 +129,7 @@
     var(--paper-grid) 50%,
     transparent 65% 100%
   );
-  --surface-size: 560px 100%;
+  --surface-size: 100% 100%;
 }
 
 :root[data-theme='dark'] [data-surface='grid-paper'] {

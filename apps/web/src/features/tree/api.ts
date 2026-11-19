@@ -8,7 +8,18 @@ import {
   type SubmitOpResponse,
   type TreeResponse,
 } from '@ancestors-tree/shared';
+import { treeStateFromLists, type TreeState } from '@ancestors-tree/shared/tree';
 import { apiRequest } from '../../shared/lib/apiClient';
+
+/** The tree a response holds, with the clan's theme (spec §13.4); none means the defaults. */
+export function treeFromResponse(response: TreeResponse): TreeState {
+  return treeStateFromLists(
+    response.progenitorId,
+    response.persons,
+    response.unions,
+    response.theme ?? {},
+  );
+}
 
 export function fetchTree(clanId: string, signal?: AbortSignal): Promise<TreeResponse> {
   return apiRequest(`/clans/${clanId}/tree`, TreeResponseSchema, { signal });
