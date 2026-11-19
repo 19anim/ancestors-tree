@@ -226,6 +226,25 @@ describe('Decorate on the tree page', () => {
     expect(board).toHaveAttribute('data-surface', 'grid-paper');
   });
 
+  it("the change toast stays usable over the sheet: its Undo isn't inert", async () => {
+    // No matchMedia in jsdom: the panel is the bottom sheet, which makes the page behind inert.
+    editableTree(FAMILY);
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    const panel = screen.getByRole('complementary', { name: 'Trang trí cây' });
+    expect(screen.getByRole('button', { name: 'Trang trí' }).closest('[inert]')).not.toBeNull();
+
+    await user.click(within(panel).getByRole('radio', { name: 'Bảng gỗ bần' }));
+    const undo = await screen.findByRole('button', { name: 'Hoàn tác thay đổi này' });
+    expect(undo.closest('[inert]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Đóng thông báo' }).closest('[inert]')).toBeNull();
+    await user.click(undo);
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+    expect(panel).toBeInTheDocument();
+  });
+
   it("re-picking the family's choice sends nothing and shows no error", async () => {
     const sent = editableTree({ ...FAMILY, theme: { surface: 'corkboard', fastener: 'pushpin' } });
     const user = userEvent.setup();
@@ -424,6 +443,27 @@ describe('my own theme on the tree page', () => {
       screen.getByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
     ).toBeInTheDocument();
     await user.keyboard('{Escape}');
+    const back = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    expect(within(back).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
+  });
+
+  it("a click on the decorated card's own board card goes back to its profile", async () => {
+    mockApi(treeRoutes(FAMILY, VIEWER));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    const profile = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    await user.click(within(profile).getByRole('button', { name: 'Trang trí thẻ này…' }));
+    expect(
+      screen.getByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
+    ).toBeInTheDocument();
+
+    // The profile is already in the address: the click must still swap Decorate out.
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    expect(
+      screen.queryByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
+    ).not.toBeInTheDocument();
     const back = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
     expect(within(back).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
   });

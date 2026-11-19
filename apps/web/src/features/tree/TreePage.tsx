@@ -41,8 +41,8 @@ export function TreePage() {
   const { dialog, changeDialog, firstPersonAdded, returnFocus } = useTreeDialog();
   const runner = useChangeRunner();
   const { requestChange } = runner;
-  // openPerson and closeProfile are stable, so the cards (context consumers) do not re-render
-  // when the page does.
+  // openPerson and closeProfile are stable (and so is openPersonHere, below), so the cards
+  // (context consumers) do not re-render when the page does.
   const { personId, openPerson, closeProfile } = useProfileParam();
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
@@ -230,6 +230,15 @@ export function TreePage() {
   useEffect(() => {
     setDecorating(null);
   }, [personId]);
+  // So does a click on the card whose profile is already open (its Decorate swapped in): the
+  // address stays the same, so the effect above does not run.
+  const openPersonHere = useCallback(
+    (...args: Parameters<typeof openPerson>) => {
+      setDecorating(null);
+      openPerson(...args);
+    },
+    [openPerson],
+  );
 
   // Decorate closed with focus inside it: back to what opened it, else the card it decorated.
   const lastTarget = useRef<DecorTarget | null>(null);
@@ -258,7 +267,7 @@ export function TreePage() {
   }
   if (view.state === 'loading') return <TreeSkeleton />;
   return (
-    <OpenPersonContext value={openPerson}>
+    <OpenPersonContext value={openPersonHere}>
       <PersonalThemeContext value={decor.preference}>
         <PersonActionsContext value={actions}>
           <ChangeContext value={canEdit ? requestChange : null}>

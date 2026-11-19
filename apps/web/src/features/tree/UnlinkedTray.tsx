@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/core';
 import {
+  EMPTY_TREE,
   looseStacks,
   resolveCardStyle,
   type LooseStack,
@@ -130,8 +131,15 @@ function TrayStack({ stack }: { stack: LooseStack }) {
 export function UnlinkedTray({ onAddSeveral }: { onAddSeveral?: () => void }) {
   const { t } = useTranslation();
   const headingId = useId();
-  const tree = useTreeStore((state) => state.tree);
-  const stacks = useMemo(() => looseStacks(tree), [tree]);
+  // The stacks read the people, the unions and the progenitor only, as the board's layout does
+  // (TreeBoard): a theme change keeps all three, so it does not group the photos again.
+  const progenitorId = useTreeStore((state) => state.tree.progenitorId);
+  const persons = useTreeStore((state) => state.tree.persons);
+  const unions = useTreeStore((state) => state.tree.unions);
+  const stacks = useMemo(
+    () => looseStacks({ ...EMPTY_TREE, progenitorId, persons, unions }),
+    [progenitorId, persons, unions],
+  );
   // An empty tray is there only while dragging, to drop on. A boolean that stays false while the
   // tray has photos, so a drag starting or ending does not re-render them.
   const emptyWhileDragging = useDragStore(
