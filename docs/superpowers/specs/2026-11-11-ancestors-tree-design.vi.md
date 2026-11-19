@@ -1007,6 +1007,12 @@ Hai quy tắc giúp dễ đoán: **thẻ thắng cả cây**, và **của tôi t
 - Khi đang có lựa chọn "chỉ mình tôi", một dải báo hiện "Bạn đang xem chủ đề riêng" kèm nút **Về chủ đề chung** (đặt `enabled: false` và giữ lại các lựa chọn). Chọn bất kỳ mẫu nào ở chế độ "Chỉ mình tôi" sẽ đặt lại `enabled: true`. Quản lý và Biên tập thấy thêm nút **Dùng cho cả họ**, gửi op `setTreeTheme` với các lựa chọn cấp cây của họ; lựa chọn cấp thẻ vẫn là của riêng họ.
 - Bảng hiện "Khác chủ đề cây" ở thẻ hoặc thành phần nào có lựa chọn riêng.
 
+**Lưu** (chốt ngày 2026-11-19 cho P6e).
+- Chủ đề của cả họ là một phần trạng thái cây, nằm cạnh `progenitorId`: `applyOp` đổi nó, API lưu nó vào `Clan.theme` trong cùng transaction của op, và hoàn tác, làm lại, khôi phục và rebase khi 409 đều chạy với nó như mọi op khác.
+- Ở chế độ "Cả họ", mỗi lần chọn là một op `setTreeTheme` và một bước hoàn tác. Chọn nền thì nền và đồ giữ ảnh đi kèm được gửi trong cùng một op.
+- Ở chế độ "Chỉ mình tôi", bảng đổi ngay, và toàn bộ `ViewPreference` được lưu bằng một lần `PUT` khoảng 500 ms sau lần chọn cuối, nên chọn liên tiếp chỉ gửi một yêu cầu. Lần lưu sau cùng thắng. Lưu lỗi thì báo và cho thử lại. Lựa chọn riêng không có hoàn tác: chọn lại chính là hoàn tác.
+- Xoá dòng họ thì xoá luôn các tài liệu `ViewPreference` của dòng họ đó.
+
 **API.**
 - `GET /api/clans/:id/view-preference` và `PUT /api/clans/:id/view-preference` (mọi thành viên; chỉ tài liệu của chính người gọi). Body được Zod kiểm tra: chỉ nhận giá trị mẫu có sẵn, key `personId` phải là ObjectId, tối đa 5.000 mục thẻ (giới hạn số người của một dòng họ, §5).
 - Thay đổi cho cả họ đi qua `POST /api/clans/:id/ops` như mọi chỉnh sửa khác.

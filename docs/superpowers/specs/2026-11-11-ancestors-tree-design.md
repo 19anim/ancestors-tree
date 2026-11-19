@@ -1005,6 +1005,12 @@ Two rules make this predictable: **a card beats the whole tree**, and **mine bea
 - While "only for me" choices are active, a banner says "You are viewing your own theme" with **Back to the clan's theme** (sets `enabled: false` and keeps the choices). Picking any option in "Only me" mode sets `enabled: true` again. Editors and Owners also see **Use for the whole clan**, which sends a `setTreeTheme` op with their tree-level choices; their card choices stay personal.
 - The panel shows "Different from the tree" on any card or part that has its own choice.
 
+**Saving** (decided on 2026-11-19 for P6e).
+- The clan's theme is part of the tree state, next to `progenitorId`: `applyOp` changes it, the API stores it in `Clan.theme` in the op's transaction, and undo, redo, revert and the 409 rebase work for it like any other op.
+- In "Whole clan" mode every pick is its own `setTreeTheme` op and its own undo step. Picking a surface sends the surface and its matching fastener in the same op.
+- In "Only me" mode the board changes at once, and the whole `ViewPreference` is saved with one `PUT` about 500 ms after the last pick, so quick picks send one request. The last save wins. A failed save says so and offers to retry. Personal choices have no undo: picking again is the undo.
+- Deleting a clan deletes its `ViewPreference` documents.
+
 **API.**
 - `GET /api/clans/:id/view-preference` and `PUT /api/clans/:id/view-preference` (any member; only the caller's own document). The body is validated by Zod: known option values only, `personId` keys must be ObjectIds, at most 5,000 card entries (the clan size limit, §5).
 - Clan-wide changes go through `POST /api/clans/:id/ops` like every other edit.
