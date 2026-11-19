@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders, createQueryClient } from '../../app/providers';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { CLAN_ID } from './fixtures';
-import { SAVE_DELAY_MS, usePersonalDecor } from './useViewPreference';
+import { SAVE_DELAY_MS, usePersonalDecor, viewPreferenceKey } from './useViewPreference';
 
 const PATH = `/clans/${CLAN_ID}/view-preference`;
 
@@ -139,12 +139,59 @@ describe('usePersonalDecor', () => {
     await waitFor(() => expect(puts(api)).toHaveLength(1));
   });
 
+  it('keeps a pick made while an earlier save is on its way, and saves it next', async () => {
+    let answerFirst: () => void = () => {};
+    const api = mockApi({
+      [`GET ${PATH}`]: () => ({ body: EMPTY_VIEW_PREFERENCE }),
+      [`PUT ${PATH}`]: ({ body }) =>
+        puts(api).length === 1
+          ? new Promise((resolve) => {
+              answerFirst = () => resolve({ body });
+            })
+          : { body },
+    });
+    const { result } = renderHook(() => usePersonalDecor(CLAN_ID, { delay: 10 }), {
+      wrapper: providers(),
+    });
+    await waitFor(() => expect(result.current.preference).not.toBeNull());
+
+    act(() => {
+      result.current.change((current) => ({
+        ...current,
+        enabled: true,
+        theme: { thread: 'yarn' },
+      }));
+    });
+    await waitFor(() => expect(puts(api)).toHaveLength(1));
+    // The first save answers while the second pick still waits for its own.
+    act(() => {
+      result.current.change((current) => ({ ...current, theme: { thread: 'cotton' } }));
+    });
+    answerFirst();
+    await waitFor(() => expect(result.current.saveState).toBe('idle'));
+    expect(result.current.preference?.theme).toEqual({ thread: 'cotton' });
+
+    await waitFor(() => expect(puts(api)).toHaveLength(2));
+    expect(puts(api)[1]?.body).toEqual({ enabled: true, theme: { thread: 'cotton' }, cards: {} });
+    await waitFor(() => expect(result.current.saveState).toBe('idle'));
+    expect(result.current.preference?.theme).toEqual({ thread: 'cotton' });
+  });
+
   it('ignores a pick before my choices are loaded', async () => {
-    mockApi({ [`GET ${PATH}`]: () => new Promise(() => {}) });
-    const { result } = renderHook(() => usePersonalDecor(CLAN_ID), { wrapper: providers() });
+    const api = mockApi({ [`GET ${PATH}`]: () => new Promise(() => {}) });
+    const client = createQueryClient();
+    const { result } = renderHook(() => usePersonalDecor(CLAN_ID, { delay: 10 }), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AppProviders queryClient={client}>{children}</AppProviders>
+      ),
+    });
     act(() => {
       result.current.change((current) => ({ ...current, enabled: true }));
     });
+    expect(client.getQueryData(viewPreferenceKey(CLAN_ID))).toBeUndefined();
+    // Past the delay and the observers' tick: still nothing shown, nothing sent.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
     expect(result.current.preference).toBeNull();
+    expect(puts(api)).toHaveLength(0);
   });
 });

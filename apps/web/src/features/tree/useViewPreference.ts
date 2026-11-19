@@ -49,16 +49,18 @@ export function usePersonalDecor(
     // Only this page changes it, and the cache holds picks not saved yet: never refetch them away.
     staleTime: Infinity,
   });
-  const latestSave = useRef(0);
+  // How many picks were made; a save carries the count it was sent with.
+  const picks = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { mutate, isPending, isError } = useMutation({
-    mutationFn: ({ preference }: { preference: ViewPreference; save: number }) =>
+    mutationFn: ({ preference }: { preference: ViewPreference; picks: number }) =>
       saveViewPreference(clanId, preference),
     // One at a time, in the order asked for.
     scope: { id: `view-preference:${clanId}` },
-    onSuccess: (saved, { save }) => {
-      // Picks made since are on screen already; their own save answers for them.
-      if (save === latestSave.current) queryClient.setQueryData(viewPreferenceKey(clanId), saved);
+    onSuccess: (saved, sent) => {
+      // A pick made after this save was sent is on screen already (saved or still waiting):
+      // the reply must not overwrite it, and that pick's own save answers for it.
+      if (sent.picks === picks.current) queryClient.setQueryData(viewPreferenceKey(clanId), saved);
     },
   });
 
@@ -67,8 +69,7 @@ export function usePersonalDecor(
     timer.current = undefined;
     const preference = queryClient.getQueryData<ViewPreference>(viewPreferenceKey(clanId));
     if (preference === undefined) return;
-    latestSave.current += 1;
-    mutate({ preference, save: latestSave.current });
+    mutate({ preference, picks: picks.current });
   }, [clanId, mutate, queryClient]);
 
   const change = useCallback(
@@ -77,6 +78,7 @@ export function usePersonalDecor(
       const current = queryClient.getQueryData<ViewPreference>(key);
       if (current === undefined) return;
       void queryClient.cancelQueries({ queryKey: key });
+      picks.current += 1;
       queryClient.setQueryData(key, update(current));
       clearTimeout(timer.current);
       timer.current = setTimeout(flush, delay);
