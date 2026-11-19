@@ -4444,7 +4444,7 @@ Read `docs/adr/0011-photos-through-a-photo-store.md` for the format: `# ADR 0012
   1. The family's theme lives in the tree state (`TreeState.theme`), changed by a `setTreeTheme { changes }` op. Null resets a part. The inverse holds the previous values. The Clan document stores it in the op's transaction. A surface pick sends its matching fastener with it.
   2. A card's own style is `Person.cardStyle`, set and cleared (null) through `updatePerson`.
   3. My own choices are a `ViewPreference` document per member and clan, read and written whole with `GET` and `PUT /clans/:id/view-preference`. They are checked by Zod (known options, ObjectId keys, at most 5,000 cards), pruned of deleted people on save, and deleted with the clan. The client keeps them in TanStack Query. The board changes at once, and one PUT goes about 500 ms after the last pick; saves run one at a time, so the last one wins. There is no undo; a failed save shows an error with a retry.
-  4. One pure resolver in `shared` picks each part: my card's choice, my tree choice, the card's own style, the family's theme, then the default.
+  4. One pure resolver in `shared` picks each part: my card's choice, the card's own style, my tree choice, the family's theme, then the default (a card beats the whole tree).
   5. Rendering is data attributes on the board and cards, and CSS variables in `tokens.css` for light and dark, drawn with CSS patterns only. Every frame and surface is contrast-tested. Nodes stay memoised, and a theme switch does not re-run the layout.
 - **Alternatives considered:**
   - the family's theme as a plain Clan field behind its own route (no undo, sync or history);

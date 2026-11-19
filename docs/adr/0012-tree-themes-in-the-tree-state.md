@@ -19,7 +19,7 @@ Spec §13.4 lets a family dress its board: the surface, the parent–child line,
 
 **My own choices are a `ViewPreference` document per member and clan**, read and written whole with `GET` and `PUT /clans/:id/view-preference`. Zod checks them: known options only, ObjectId keys, at most 5,000 cards. A save prunes the cards of people no longer in the tree, and deleting the clan deletes them. The client keeps them in TanStack Query. The board changes at once, and one PUT goes about 500 ms after the last pick. Saves run one at a time, so the last one wins. There is no undo; a failed save shows an error with a retry.
 
-**One pure resolver in `shared` picks each part**, in this order: my choice for this card, my choice for the tree, the card's own style, the family's theme, then the default.
+**One pure resolver in `shared` picks each part**, in this order: my choice for this card, the family's choice for this card (`Person.cardStyle`), my tree theme, the family's tree theme, then the default. A card beats the whole tree. Surface, thread and stitch use the last three only.
 
 **Rendering is data attributes and CSS variables.** The board and each card carry data attributes; `tokens.css` maps them to CSS variables for light and dark, drawn with CSS patterns only. Every frame and surface is contrast-tested. Nodes stay memoised, and a theme switch does not re-run the layout.
 
