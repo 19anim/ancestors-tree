@@ -1,11 +1,11 @@
 import type { TreeResponse } from '@ancestors-tree/shared';
+import { treeStateFromLists } from '@ancestors-tree/shared/tree';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute, renderWithProviders } from '../../test/render';
-import { treeStateFromLists } from '@ancestors-tree/shared/tree';
 import { CardMenu } from './CardMenu';
 import type { DecorTarget } from './decor';
 import { DecorateContext } from './decorContext';
@@ -249,6 +249,7 @@ describe('the card menu on the board', () => {
     });
     // The menu's focus trap is gone before the panel takes focus, so the panel keeps it.
     await waitFor(() => expect(heading).toHaveFocus());
+    // Past Radix FocusScope's setTimeout-dispatched unmount auto-focus: focus is not stolen back.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(heading).toHaveFocus();
     await user.keyboard('{Escape}');

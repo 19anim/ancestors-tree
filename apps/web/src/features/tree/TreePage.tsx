@@ -194,15 +194,37 @@ export function TreePage() {
 
   // "Use for the whole family": the parts of my theme the family's lacks (none: no button).
   const clanTheme = useTreeStore((state) => state.tree.theme);
-  const toShare =
-    canEdit && decor.preference !== null ? changesToMatch(clanTheme, decor.preference.theme) : null;
+  const myTheme = decor.preference?.theme;
+  const toShare = useMemo(
+    () => (canEdit && myTheme !== undefined ? changesToMatch(clanTheme, myTheme) : null),
+    [canEdit, clanTheme, myTheme],
+  );
+  const backButton = useRef<HTMLButtonElement>(null);
+  const decorateButton = useRef<HTMLButtonElement>(null);
   const shareMyTheme = useCallback(() => {
-    if (toShare !== null) requestChange({ change: { kind: 'treeTheme', changes: toShare } });
+    if (toShare === null) return;
+    // Once nothing is left to share this button goes: focus stays in the banner, on Back.
+    requestChange({
+      change: { kind: 'treeTheme', changes: toShare },
+      focusFallback: () => backButton.current,
+    });
   }, [requestChange, toShare]);
   const { change: changeMine } = decor;
+  const backPressed = useRef(false);
   const backToShared = useCallback(() => {
+    backPressed.current = true;
     changeMine((current) => ({ ...current, enabled: false }));
   }, [changeMine]);
+
+  // Back took the banner, and the focus in it, away: on to Decorate, else the main content.
+  const ownTheme = showsOwnTheme(decor.preference);
+  useEffect(() => {
+    if (ownTheme || !backPressed.current) return;
+    backPressed.current = false;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    (decorateButton.current ?? document.querySelector<HTMLElement>('main'))?.focus();
+  }, [ownTheme]);
 
   // Opening someone's profile closes Decorate: the profile takes the column.
   useEffect(() => {
@@ -248,9 +270,11 @@ export function TreePage() {
                     canEdit={canEdit}
                     onAddSeveral={addSeveral}
                     onDecorate={isEmpty ? undefined : () => openDecorate({ kind: 'tree' })}
+                    decorateRef={decorateButton}
                   />
-                  {showsOwnTheme(decor.preference) ? (
+                  {ownTheme ? (
                     <ThemeBanner
+                      backRef={backButton}
                       onBack={backToShared}
                       onUseForClan={toShare === null ? null : shareMyTheme}
                     />

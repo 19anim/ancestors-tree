@@ -1,4 +1,5 @@
 import { Palette, UsersRound } from 'lucide-react';
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../shared/ui';
 import { SaveStatus } from './SaveStatus';
@@ -12,10 +13,12 @@ export function TreeToolbar({
   canEdit,
   onAddSeveral,
   onDecorate,
+  decorateRef,
 }: {
   canEdit: boolean;
   onAddSeveral?: () => void;
   onDecorate?: () => void;
+  decorateRef?: Ref<HTMLButtonElement>;
 }) {
   const { t } = useTranslation();
   return (
@@ -32,7 +35,7 @@ export function TreeToolbar({
         </Button>
       ) : null}
       {onDecorate ? (
-        <Button variant="secondary" size="sm" onClick={onDecorate}>
+        <Button ref={decorateRef} variant="secondary" size="sm" onClick={onDecorate}>
           <Palette aria-hidden="true" strokeWidth={1.75} className="size-4" />
           {t('tree.decor.open')}
         </Button>

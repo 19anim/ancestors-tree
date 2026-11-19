@@ -340,6 +340,55 @@ describe('my own theme on the tree page', () => {
     expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument();
   });
 
+  it('moves focus to Decorate when the banner goes away under it', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    screen.getByRole('button', { name: 'Về chủ đề chung' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(screen.queryByText('Bạn đang xem chủ đề của riêng mình.')).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Trang trí' })).toHaveFocus());
+  });
+
+  it('moves focus to the main content when there is no Decorate button', async () => {
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE, VIEWER),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    expect(screen.queryByRole('button', { name: 'Trang trí' })).not.toBeInTheDocument();
+    screen.getByRole('button', { name: 'Về chủ đề chung' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
+  });
+
+  it('moves focus to "Back to the shared theme" once nothing is left to share', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: FAMILY.version + 1 } }),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    screen.getByRole('button', { name: 'Dùng cho cả họ' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Về chủ đề chung' })).toHaveFocus(),
+    );
+  });
+
   it('says when my choices were not saved, and saves them again', async () => {
     let fail = true;
     mockApi({
