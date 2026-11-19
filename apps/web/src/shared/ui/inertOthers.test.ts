@@ -81,4 +81,29 @@ describe('inertOthers', () => {
     await flush();
     expect(isInert('later')).toBe(false);
   });
+
+  it('leaves what stays operable on purpose (the change toast) usable, buttons and all', async () => {
+    document.body.innerHTML = `
+      <main id="main">
+        <div id="column"><div id="toolbar"><button>Undo</button></div></div>
+        <aside id="sheet"><button>Close</button></aside>
+      </main>
+      <div id="toast" data-stays-operable>
+        <p role="status" aria-live="polite">Saved</p>
+        <button id="toast-undo">Undo this change</button>
+      </div>`;
+    const undo = inertOthers(byId('sheet'));
+    // Mounted later, beside the walked path: still left alone.
+    const later = document.createElement('div');
+    later.id = 'later-toast';
+    later.setAttribute('data-stays-operable', '');
+    later.innerHTML = '<button>Dismiss</button>';
+    byId('main').append(later);
+    await flush();
+
+    expect(isInert('column')).toBe(true);
+    expect(byId('toast-undo').closest('[inert]')).toBeNull();
+    expect(byId('later-toast').closest('[inert]')).toBeNull();
+    undo();
+  });
 });

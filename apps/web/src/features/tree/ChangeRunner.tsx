@@ -216,8 +216,14 @@ function ChangeToast({
   const canUndo = useTreeStore((state) => op !== null && state.undoStack.at(-1)?.op === op);
   const request = toast?.request;
   const focusLost = request === undefined ? undefined : () => onFocusLost(request);
+  // Over a bottom sheet (z-30) by z-index, and operable while the sheet makes the page inert
+  // (inertOthers), so a change made from the sheet can be undone there. Dialogs (z-40 and z-50,
+  // portalled after it) still cover it.
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4">
+    <div
+      data-stays-operable
+      className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4"
+    >
       <div
         className={
           toast === null

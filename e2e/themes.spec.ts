@@ -21,12 +21,14 @@ async function treeWithProgenitor(page: Page, slug: string): Promise<string> {
 /** The family's stored theme, read with the page's session. */
 async function clanTheme(page: Page, clanId: string) {
   const response = await page.request.get(`/api/clans/${clanId}/tree`);
+  expect(response.ok(), await response.text()).toBe(true);
   return ((await response.json()) as { theme?: Record<string, string> }).theme ?? {};
 }
 
 /** My stored choices, read with the page's session. */
 async function myPreference(page: Page, clanId: string) {
   const response = await page.request.get(`/api/clans/${clanId}/view-preference`);
+  expect(response.ok(), await response.text()).toBe(true);
   return (await response.json()) as { enabled: boolean; theme: Record<string, string> };
 }
 
@@ -52,14 +54,12 @@ test('whole family: a surface for everyone, undone, then kept after a reload', a
     path: `test-results/screenshots/${testInfo.project.name}-theme-corkboard.png`,
   });
 
-  // On a phone the panel is a modal sheet over the toast: close it first (focus is on the pick).
-  await page.keyboard.press('Escape');
-  await expect(panel).toBeHidden();
+  // The toast stays usable while the panel is open, a modal sheet on a phone.
   await page.getByRole('button', { name: 'Hoàn tác thay đổi này' }).click();
   await expect(board).toHaveAttribute('data-surface', 'grid-paper');
+  await expect(panel).toBeVisible();
   await expect.poll(() => clanTheme(page, clanId)).toEqual({});
 
-  await page.getByRole('button', { name: 'Trang trí' }).click();
   await panel.getByText('Bảng gỗ bần').click();
   await expect
     .poll(() => clanTheme(page, clanId))
@@ -85,7 +85,9 @@ test('only me: my board changes, the family keeps its own, and I can go back', a
   const board = page.getByRole('group', { name: BOARD });
   await expect(board).toHaveAttribute('data-surface', 'fridge');
   await expect(page.getByText('Bạn đang xem chủ đề của riêng mình.')).toBeVisible();
-  await expect.poll(async () => (await myPreference(page, clanId)).enabled).toBe(true);
+  await expect
+    .poll(() => myPreference(page, clanId))
+    .toMatchObject({ enabled: true, theme: { surface: 'fridge' } });
   expect(await clanTheme(page, clanId)).toEqual({});
   await page.screenshot({
     path: `test-results/screenshots/${testInfo.project.name}-theme-fridge.png`,
@@ -98,7 +100,9 @@ test('only me: my board changes, the family keeps its own, and I can go back', a
     'data-surface',
     'grid-paper',
   );
-  await expect.poll(async () => (await myPreference(page, clanId)).enabled).toBe(false);
+  await expect
+    .poll(() => myPreference(page, clanId))
+    .toMatchObject({ enabled: false, theme: { surface: 'fridge' } });
 
   await page.reload();
   await expect(page.getByRole('group', { name: BOARD })).toHaveAttribute(
@@ -135,7 +139,9 @@ test('a viewer decorates only for themselves', async ({ page, browser, baseURL }
       'data-surface',
       'fridge',
     );
-    await expect.poll(async () => (await myPreference(viewer, clanId)).enabled).toBe(true);
+    await expect
+      .poll(() => myPreference(viewer, clanId))
+      .toMatchObject({ enabled: true, theme: { surface: 'fridge' } });
   } finally {
     await relative.close();
   }

@@ -86,8 +86,8 @@ export function ProfilePanel({
   // Below md the panel is a bottom sheet over the board: a modal one, so neither Tab nor a tap
   // reaches the cards and controls it hides (WCAG 2.4.11). Esc, Back and the close button close
   // it. From md up it is a column beside the board, and the page stays as it is. The cleanup
-  // runs before the page puts focus back on the card. The notice banner (`role="alert"`) stays
-  // operable on purpose (see inertOthers).
+  // runs before the page puts focus back on the card. The notice banner (`role="alert"`)
+  // and the change toast stay operable on purpose (see inertOthers).
   const wide = useMediaQuery(WIDE_QUERY);
   const modal = shown && !wide;
   useEffect(() => {
