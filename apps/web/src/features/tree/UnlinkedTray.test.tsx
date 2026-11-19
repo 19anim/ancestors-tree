@@ -98,9 +98,11 @@ describe('Loose photos', () => {
     mockApi(treeRoutes({ ...FAMILY, theme: { frame: 'vintage', fastener: 'magnet' } }));
     renderRoute(`/clans/${CLAN_ID}/tree`);
     const tray = await screen.findByRole('region', { name: 'Ảnh chưa dán' });
+    // The photo's own list item: the stack's top person is drawn first in it.
     const photo = within(tray)
       .getByRole('button', { name: 'Trần Văn Bình' })
-      .parentElement?.querySelector('[data-frame]');
+      .closest('li')
+      ?.querySelector('[data-frame]');
     expect(photo).toHaveAttribute('data-frame', 'vintage');
     expect(photo).toHaveAttribute('data-fastener', 'magnet');
   });

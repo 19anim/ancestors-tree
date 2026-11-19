@@ -106,4 +106,20 @@ describe('inertOthers', () => {
     expect(byId('later-toast').closest('[inert]')).toBeNull();
     undo();
   });
+
+  it('goes down to what stays operable on purpose, with no live region on the way', () => {
+    document.body.innerHTML = `
+      <main id="main"><aside id="sheet"><button>Close</button></aside></main>
+      <div id="wrap">
+        <div id="beside"><button>Elsewhere</button></div>
+        <div id="toast" data-stays-operable><button id="toast-undo">Undo this change</button></div>
+      </div>`;
+    const undo = inertOthers(byId('sheet'));
+
+    expect(byId('wrap')).not.toHaveAttribute('inert');
+    expect(byId('toast-undo').closest('[inert]')).toBeNull();
+    expect(isInert('beside')).toBe(true);
+    undo();
+    expect(document.querySelectorAll('[inert]')).toHaveLength(0);
+  });
 });

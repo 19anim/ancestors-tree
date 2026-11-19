@@ -243,7 +243,9 @@ export function ProfileForm({ person, inLaw, onDone, onDraftLost }: ProfileFormP
           {errors.root.server.message}
         </p>
       ) : null}
-      <div className="sticky bottom-0 flex justify-end gap-2 bg-paper py-2">
+      {/* Sticks above the sheet's bottom padding (room for the change toast, SIDE_PANEL_CLASS):
+          on a phone, paper below it fills that gap, so the fields do not show through. */}
+      <div className="sticky bottom-0 flex justify-end gap-2 bg-paper py-2 after:absolute after:inset-x-0 after:top-full after:h-24 after:bg-paper md:after:hidden">
         <Button type="button" variant="ghost" onClick={close}>
           {t('tree.profile.cancel')}
         </Button>

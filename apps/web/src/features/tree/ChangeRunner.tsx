@@ -48,6 +48,11 @@ export interface ChangeDone {
 
 export type RequestChange = (request: ChangeRequest) => void;
 
+/** The element, unless it is inert (behind a modal sheet) and so cannot take focus. */
+function usable(element: HTMLElement | null): HTMLElement | null {
+  return element !== null && element.closest('[inert]') === null ? element : null;
+}
+
 /** Null for viewers. Stable, so the cards do not re-render with the page. */
 export const ChangeContext = createContext<RequestChange | null>(null);
 
@@ -85,17 +90,21 @@ export function useChangeRunner(): { requestChange: RequestChange; element: Reac
   /**
    * Focus to the changed card, else back to what had focus, else the request's fallback, else
    * the main content. Also where focus goes when a toast control goes away while it has focus
-   * (a shortcut's own fallback, ↶, may have taken it in between: the card wins).
+   * (a shortcut's own fallback, ↶, may have taken it in between: the card wins). One that is
+   * inert (behind a bottom sheet) is passed over: it would not take focus, and focus would drop
+   * to the page.
    */
   const focusAfter = useCallback((request: ChangeRequest) => {
     // After React has drawn the change: the card may have moved, or into the tray.
     requestAnimationFrame(() => {
       const from = opener.current;
       const target =
-        (request.focusPersonId === undefined ? null : personCardButton(request.focusPersonId)) ??
-        (from?.isConnected ? from : null) ??
-        request.focusFallback?.() ??
-        document.querySelector<HTMLElement>('main');
+        usable(
+          request.focusPersonId === undefined ? null : personCardButton(request.focusPersonId),
+        ) ??
+        usable(from?.isConnected ? from : null) ??
+        usable(request.focusFallback?.() ?? null) ??
+        usable(document.querySelector<HTMLElement>('main'));
       target?.focus();
     });
   }, []);

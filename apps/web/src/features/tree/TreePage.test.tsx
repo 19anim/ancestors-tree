@@ -5,10 +5,10 @@ import { ApiError } from '../../shared/lib/apiError';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, treeRoutes } from './fixtures';
+import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, SIBLINGS, treeRoutes } from './fixtures';
 import { useProfileDraft } from './profileDraft';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
-import { batchOps, editableTree } from './testKit';
+import { batchOps, cardName, EDITOR, editableTree } from './testKit';
 
 const VIEWER = { ...CLAN, role: 'viewer' as const };
 
@@ -467,4 +467,30 @@ describe('my own theme on the tree page', () => {
     const back = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
     expect(within(back).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
   });
+});
+
+describe('the change toast over the profile sheet', () => {
+  it.each(['Hoàn tác thay đổi này', 'Đóng thông báo'])(
+    'gives focus to something usable after "%s", not to a card behind the sheet',
+    async (control) => {
+      // No matchMedia in jsdom: the profile is the bottom sheet, and the cards behind it are
+      // inert. jsdom lets an inert element take focus; a browser does not, and focus would drop
+      // to <body>.
+      editableTree(SIBLINGS, EDITOR);
+      const user = userEvent.setup();
+      renderRoute(`/clans/${CLAN_ID}/tree`);
+      await user.click(await screen.findByRole('button', { name: cardName('Nguyễn Thị Lan') }));
+      const profile = screen.getByRole('complementary', { name: 'Nguyễn Thị Lan' });
+      await user.click(within(profile).getByRole('button', { name: 'Xếp lên trước' }));
+      await user.click(await screen.findByRole('button', { name: control }));
+
+      expect(screen.queryByRole('button', { name: control })).not.toBeInTheDocument();
+      await waitFor(() => {
+        const active = document.activeElement;
+        expect(active).not.toBe(document.body);
+        expect(active?.closest('[inert]')).toBeNull();
+      });
+      expect(profile).toBeInTheDocument();
+    },
+  );
 });
