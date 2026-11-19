@@ -1,4 +1,9 @@
-import type { Clan, OperationEntry, TreeResponse } from '@ancestors-tree/shared';
+import {
+  EMPTY_VIEW_PREFERENCE,
+  type Clan,
+  type OperationEntry,
+  type TreeResponse,
+} from '@ancestors-tree/shared';
 import type { Op, Person } from '@ancestors-tree/shared/tree';
 import type { MockRoutes } from '../../test/api';
 
@@ -110,5 +115,8 @@ export function treeRoutes(tree: TreeResponse = FAMILY, clan: Clan = CLAN): Mock
     [`GET /clans/${CLAN_ID}/tree`]: () => ({ body: tree }),
     // Nothing was saved by anyone else: a rebase after a 409 only resends.
     [`GET /clans/${CLAN_ID}/ops`]: () => ({ body: [] }),
+    // Nobody decorated yet; a save answers what it got.
+    [`GET /clans/${CLAN_ID}/view-preference`]: () => ({ body: EMPTY_VIEW_PREFERENCE }),
+    [`PUT /clans/${CLAN_ID}/view-preference`]: ({ body }) => ({ body }),
   };
 }

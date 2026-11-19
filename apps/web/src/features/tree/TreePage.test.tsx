@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../shared/lib/apiError';
@@ -38,6 +38,18 @@ describe('TreePage', () => {
     expect(loose.textContent).toBe('');
     // Viewers get no editing controls: the toolbar has no undo.
     expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
+  });
+
+  it('draws my own theme once it loads', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET /clans/${CLAN_ID}/view-preference`]: () => ({
+        body: { enabled: true, theme: { surface: 'corkboard' }, cards: {} },
+      }),
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await waitFor(() => expect(board).toHaveAttribute('data-surface', 'corkboard'));
   });
 
   it('says when the family tree is empty', async () => {

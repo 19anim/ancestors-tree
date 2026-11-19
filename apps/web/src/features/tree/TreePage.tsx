@@ -6,6 +6,7 @@ import { useOutletContext } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
 import { ChangeContext, useChangeRunner } from './ChangeRunner';
+import { PersonalThemeContext } from './decorContext';
 import { EmptyTree } from './EmptyTree';
 import { applyFailureMessage } from './format';
 import { setProgenitorOp } from './ops';
@@ -25,11 +26,13 @@ import {
   type PersonActionsApi,
 } from './usePersonActions';
 import { useClanTree } from './useClanTree';
+import { usePersonalDecor } from './useViewPreference';
 
 export function TreePage() {
   const { t } = useTranslation();
   const clan = useOutletContext<Clan>();
   const view = useClanTree(clan.id);
+  const decor = usePersonalDecor(clan.id);
   const isEmpty = useTreeStore((state) => Object.keys(state.tree.persons).length === 0);
   const { dialog, changeDialog, firstPersonAdded, returnFocus } = useTreeDialog();
   const runner = useChangeRunner();
@@ -176,63 +179,65 @@ export function TreePage() {
   if (view.state === 'loading') return <TreeSkeleton />;
   return (
     <OpenPersonContext value={openPerson}>
-      <PersonActionsContext value={actions}>
-        <ChangeContext value={canEdit ? requestChange : null}>
-          {/* From md up the profile is a column beside the content, so nothing hides under it. */}
-          <div className="md:flex md:items-start md:gap-4">
-            <div className="flex min-w-0 flex-1 flex-col gap-4">
-              <TreeToolbar canEdit={canEdit} onAddSeveral={addSeveral} />
-              {/* Always in the accessibility tree, so a later message is announced; while empty,
-                sr-only takes it out of the layout without hiding it from screen readers. */}
-              <p role="status" className="font-medium text-ink empty:sr-only">
-                {notice}
-              </p>
-              {actionError ? (
-                <p role="alert" className="font-medium text-stamp">
-                  {actionError}
+      <PersonalThemeContext value={decor.preference}>
+        <PersonActionsContext value={actions}>
+          <ChangeContext value={canEdit ? requestChange : null}>
+            {/* From md up the profile is a column beside the content, so nothing hides under it. */}
+            <div className="md:flex md:items-start md:gap-4">
+              <div className="flex min-w-0 flex-1 flex-col gap-4">
+                <TreeToolbar canEdit={canEdit} onAddSeveral={addSeveral} />
+                {/* Always in the accessibility tree, so a later message is announced; while empty,
+                  sr-only takes it out of the layout without hiding it from screen readers. */}
+                <p role="status" className="font-medium text-ink empty:sr-only">
+                  {notice}
                 </p>
-              ) : null}
-              {isEmpty ? (
-                <EmptyTree
-                  onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined}
-                />
-              ) : (
-                <TreeDnd canEdit={canEdit}>
-                  <TreeBoard
-                    label={t('tree.board.label', { name: clan.name })}
-                    openPersonId={personId}
+                {actionError ? (
+                  <p role="alert" className="font-medium text-stamp">
+                    {actionError}
+                  </p>
+                ) : null}
+                {isEmpty ? (
+                  <EmptyTree
+                    onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined}
                   />
-                  <UnlinkedTray onAddSeveral={addSeveral} />
-                </TreeDnd>
-              )}
+                ) : (
+                  <TreeDnd canEdit={canEdit}>
+                    <TreeBoard
+                      label={t('tree.board.label', { name: clan.name })}
+                      openPersonId={personId}
+                    />
+                    <UnlinkedTray onAddSeveral={addSeveral} />
+                  </TreeDnd>
+                )}
+              </div>
+              {personId !== null ? (
+                <ProfilePanel
+                  key={personId}
+                  clanId={clan.id}
+                  personId={personId}
+                  isOwner={isOwner}
+                  actions={actions}
+                  onClose={closeProfile}
+                  onMissing={onMissing}
+                  onDraftLost={onDraftLost}
+                />
+              ) : null}
             </div>
-            {personId !== null ? (
-              <ProfilePanel
-                key={personId}
-                clanId={clan.id}
-                personId={personId}
-                isOwner={isOwner}
-                actions={actions}
-                onClose={closeProfile}
-                onMissing={onMissing}
-                onDraftLost={onDraftLost}
+            {canEdit ? (
+              <TreeDialogs
+                dialog={dialog}
+                onDialogChange={changeDialog}
+                onFirstPersonAdded={firstPersonAdded}
+                onPersonDeleted={(id) => {
+                  if (id === personId) removedHere.current = id;
+                }}
+                onCloseAutoFocus={returnFocus}
               />
             ) : null}
-          </div>
-          {canEdit ? (
-            <TreeDialogs
-              dialog={dialog}
-              onDialogChange={changeDialog}
-              onFirstPersonAdded={firstPersonAdded}
-              onPersonDeleted={(id) => {
-                if (id === personId) removedHere.current = id;
-              }}
-              onCloseAutoFocus={returnFocus}
-            />
-          ) : null}
-          {canEdit ? runner.element : null}
-        </ChangeContext>
-      </PersonActionsContext>
+            {canEdit ? runner.element : null}
+          </ChangeContext>
+        </PersonActionsContext>
+      </PersonalThemeContext>
     </OpenPersonContext>
   );
 }
