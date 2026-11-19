@@ -6,9 +6,9 @@ import { useOutletContext } from 'react-router';
 import { errorMessageKey } from '../../shared/lib/apiError';
 import { Button } from '../../shared/ui';
 import { ChangeContext, useChangeRunner } from './ChangeRunner';
-import type { DecorMode, DecorTarget } from './decor';
+import { changesToMatch, showsOwnTheme, type DecorMode, type DecorTarget } from './decor';
 import { DecoratePanel } from './DecoratePanel';
-import { PersonalThemeContext } from './decorContext';
+import { DecorateContext, PersonalThemeContext } from './decorContext';
 import { EmptyTree } from './EmptyTree';
 import { applyFailureMessage } from './format';
 import { setProgenitorOp } from './ops';
@@ -19,6 +19,7 @@ import { useTreeStore } from './store';
 import { TreeBoard } from './TreeBoard';
 import { TreeDialogs, useTreeDialog } from './TreeDialogs';
 import { TreeDnd } from './TreeDnd';
+import { ThemeBanner, DecorSaveError } from './ThemeBanner';
 import { TreeSkeleton } from './TreeSkeleton';
 import { TreeToolbar } from './TreeToolbar';
 import { UnlinkedTray } from './UnlinkedTray';
@@ -191,6 +192,18 @@ export function TreePage() {
   );
   const closeDecorate = useCallback(() => setDecorating(null), []);
 
+  // "Use for the whole family": the parts of my theme the family's lacks (none: no button).
+  const clanTheme = useTreeStore((state) => state.tree.theme);
+  const toShare =
+    canEdit && decor.preference !== null ? changesToMatch(clanTheme, decor.preference.theme) : null;
+  const shareMyTheme = useCallback(() => {
+    if (toShare !== null) requestChange({ change: { kind: 'treeTheme', changes: toShare } });
+  }, [requestChange, toShare]);
+  const { change: changeMine } = decor;
+  const backToShared = useCallback(() => {
+    changeMine((current) => ({ ...current, enabled: false }));
+  }, [changeMine]);
+
   // Opening someone's profile closes Decorate: the profile takes the column.
   useEffect(() => {
     setDecorating(null);
@@ -227,73 +240,82 @@ export function TreePage() {
       <PersonalThemeContext value={decor.preference}>
         <PersonActionsContext value={actions}>
           <ChangeContext value={canEdit ? requestChange : null}>
-            {/* From md up the profile is a column beside the content, so nothing hides under it. */}
-            <div className="md:flex md:items-start md:gap-4">
-              <div className="flex min-w-0 flex-1 flex-col gap-4">
-                <TreeToolbar
-                  canEdit={canEdit}
-                  onAddSeveral={addSeveral}
-                  onDecorate={isEmpty ? undefined : () => openDecorate({ kind: 'tree' })}
-                />
-                {/* Always in the accessibility tree, so a later message is announced; while empty,
-                  sr-only takes it out of the layout without hiding it from screen readers. */}
-                <p role="status" className="font-medium text-ink empty:sr-only">
-                  {notice}
-                </p>
-                {actionError ? (
-                  <p role="alert" className="font-medium text-stamp">
-                    {actionError}
-                  </p>
-                ) : null}
-                {isEmpty ? (
-                  <EmptyTree
-                    onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined}
+            <DecorateContext value={openDecorate}>
+              {/* From md up the profile is a column beside the content, so nothing hides under it. */}
+              <div className="md:flex md:items-start md:gap-4">
+                <div className="flex min-w-0 flex-1 flex-col gap-4">
+                  <TreeToolbar
+                    canEdit={canEdit}
+                    onAddSeveral={addSeveral}
+                    onDecorate={isEmpty ? undefined : () => openDecorate({ kind: 'tree' })}
                   />
-                ) : (
-                  <TreeDnd canEdit={canEdit}>
-                    <TreeBoard
-                      label={t('tree.board.label', { name: clan.name })}
-                      openPersonId={personId}
+                  {showsOwnTheme(decor.preference) ? (
+                    <ThemeBanner
+                      onBack={backToShared}
+                      onUseForClan={toShare === null ? null : shareMyTheme}
                     />
-                    <UnlinkedTray onAddSeveral={addSeveral} />
-                  </TreeDnd>
-                )}
+                  ) : null}
+                  {decor.saveState === 'failed' ? <DecorSaveError onRetry={decor.retry} /> : null}
+                  {/* Always in the accessibility tree, so a later message is announced; while empty,
+                  sr-only takes it out of the layout without hiding it from screen readers. */}
+                  <p role="status" className="font-medium text-ink empty:sr-only">
+                    {notice}
+                  </p>
+                  {actionError ? (
+                    <p role="alert" className="font-medium text-stamp">
+                      {actionError}
+                    </p>
+                  ) : null}
+                  {isEmpty ? (
+                    <EmptyTree
+                      onAddFirst={canEdit ? () => changeDialog({ kind: 'first' }) : undefined}
+                    />
+                  ) : (
+                    <TreeDnd canEdit={canEdit}>
+                      <TreeBoard
+                        label={t('tree.board.label', { name: clan.name })}
+                        openPersonId={personId}
+                      />
+                      <UnlinkedTray onAddSeveral={addSeveral} />
+                    </TreeDnd>
+                  )}
+                </div>
+                {decorating !== null ? (
+                  <DecoratePanel
+                    key={decorating.kind === 'card' ? decorating.personId : 'tree'}
+                    target={decorating}
+                    mode={mode}
+                    onModeChange={setChosenMode}
+                    canEdit={canEdit}
+                    decor={decor}
+                    onClose={closeDecorate}
+                  />
+                ) : personId !== null ? (
+                  <ProfilePanel
+                    key={personId}
+                    clanId={clan.id}
+                    personId={personId}
+                    isOwner={isOwner}
+                    actions={actions}
+                    onClose={closeProfile}
+                    onMissing={onMissing}
+                    onDraftLost={onDraftLost}
+                  />
+                ) : null}
               </div>
-              {decorating !== null ? (
-                <DecoratePanel
-                  key={decorating.kind === 'card' ? decorating.personId : 'tree'}
-                  target={decorating}
-                  mode={mode}
-                  onModeChange={setChosenMode}
-                  canEdit={canEdit}
-                  decor={decor}
-                  onClose={closeDecorate}
-                />
-              ) : personId !== null ? (
-                <ProfilePanel
-                  key={personId}
-                  clanId={clan.id}
-                  personId={personId}
-                  isOwner={isOwner}
-                  actions={actions}
-                  onClose={closeProfile}
-                  onMissing={onMissing}
-                  onDraftLost={onDraftLost}
+              {canEdit ? (
+                <TreeDialogs
+                  dialog={dialog}
+                  onDialogChange={changeDialog}
+                  onFirstPersonAdded={firstPersonAdded}
+                  onPersonDeleted={(id) => {
+                    if (id === personId) removedHere.current = id;
+                  }}
+                  onCloseAutoFocus={returnFocus}
                 />
               ) : null}
-            </div>
-            {canEdit ? (
-              <TreeDialogs
-                dialog={dialog}
-                onDialogChange={changeDialog}
-                onFirstPersonAdded={firstPersonAdded}
-                onPersonDeleted={(id) => {
-                  if (id === personId) removedHere.current = id;
-                }}
-                onCloseAutoFocus={returnFocus}
-              />
-            ) : null}
-            {canEdit ? runner.element : null}
+              {canEdit ? runner.element : null}
+            </DecorateContext>
           </ChangeContext>
         </PersonActionsContext>
       </PersonalThemeContext>

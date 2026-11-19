@@ -1,5 +1,6 @@
 import type { PersonalTheme, ThemeLayers } from '@ancestors-tree/shared/tree';
 import { createContext, useContext, useMemo } from 'react';
+import type { DecorTarget } from './decor';
 import { useTreeStore } from './store';
 
 /**
@@ -14,3 +15,6 @@ export function useThemeLayers(): ThemeLayers {
   const mine = useContext(PersonalThemeContext);
   return useMemo(() => ({ clan, mine }), [clan, mine]);
 }
+
+/** Opens Decorate (spec §13.4). Every member may decorate, so viewers get it too. */
+export const DecorateContext = createContext<((target: DecorTarget) => void) | null>(null);

@@ -292,3 +292,90 @@ describe('Decorate on the tree page', () => {
     act(() => useProfileDraft.setState({ dirty: false }));
   });
 });
+
+describe('my own theme on the tree page', () => {
+  const PREFERENCE = `/clans/${CLAN_ID}/view-preference`;
+  const MINE = { enabled: true, theme: { surface: 'corkboard' }, cards: {} };
+
+  it('says I see my own theme, and goes back to the shared one', async () => {
+    const api = mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    expect(await screen.findByText('Bạn đang xem chủ đề của riêng mình.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Về chủ đề chung' }));
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+    expect(screen.queryByText('Bạn đang xem chủ đề của riêng mình.')).not.toBeInTheDocument();
+    await waitFor(
+      () => {
+        const put = api.calls.find((call) => call.method === 'PUT' && call.path === PREFERENCE);
+        expect(put?.body).toEqual({ ...MINE, enabled: false });
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('lets an editor use my theme for the whole family, as one change', async () => {
+    const api = mockApi({
+      ...treeRoutes(FAMILY),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: FAMILY.version + 1 } }),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Dùng cho cả họ' }));
+    expect(await screen.findByText('Đã đổi: chủ đề cây')).toBeInTheDocument();
+    expect(useTreeStore.getState().tree.theme).toEqual({ surface: 'corkboard' });
+    await waitFor(() => expect(api.calls.some((call) => call.method === 'POST')).toBe(true));
+    const sent = api.calls.find((call) => call.method === 'POST');
+    expect(batchOps(sent?.body)).toEqual([
+      { type: 'setTreeTheme', payload: { changes: { surface: 'corkboard' } } },
+    ]);
+    // The family's theme now matches mine: nothing is left to share.
+    expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument();
+  });
+
+  it('says when my choices were not saved, and saves them again', async () => {
+    let fail = true;
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`PUT ${PREFERENCE}`]: ({ body }) => (fail ? apiErrorReply('INTERNAL_ERROR', 500) : { body }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    await user.click(screen.getByRole('radio', { name: 'Cửa tủ lạnh' }));
+    expect(
+      await screen.findByText('Chưa lưu được phần trang trí của bạn.', {}, { timeout: 2000 }),
+    ).toBeInTheDocument();
+    expect(board).toHaveAttribute('data-surface', 'fridge');
+
+    fail = false;
+    await user.click(screen.getByRole('button', { name: 'Thử lưu lại' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Chưa lưu được phần trang trí của bạn.')).not.toBeInTheDocument(),
+    );
+  });
+
+  it("opens a viewer's card panel from the profile, and goes back to the profile", async () => {
+    mockApi(treeRoutes(FAMILY, VIEWER));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    const profile = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    await user.click(within(profile).getByRole('button', { name: 'Trang trí thẻ này…' }));
+    expect(
+      screen.getByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
+    ).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    const back = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    expect(within(back).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
+  });
+});

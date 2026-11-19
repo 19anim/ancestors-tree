@@ -10,6 +10,7 @@ import {
   treePick,
   treePickChangesNothing,
   withCardPick,
+  withDecorate,
   withoutCard,
   withTreePick,
 } from './decor';
@@ -148,5 +149,13 @@ describe('a pick that changes nothing', () => {
     expect(treePickChangesNothing({ ...layers, mine: null }, 'me', { stitch: 'cotton' })).toBe(
       false,
     );
+  });
+});
+
+describe('withDecorate', () => {
+  it('puts "Decorate this card…" just before Delete, else last', () => {
+    expect(withDecorate(['addChild', 'delete'])).toEqual(['addChild', 'decorate', 'delete']);
+    expect(withDecorate(['addChild'])).toEqual(['addChild', 'decorate']);
+    expect(withDecorate([])).toEqual(['decorate']);
   });
 });

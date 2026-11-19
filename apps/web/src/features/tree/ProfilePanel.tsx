@@ -1,6 +1,7 @@
 import { classifyLineage } from '@ancestors-tree/shared/tree';
-import { Pencil, X } from 'lucide-react';
+import { Palette, Pencil, X } from 'lucide-react';
 import {
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -11,6 +12,8 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, inertOthers, useMediaQuery } from '../../shared/ui';
+import { withDecorate } from './decor';
+import { DecorateContext } from './decorContext';
 import { PhotoControl } from './PhotoControl';
 import { ProfileDetails } from './ProfileDetails';
 import { ProfileForm } from './ProfileForm';
@@ -53,6 +56,8 @@ export function ProfilePanel({
   const heading = useRef<HTMLHeadingElement>(null);
   const panel = useRef<HTMLElement>(null);
   const tree = useTreeStore((state) => state.tree);
+  // "Decorate this card…" (spec §13.4) sits with the actions, before Delete; viewers get it too.
+  const decorate = useContext(DecorateContext);
   const status = useTreeStore((state) => state.status);
   const person = tree.persons[personId];
   // Reported once: StrictMode runs effects twice, and a second close would go back twice.
@@ -132,6 +137,7 @@ export function ProfilePanel({
     onClose();
   };
   const actionIds = actions ? availableActions(tree, person.id, isOwner) : [];
+  const items = decorate === null ? actionIds : withDecorate(actionIds);
 
   return (
     <aside
@@ -180,18 +186,30 @@ export function ProfilePanel({
         />
       ) : (
         <>
-          {actions && actionIds.length > 0 ? (
+          {items.length > 0 ? (
             <section aria-label={t('tree.profile.actions')} className="flex flex-wrap gap-2">
-              {actionIds.map((action) => {
-                const Icon = ACTION_ICONS[action];
+              {items.map((item) => {
+                if (item === 'decorate') {
+                  return (
+                    <Button
+                      key={item}
+                      variant="secondary"
+                      onClick={() => decorate?.({ kind: 'card', personId: person.id })}
+                    >
+                      <Palette {...ICON} />
+                      {t('tree.decor.card.open')}
+                    </Button>
+                  );
+                }
+                const Icon = ACTION_ICONS[item];
                 return (
                   <Button
-                    key={action}
-                    variant={action === 'delete' ? 'danger' : 'secondary'}
-                    onClick={() => actions.run(person.id, action)}
+                    key={item}
+                    variant={item === 'delete' ? 'danger' : 'secondary'}
+                    onClick={() => actions?.run(person.id, item)}
                   >
                     <Icon {...ICON} />
-                    {t(actionLabelKey(action))}
+                    {t(actionLabelKey(item))}
                   </Button>
                 );
               })}

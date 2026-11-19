@@ -21,6 +21,13 @@ export type DecorMode = 'me' | 'clan';
 /** What the Decorate panel decorates: the whole tree, or one card. */
 export type DecorTarget = { kind: 'tree' } | { kind: 'card'; personId: string };
 
+/** "Decorate this card…" among a card's actions: just before Delete, else last. */
+export function withDecorate<T extends string>(actions: readonly T[]): (T | 'decorate')[] {
+  const at = actions.indexOf('delete' as T);
+  if (at === -1) return [...actions, 'decorate'];
+  return [...actions.slice(0, at), 'decorate', ...actions.slice(at)];
+}
+
 /** A tree-level pick as theme parts: a surface brings its matching fastener (spec §13.4). */
 export function treePick(part: ThemePart, value: string): TreeTheme {
   if (part === 'surface') {
