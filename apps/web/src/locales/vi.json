@@ -54,7 +54,8 @@
       "dialog": "Hộp thoại",
       "photos": "Ảnh polaroid theo mức thu phóng",
       "marks": "Tem ngày",
-      "threads": "Chỉ và đường khâu"
+      "threads": "Chỉ và đường khâu",
+      "themes": "Chủ đề cây"
     },
     "type": {
       "display": "Gia phả họ Nguyễn",
@@ -89,6 +90,9 @@
     },
     "threads": {
       "note": "Sợi chỉ có ghim đỏ nối cha mẹ với con. Đường khâu có nút tròn nối vợ chồng."
+    },
+    "themes": {
+      "note": "Mỗi lựa chọn có bản sáng và bản tối. Màu của đồ gắn luôn là màu của nhánh."
     }
   },
   "system": {
@@ -606,6 +610,40 @@
       "stay": "Ở lại",
       "discard": "Bỏ thay đổi và mở",
       "discardProfile": "Các thay đổi chưa lưu trong hồ sơ cũng sẽ mất."
+    },
+    "decor": {
+      "parts": {
+        "surface": "Mặt bảng",
+        "frame": "Khung ảnh",
+        "fastener": "Đồ gắn",
+        "thread": "Sợi chỉ cha con",
+        "stitch": "Mũi khâu vợ chồng"
+      },
+      "options": {
+        "surface": {
+          "grid-paper": "Giấy ô li",
+          "corkboard": "Bảng gỗ bần",
+          "fridge": "Cửa tủ lạnh"
+        },
+        "frame": {
+          "classic": "Trắng cổ điển",
+          "kraft": "Giấy kraft",
+          "vintage": "Ảnh xưa"
+        },
+        "fastener": {
+          "washi": "Băng dính washi",
+          "pushpin": "Đinh ghim",
+          "magnet": "Nam châm"
+        },
+        "thread": {
+          "cotton": "Chỉ mảnh",
+          "yarn": "Sợi len"
+        },
+        "stitch": {
+          "cotton": "Chỉ mảnh",
+          "yarn": "Sợi len"
+        }
+      }
     }
   },
   "dates": {

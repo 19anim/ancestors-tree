@@ -16,8 +16,25 @@ describe('DesignGalleryPage', () => {
       'Ảnh polaroid theo mức thu phóng',
       'Tem ngày',
       'Chỉ và đường khâu',
+      'Chủ đề cây',
     ]) {
       expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument();
+    }
+  });
+
+  it('shows every tree theme option', () => {
+    renderWithProviders(<DesignGalleryPage />);
+    for (const name of [
+      'Giấy ô li',
+      'Bảng gỗ bần',
+      'Cửa tủ lạnh',
+      'Giấy kraft',
+      'Ảnh xưa',
+      'Đinh ghim',
+      'Nam châm',
+      'Sợi len',
+    ]) {
+      expect(screen.getAllByText(name).length).toBeGreaterThan(0);
     }
   });
 

@@ -1,3 +1,9 @@
+import {
+  CARD_FASTENERS,
+  CARD_FRAMES,
+  THEME_OPTIONS,
+  THEME_PARTS,
+} from '@ancestors-tree/shared/tree';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -9,6 +15,8 @@ import {
   DialogTrigger,
   Polaroid,
   TextField,
+  ThemeSwatch,
+  themeOptionKey,
   tiltFor,
   type PolaroidLod,
 } from '../../shared/ui';
@@ -34,6 +42,7 @@ const COLOR_TOKENS = [
   'sticker',
   'on-sticker',
   'thread',
+  'yarn',
   'pin',
   'scrim',
 ] as const;
@@ -210,6 +219,45 @@ export function DesignGalleryPage() {
           <SampleFamilyBoard />
         </div>
         <p className="mt-4 text-sm text-ink-muted">{t('designGallery.threads.note')}</p>
+      </Section>
+
+      <Section id="gallery-themes" title={t('designGallery.sections.themes')}>
+        <p className="max-w-prose text-sm text-ink-muted">{t('designGallery.themes.note')}</p>
+        <dl className="mt-4 flex flex-col gap-6">
+          {THEME_PARTS.map((part) => (
+            <div key={part}>
+              <dt className="font-medium">{t(`tree.decor.parts.${part}`)}</dt>
+              <dd className="m-0 mt-2 flex flex-wrap gap-6">
+                {THEME_OPTIONS[part].map((value) => (
+                  <figure key={value} className="m-0 flex flex-col items-center gap-1">
+                    <ThemeSwatch part={part} value={value} />
+                    <figcaption className="text-sm text-ink-muted">
+                      {t(themeOptionKey(part, value))}
+                    </figcaption>
+                  </figure>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        {/* Each frame as a full card, with each fastener once, in a branch colour. */}
+        {progenitor ? (
+          <ul className="mt-8 flex flex-wrap items-start gap-12">
+            {CARD_FRAMES.map((frame, index) => (
+              <li key={frame}>
+                <Polaroid
+                  name={progenitor.name}
+                  label={`${progenitor.name}, ${t(themeOptionKey('frame', frame))}`}
+                  tape={index}
+                  frame={frame}
+                  fastener={CARD_FASTENERS[index]}
+                  lifeYears={progenitor.years}
+                  tilt={tiltFor(progenitor.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </Section>
     </div>
   );

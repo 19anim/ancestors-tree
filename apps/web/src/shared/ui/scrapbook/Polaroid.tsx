@@ -1,3 +1,4 @@
+import type { CardFastener, CardFrame } from '@ancestors-tree/shared/tree';
 import { useState, type ComponentProps, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { initialsOf } from './initials';
@@ -30,6 +31,10 @@ export interface PolaroidProps extends Omit<ComponentProps<'figure'>, 'children'
   dateLine?: ReactNode;
   /** Stickers (birthdays) stuck on the photo's corner, shown on the full card only. */
   marks?: ReactNode;
+  /** Tree theme (spec §13.4); the classic white frame by default. */
+  frame?: CardFrame;
+  /** Tree theme; drawn on the full card only, in the branch colour. */
+  fastener?: CardFastener;
 }
 
 function tapeName(tape: TapeKind): string {
@@ -48,6 +53,8 @@ export function Polaroid({
   lifeYears,
   dateLine,
   marks,
+  frame = 'classic',
+  fastener = 'washi',
   className,
   style,
   ...props
@@ -59,15 +66,22 @@ export function Polaroid({
   const tapeBackground = tapeColor(tape);
   const { width, height } = POLAROID_SIZE[lod];
   // `rotate` (not `transform`) so it combines with Tailwind's translate/scale utilities.
-  const frame: CSSProperties = { width, height, rotate: `${tilt}deg`, ...style };
-  const common = { 'aria-label': label, 'data-lod': lod, 'data-tape': tapeName(tape), ...props };
+  const box: CSSProperties = { width, height, rotate: `${tilt}deg`, ...style };
+  const common = {
+    'aria-label': label,
+    'data-lod': lod,
+    'data-tape': tapeName(tape),
+    'data-frame': frame,
+    'data-fastener': fastener,
+    ...props,
+  };
 
   if (lod === 'strip') {
     return (
       <figure
         {...common}
         className={cn('m-0 rounded-photo', className)}
-        style={{ ...frame, backgroundColor: tapeBackground }}
+        style={{ ...box, backgroundColor: tapeBackground }}
       />
     );
   }
@@ -80,7 +94,7 @@ export function Polaroid({
           'relative m-0 flex items-center gap-2 overflow-hidden rounded-photo border border-line bg-photo pr-2 text-photo-ink',
           className,
         )}
-        style={frame}
+        style={box}
       >
         <span
           aria-hidden="true"
@@ -100,16 +114,13 @@ export function Polaroid({
   return (
     <figure
       {...common}
-      className={cn(
-        'relative m-0 rounded-photo border border-line bg-photo px-[7px] pt-[7px] text-photo-ink',
-        className,
-      )}
-      style={frame}
+      className={cn('relative m-0 px-[7px] pt-[7px] text-photo-ink', className)}
+      style={box}
     >
       <span
         aria-hidden="true"
-        className="absolute -top-2 left-7 h-3.5 w-11 -rotate-3 opacity-85"
-        style={{ backgroundColor: tapeBackground }}
+        data-part="paper"
+        className="polaroid-paper absolute inset-0 rounded-photo border border-line"
       />
       {/* Stickers are stuck on the photo's corner, so they never cover the caption. */}
       <div data-part="photo" className="relative">
@@ -135,7 +146,7 @@ export function Polaroid({
           <div className="absolute -right-3 bottom-1 flex flex-col items-end gap-1">{marks}</div>
         ) : null}
       </div>
-      <figcaption className="mt-1.5 text-center">
+      <figcaption className="relative mt-1.5 text-center">
         <span className="block truncate font-hand text-base leading-5">{name}</span>
         <span
           data-part="date-line"
@@ -144,6 +155,12 @@ export function Polaroid({
           {dateLine ?? lifeYears}
         </span>
       </figcaption>
+      <span
+        aria-hidden="true"
+        data-part="fastener"
+        className="fastener"
+        style={{ '--fastener-color': tapeBackground } as CSSProperties}
+      />
     </figure>
   );
 }

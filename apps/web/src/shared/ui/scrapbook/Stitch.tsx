@@ -1,4 +1,3 @@
-import { cn } from '../../lib/cn';
 import { midpoint, stitchPath, type Point } from './threads';
 
 interface StitchProps {
@@ -18,14 +17,25 @@ const GAP = 12;
  * stays distinct from the ring on both the light and the dark board. Render inside <svg>.
  */
 export function Stitch({ left, right, selected = false, broken = false }: StitchProps) {
-  const knot = midpoint(left, right);
-  const stroke = selected ? 'stroke-stamp' : 'stroke-thread';
+  const centre = midpoint(left, right);
   const paths = broken
     ? [
-        stitchPath(left, { x: knot.x - GAP, y: knot.y }),
-        stitchPath({ x: knot.x + GAP, y: knot.y }, right),
+        stitchPath(left, { x: centre.x - GAP, y: centre.y }),
+        stitchPath({ x: centre.x + GAP, y: centre.y }, right),
       ]
     : [stitchPath(left, right)];
+  // The colour, width, dashes and caps come from the board's stitch style (spec §13.4); a
+  // selected stitch is the stamp colour in every style.
+  const line = selected
+    ? { className: 'stroke-stamp', strokeWidth: 2.6, strokeDasharray: '4 4' }
+    : { className: 'stitch-line' };
+  const knot = broken
+    ? selected
+      ? 'fill-none stroke-stamp'
+      : 'stitch-ring'
+    : selected
+      ? 'fill-stamp stroke-stamp'
+      : 'stitch-knot';
   return (
     <g
       data-relation="marriage"
@@ -33,22 +43,9 @@ export function Stitch({ left, right, selected = false, broken = false }: Stitch
       data-broken={broken || undefined}
     >
       {paths.map((d) => (
-        <path
-          key={d}
-          d={d}
-          fill="none"
-          strokeDasharray="4 4"
-          strokeWidth={selected ? 2.6 : 1.6}
-          className={stroke}
-        />
+        <path key={d} d={d} fill="none" {...line} />
       ))}
-      <circle
-        cx={knot.x}
-        cy={knot.y}
-        r={6}
-        strokeWidth={1.8}
-        className={cn(broken ? 'fill-none' : selected ? 'fill-stamp' : 'fill-thread', stroke)}
-      />
+      <circle cx={centre.x} cy={centre.y} r={6} strokeWidth={1.8} className={knot} />
     </g>
   );
 }

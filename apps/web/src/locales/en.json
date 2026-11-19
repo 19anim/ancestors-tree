@@ -54,7 +54,8 @@
       "dialog": "Dialog",
       "photos": "Polaroids by zoom level",
       "marks": "Date marks",
-      "threads": "Threads and stitches"
+      "threads": "Threads and stitches",
+      "themes": "Tree themes"
     },
     "type": {
       "display": "The Nguyễn family tree",
@@ -89,6 +90,9 @@
     },
     "threads": {
       "note": "Threads with a red pin join parents to children. Stitches with a round knot join spouses."
+    },
+    "themes": {
+      "note": "Every option has a light and a dark version. The fastener is always the branch colour."
     }
   },
   "system": {
@@ -606,6 +610,40 @@
       "stay": "Stay",
       "discard": "Discard changes and open",
       "discardProfile": "Your unsaved profile changes will be lost too."
+    },
+    "decor": {
+      "parts": {
+        "surface": "Surface",
+        "frame": "Frame",
+        "fastener": "Fastener",
+        "thread": "Parent–child thread",
+        "stitch": "Marriage stitch"
+      },
+      "options": {
+        "surface": {
+          "grid-paper": "Grid paper",
+          "corkboard": "Corkboard",
+          "fridge": "Fridge door"
+        },
+        "frame": {
+          "classic": "Classic white",
+          "kraft": "Kraft paper",
+          "vintage": "Vintage photo"
+        },
+        "fastener": {
+          "washi": "Washi tape",
+          "pushpin": "Pushpin",
+          "magnet": "Magnet"
+        },
+        "thread": {
+          "cotton": "Cotton",
+          "yarn": "Yarn"
+        },
+        "stitch": {
+          "cotton": "Cotton",
+          "yarn": "Yarn"
+        }
+      }
     }
   },
   "dates": {

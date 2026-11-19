@@ -10,6 +10,8 @@
  *   @theme blocks below (bg-paper, text-ink, …) or var(--tape-*) for washi tape.
  * - Adding a color: define it here (and in the dark block if themed), map it in
  *   @theme inline, add its contrast pairs to tokens.test.ts and list it in the /design gallery.
+ * - Tree themes (spec §13.4): each option is a block of variables under its data attribute, with
+ *   a dark block; components read them through the utilities in styles/index.css.
  */
 :root {
   color-scheme: light;
@@ -31,6 +33,7 @@
   --photo: #ffffff;
   --thread: #5b5f66;
   --pin: #d7263d;
+  --yarn: #8a3b12;
 
   /* Theme-invariant */
   --photo-ink: #1a1a1a;
@@ -75,6 +78,7 @@
   --photo: #e9e6dd;
   --thread: #a4a9b3;
   --pin: #ff5a6e;
+  --yarn: #e0915f;
 }
 
 /* Before main.tsx sets data-theme, follow the OS so dark-mode users do not see a white flash. */
@@ -82,6 +86,184 @@
   html:not([data-theme]) {
     background-color: #14161c;
   }
+}
+
+/*
+ * Tree themes (spec §13.4). The board root carries data-surface, data-thread and data-stitch;
+ * every card carries data-frame and data-fastener. Colors are #rrggbb (tokens.test.ts checks
+ * their contrast); patterns are CSS gradients only, so the CSP needs no image source. A dark
+ * block redefines every color its light block sets, and nothing else.
+ */
+[data-surface='grid-paper'] {
+  --paper: #fafaf8;
+  --paper-grid: #ecece7;
+  --thread: #5b5f66;
+  --line-strong: #8a8f98;
+  --surface-pattern:
+    linear-gradient(var(--paper-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
+  --surface-size: 22px 22px;
+}
+
+/* Warm cork: two offset dot grids read as the granules of a cork board. */
+[data-surface='corkboard'] {
+  --paper: #efe0c4;
+  --paper-grid: #dcc59c;
+  --thread: #5a4632;
+  --line-strong: #7a6c58;
+  --surface-pattern:
+    radial-gradient(circle at 30% 30%, var(--paper-grid) 1.5px, transparent 2px),
+    radial-gradient(circle at 70% 75%, var(--paper-grid) 1px, transparent 1.5px);
+  --surface-size: 14px 14px, 9px 9px;
+}
+
+/* Cool enamel: a smooth door with a soft, wide sheen. */
+[data-surface='fridge'] {
+  --paper: #eef3f6;
+  --paper-grid: #dde6ec;
+  --thread: #4f5a66;
+  --line-strong: #737b86;
+  --surface-pattern: linear-gradient(
+    100deg,
+    transparent 0 35%,
+    var(--paper-grid) 50%,
+    transparent 65% 100%
+  );
+  --surface-size: 560px 100%;
+}
+
+:root[data-theme='dark'] [data-surface='grid-paper'] {
+  --paper: #14161c;
+  --paper-grid: #1e2129;
+  --thread: #a4a9b3;
+  --line-strong: #737882;
+}
+
+:root[data-theme='dark'] [data-surface='corkboard'] {
+  --paper: #2b2219;
+  --paper-grid: #3a2e22;
+  --thread: #c2ad92;
+  --line-strong: #8a7a66;
+}
+
+:root[data-theme='dark'] [data-surface='fridge'] {
+  --paper: #161c22;
+  --paper-grid: #222a32;
+  --thread: #9fb0bf;
+  --line-strong: #6f7c88;
+}
+
+[data-frame='classic'] {
+  --photo: #ffffff;
+  --photo-ink: #1a1a1a;
+  --photo-muted: #5b5f66;
+  --frame-texture: none;
+  --frame-edge: none;
+}
+
+/* Brown paper with a faint fibre. */
+[data-frame='kraft'] {
+  --photo: #dcc29a;
+  --photo-ink: #2b2118;
+  --photo-muted: #54412b;
+  --frame-texture: repeating-linear-gradient(35deg, rgb(0 0 0 / 0.04) 0 2px, transparent 2px 5px);
+  --frame-edge: none;
+}
+
+/* An aged photo: a warm vignette and a deckled top edge (a mask, so no image). */
+[data-frame='vintage'] {
+  --photo: #f3ead6;
+  --photo-ink: #2e2a24;
+  --photo-muted: #655a48;
+  --frame-texture: radial-gradient(circle at 50% 40%, transparent 55%, rgb(120 90 40 / 0.14));
+  --frame-edge: radial-gradient(circle at 4px 0, transparent 3px, #000000 3.5px) 0 0 / 8px 100%
+    repeat-x;
+}
+
+:root[data-theme='dark'] [data-frame='classic'] {
+  --photo: #e9e6dd;
+  --photo-ink: #1a1a1a;
+  --photo-muted: #5b5f66;
+}
+
+:root[data-theme='dark'] [data-frame='kraft'] {
+  --photo: #cdb58e;
+  --photo-ink: #2b2118;
+  --photo-muted: #4c3a26;
+}
+
+:root[data-theme='dark'] [data-frame='vintage'] {
+  --photo: #e2d8c2;
+  --photo-ink: #2e2a24;
+  --photo-muted: #5a5040;
+}
+
+/* Fasteners on a 100 px card: all centred, all in the branch colour (--fastener-color). */
+[data-fastener='washi'] {
+  --fastener-top: -8px;
+  --fastener-left: 28px;
+  --fastener-width: 44px;
+  --fastener-height: 14px;
+  --fastener-radius: 1px;
+  --fastener-rotate: -3deg;
+  --fastener-opacity: 0.85;
+  --fastener-shine: none;
+  --fastener-edge: none;
+}
+
+[data-fastener='pushpin'] {
+  --fastener-top: -6px;
+  --fastener-left: 43px;
+  --fastener-width: 14px;
+  --fastener-height: 14px;
+  --fastener-radius: 999px;
+  --fastener-rotate: 0deg;
+  --fastener-opacity: 1;
+  --fastener-shine: radial-gradient(
+    circle at 35% 30%,
+    rgb(255 255 255 / 0.7) 0 2px,
+    transparent 3px
+  );
+  --fastener-edge: 0 1px 2px rgb(0 0 0 / 0.35);
+}
+
+[data-fastener='magnet'] {
+  --fastener-top: -7px;
+  --fastener-left: 36px;
+  --fastener-width: 28px;
+  --fastener-height: 16px;
+  --fastener-radius: 6px;
+  --fastener-rotate: 0deg;
+  --fastener-opacity: 1;
+  --fastener-shine: linear-gradient(rgb(255 255 255 / 0.35), transparent 60%);
+  --fastener-edge: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+/* Lines. var(--thread) resolves on the board root, which also carries the surface. */
+[data-thread='cotton'] {
+  --thread-line: var(--thread);
+  --thread-width: 1.5px;
+  --thread-cap: butt;
+}
+
+[data-thread='yarn'] {
+  --thread-line: var(--yarn);
+  --thread-width: 3px;
+  --thread-cap: round;
+}
+
+[data-stitch='cotton'] {
+  --stitch-line: var(--thread);
+  --stitch-width: 1.6px;
+  --stitch-dash: 4 4;
+  --stitch-cap: butt;
+}
+
+[data-stitch='yarn'] {
+  --stitch-line: var(--yarn);
+  --stitch-width: 2.8px;
+  --stitch-dash: 7 5;
+  --stitch-cap: round;
 }
 
 @theme {
@@ -127,4 +309,5 @@
   --color-scrim: var(--scrim);
   --color-thread: var(--thread);
   --color-pin: var(--pin);
+  --color-yarn: var(--yarn);
 }
