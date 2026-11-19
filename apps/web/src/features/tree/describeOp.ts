@@ -53,6 +53,8 @@ export type OpDescription =
         | 'updatePerson'
         | 'changePhoto'
         | 'removePhoto'
+        | 'cardStyle'
+        | 'clearCardStyle'
         | 'deletePerson'
         | 'restorePerson';
       name: string | null;
@@ -77,6 +79,12 @@ function describeSingle(op: SingleOp, names: NameLookup): OpDescription {
       if (keys.length === 1 && keys[0] === 'photo') {
         return {
           kind: op.payload.changes.photo === null ? 'removePhoto' : 'changePhoto',
+          name: person(op.payload.id),
+        };
+      }
+      if (keys.length === 1 && keys[0] === 'cardStyle') {
+        return {
+          kind: op.payload.changes.cardStyle === null ? 'clearCardStyle' : 'cardStyle',
           name: person(op.payload.id),
         };
       }
@@ -162,6 +170,8 @@ export function describeAction(t: TFunction, description: OpDescription): string
     case 'updatePerson':
     case 'changePhoto':
     case 'removePhoto':
+    case 'cardStyle':
+    case 'clearCardStyle':
     case 'deletePerson':
     case 'restorePerson':
     case 'detachParents':

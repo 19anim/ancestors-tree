@@ -469,6 +469,8 @@
       "updatePerson": "edit the details of {{name}}",
       "changePhoto": "change the photo of {{name}}",
       "removePhoto": "remove the photo of {{name}}",
+      "cardStyle": "change the card style of {{name}}",
+      "clearCardStyle": "set the card of {{name}} back to the tree's style",
       "deletePerson": "delete {{name}}",
       "restorePerson": "restore {{name}}",
       "addUnion": "add the marriage of {{names}}",
@@ -514,7 +516,10 @@
         "status": "Marriage of {{a}} and {{b}}: {{status}}",
         "detach": "{{a}} moves to Loose photos",
         "photo": "photo of {{a}}",
-        "photoRemoved": "{{a}} has no photo"
+        "photoRemoved": "{{a}} has no photo",
+        "treeTheme": "the tree's theme",
+        "cardStyle": "the card style of {{a}}",
+        "cardStyleCleared": "the card of {{a}} follows the tree's style"
       },
       "status": {
         "married": "Married",

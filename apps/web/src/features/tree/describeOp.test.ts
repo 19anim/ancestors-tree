@@ -55,6 +55,28 @@ describe('describeOp', () => {
     ).toBe('sửa thông tin của Nguyễn Văn Tư');
   });
 
+  it('says a card style change as such, unless other details change with it', () => {
+    expect(
+      say({
+        type: 'updatePerson',
+        payload: { id: SON, changes: { cardStyle: { frame: 'kraft' } } },
+      }),
+    ).toBe('đổi kiểu thẻ của Nguyễn Văn Nam');
+    expect(say({ type: 'updatePerson', payload: { id: SON, changes: { cardStyle: null } } })).toBe(
+      'cho thẻ của Nguyễn Văn Nam theo kiểu của cây',
+    );
+    expect(
+      say({ type: 'updatePerson', payload: { id: SON, changes: { cardStyle: null, bio: 'x' } } }),
+    ).toBe('sửa thông tin của Nguyễn Văn Nam');
+    // The change runner sends a batch of one: it reads the same.
+    expect(
+      say({
+        type: 'batch',
+        payload: { ops: [{ type: 'setTreeTheme', payload: { changes: { stitch: 'yarn' } } }] },
+      }),
+    ).toBe('đổi chủ đề cây');
+  });
+
   it('describes a batch by the one person it adds, or counts', () => {
     const spouse: Op = {
       type: 'batch',

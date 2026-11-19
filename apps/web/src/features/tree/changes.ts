@@ -8,6 +8,7 @@ import {
   removeParentOp,
   unionStatusOp,
   type BatchOp,
+  type CardStyle,
   type PersonPhoto,
   type Relation,
   type RelateAnswers,
@@ -15,6 +16,7 @@ import {
   type RelateEffect,
   type RelateQuestion,
   type TreeState,
+  type TreeThemeChanges,
   type UnionStatus,
 } from '@ancestors-tree/shared/tree';
 
@@ -26,7 +28,9 @@ export type Change =
   | { kind: 'cutMarriage'; unionId: string }
   | { kind: 'status'; unionId: string; status: UnionStatus }
   | { kind: 'detach'; personId: string }
-  | { kind: 'photo'; personId: string; photo: PersonPhoto | null };
+  | { kind: 'photo'; personId: string; photo: PersonPhoto | null }
+  | { kind: 'treeTheme'; changes: TreeThemeChanges }
+  | { kind: 'cardStyle'; personId: string; cardStyle: CardStyle | null };
 
 export type ChangeQuestion =
   RelateQuestion | { kind: 'keepChildren'; partnerIds: [string, string] };
@@ -44,7 +48,9 @@ export type ChangeSummary =
   | { kind: 'cutMarriage'; partnerIds: string[] }
   | { kind: 'status'; partnerIds: string[]; status: UnionStatus }
   | { kind: 'detach'; personId: string }
-  | { kind: 'photo'; personId: string; removed: boolean };
+  | { kind: 'photo'; personId: string; removed: boolean }
+  | { kind: 'treeTheme' }
+  | { kind: 'cardStyle'; personId: string; cleared: boolean };
 
 export type ChangeResult =
   | { kind: 'ok'; op: BatchOp; summary: ChangeSummary }
@@ -70,6 +76,10 @@ function checked(
     if (error instanceof OpError) return blocked(error.code);
     throw error;
   }
+}
+
+function sameCardStyle(a: CardStyle | null | undefined, b: CardStyle | null | undefined): boolean {
+  return a?.frame === b?.frame && a?.fastener === b?.fastener;
 }
 
 export function planChange(
@@ -152,6 +162,41 @@ export function planChange(
           },
         }),
         { kind: 'photo', personId: change.personId, removed: change.photo === null },
+      );
+    }
+    case 'treeTheme': {
+      const theme = tree.theme as Record<string, unknown>;
+      const differs = Object.entries(change.changes).some(
+        ([part, value]) => value !== undefined && (theme[part] ?? null) !== value,
+      );
+      if (!differs) return blocked('ALREADY');
+      return checked(
+        tree,
+        () => ({
+          type: 'batch',
+          payload: { ops: [{ type: 'setTreeTheme', payload: { changes: change.changes } }] },
+        }),
+        { kind: 'treeTheme' },
+      );
+    }
+    case 'cardStyle': {
+      const person = tree.persons[change.personId];
+      if (person === undefined) return blocked('PERSON_NOT_FOUND');
+      if (sameCardStyle(person.cardStyle, change.cardStyle)) return blocked('ALREADY');
+      return checked(
+        tree,
+        () => ({
+          type: 'batch',
+          payload: {
+            ops: [
+              {
+                type: 'updatePerson',
+                payload: { id: change.personId, changes: { cardStyle: change.cardStyle } },
+              },
+            ],
+          },
+        }),
+        { kind: 'cardStyle', personId: change.personId, cleared: change.cardStyle === null },
       );
     }
   }
