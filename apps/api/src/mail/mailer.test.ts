@@ -47,6 +47,8 @@ describe('mailers', () => {
       TRUST_PROXY_HOPS: '0',
       MONGODB_URI: 'mongodb+srv://db.example.test/app',
       JWT_SECRET: 'test-only-secret-with-at-least-32-chars',
+      CLOUDINARY_FOLDER: 'ancestors-tree/test',
+      PROXY_SIGNATURE_SECRET: 'proxy-test-'.repeat(4),
     });
     await createMailer(config, logger).send(MESSAGE);
     expect(info).not.toHaveBeenCalled();
