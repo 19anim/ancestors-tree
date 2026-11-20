@@ -8,6 +8,7 @@ import {
   isWakeSignal,
   noteFailedRequest,
   POLL_INTERVAL_MS,
+  resetWakeForTests,
   retryWaking,
   runWakeCycle,
   serverAwake,
@@ -155,6 +156,17 @@ describe('watchSlowRequest', () => {
     expect(phase()).toBe('waking');
     stopFirst();
     stopSecond();
+  });
+
+  it('cancels on reset a watch whose request never ended, so it cannot fire in a later test', async () => {
+    vi.useFakeTimers();
+    const fetchMock = hangingFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    watchSlowRequest();
+    resetWakeForTests();
+    await vi.advanceTimersByTimeAsync(SLOW_REQUEST_MS + HEALTH_TIMEOUT_MS);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(phase()).toBe('awake');
   });
 
   it('stays awake when the health check fails because the browser is offline', async () => {

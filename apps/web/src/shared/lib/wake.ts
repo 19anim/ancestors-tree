@@ -106,6 +106,9 @@ export async function checkHealth(timeoutMs = HEALTH_TIMEOUT_MS): Promise<boolea
 /** One quick check at a time, however many requests are slow together. */
 let probing = false;
 
+/** The slow-request timers still armed, so a test reset can cancel those of requests that never ended. */
+const watches = new Set<ReturnType<typeof setTimeout>>();
+
 /**
  * apiRequest calls it as a request starts, and the returned function as it ends. A request
  * still waiting after SLOW_REQUEST_MS makes one health check; only a check that fails or times
@@ -113,6 +116,7 @@ let probing = false;
  */
 export function watchSlowRequest(): () => void {
   const timer = setTimeout(() => {
+    watches.delete(timer);
     if (probing || useWakeStore.getState().phase !== 'awake') return;
     probing = true;
     void checkHealth().then((ok) => {
@@ -121,7 +125,11 @@ export function watchSlowRequest(): () => void {
       if (!ok && navigator.onLine) startWaking();
     });
   }, SLOW_REQUEST_MS);
-  return () => clearTimeout(timer);
+  watches.add(timer);
+  return () => {
+    watches.delete(timer);
+    clearTimeout(timer);
+  };
 }
 
 export interface WakeCycleOptions {
@@ -165,4 +173,6 @@ export function runWakeCycle({ check, onAwake, onGiveUp }: WakeCycleOptions): ()
 export function resetWakeForTests(): void {
   useWakeStore.setState({ phase: 'awake', recoveries: 0 });
   probing = false;
+  for (const timer of watches) clearTimeout(timer);
+  watches.clear();
 }
