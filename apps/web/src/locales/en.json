@@ -101,6 +101,14 @@
       "ok": "Server is running (version {{version}})",
       "databaseDown": "The server is running (version {{version}}) but cannot reach the database",
       "retry": "Try again"
+    },
+    "wakeUp": {
+      "title": "Waking up the server…",
+      "failedTitle": "The server did not wake up",
+      "body": "The free server sleeps when nobody has used it for a while, and it usually takes about a minute to wake up. What you were doing is kept.",
+      "waiting": "Waiting for the server to answer…",
+      "failed": "We waited 2 minutes and the server still has not answered. Try again in a few minutes.",
+      "retry": "Try again"
     }
   },
   "errors": {

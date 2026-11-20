@@ -1,9 +1,10 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createQueryClient } from '../../app/providers';
 import { apiRequest } from '../../shared/lib/apiClient';
 import { ApiError } from '../../shared/lib/apiError';
+import { useWakeStore } from '../../shared/lib/wake';
 import { mockApi, UNAUTHENTICATED_REPLY } from '../../test/api';
 import { renderRoute } from '../../test/render';
 
@@ -50,5 +51,21 @@ describe('RequireAuth', () => {
       'href',
       `/api/auth/google/start?returnTo=${encodeURIComponent('/clans')}`,
     );
+  });
+
+  it('waits instead of showing the error page while the server wakes up', async () => {
+    mockApi({ 'GET /me': () => ({ status: 502, body: 'Bad gateway' }) });
+    const queryClient = createQueryClient();
+    queryClient.setDefaultOptions({
+      queries: { ...queryClient.getDefaultOptions().queries, retry: false },
+    });
+    renderRoute('/clans', queryClient);
+
+    await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'));
+    expect(useWakeStore.getState().phase).toBe('waking');
+    expect(screen.getByText('Đang tải…')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { level: 1, name: 'Trang này gặp lỗi' }),
+    ).not.toBeInTheDocument();
   });
 });

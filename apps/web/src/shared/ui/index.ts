@@ -1,6 +1,7 @@
 export { useReducedMotion } from './motion/useReducedMotion';
 export { useMediaQuery } from './useMediaQuery';
 export { inertOthers } from './inertOthers';
+export { inertPage } from './inertPage';
 export {
   applyTheme,
   getLocalStorage,
