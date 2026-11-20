@@ -89,6 +89,55 @@ describe('createSentryClient', () => {
     ).toEqual({ message: 'Failed for [email]', user: { id: 'u1' } });
   });
 
+  it('never sends a page URL in a stack frame, and keeps script assets without query or hash', () => {
+    createSentryClient(SETTINGS);
+    const { beforeSend } = initOptions();
+    const site = 'https://site.example.test';
+    const frames = [
+      // The SDK falls back to the page URL when an error event has no filename.
+      { filename: `${site}/join/secret-token`, lineno: 1 },
+      { filename: `${site}/reset-password#token=abc`, lineno: 2 },
+      { filename: `${site}/clans/c1?tab=members`, lineno: 3 },
+      { filename: `${site}/assets/index-Ab12.js?v=1#frag`, lineno: 4 },
+      { filename: `${site}/assets/chunk-Cd34.mjs`, lineno: 5 },
+      { filename: `${site}/assets/secret-token`, lineno: 6 },
+      { filename: '<anonymous>', lineno: 7 },
+      { filename: 'chrome-extension://abcdef/content.js?x=1', lineno: 8 },
+    ];
+    const scrubbed = beforeSend(
+      {
+        exception: { values: [{ value: 'boom', stacktrace: { frames } }] },
+        stacktrace: { frames: [{ filename: `${site}/join/secret-token#x` }] },
+      },
+      { originalException: new TypeError('boom') },
+    );
+    expect(scrubbed).toEqual({
+      exception: {
+        values: [
+          {
+            value: 'boom',
+            stacktrace: {
+              frames: [
+                { filename: site, lineno: 1 },
+                { filename: site, lineno: 2 },
+                { filename: site, lineno: 3 },
+                { filename: `${site}/assets/index-Ab12.js`, lineno: 4 },
+                { filename: `${site}/assets/chunk-Cd34.mjs`, lineno: 5 },
+                { filename: site, lineno: 6 },
+                { filename: '<anonymous>', lineno: 7 },
+                { filename: 'chrome-extension://abcdef', lineno: 8 },
+              ],
+            },
+          },
+        ],
+      },
+      stacktrace: { frames: [{ filename: site }] },
+    });
+    const sent = JSON.stringify(scrubbed);
+    for (const secret of ['join', 'secret-token', 'reset-password', 'token=abc', '#', '?'])
+      expect(sent).not.toContain(secret);
+  });
+
   it('tags reports with their context and names the user by id only', () => {
     const client = createSentryClient(SETTINGS);
     const error = new Error('boom');

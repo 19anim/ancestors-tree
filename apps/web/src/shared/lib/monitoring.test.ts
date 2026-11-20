@@ -103,6 +103,56 @@ describe('monitoring', () => {
     expect(client.captureException).toHaveBeenCalledTimes(1);
   });
 
+  it('catches unhandled rejections before the SDK loads, and reports each one once', async () => {
+    const { client, load } = fakeClient();
+    startMonitoring(ON);
+    const reason = new Error('rejected');
+    // jsdom has no PromiseRejectionEvent; the listener only reads `reason`.
+    const rejection = () => Object.assign(new Event('unhandledrejection'), { reason });
+    window.dispatchEvent(rejection());
+    await loadMonitoring(load);
+    window.dispatchEvent(rejection());
+    expect(client.captureException.mock.calls).toEqual([[reason, undefined]]);
+  });
+
+  it('adds its early listeners once, however often it is started', async () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    expect(startMonitoring(ON)).toBe(true);
+    expect(startMonitoring(ON)).toBe(true);
+    expect(add.mock.calls.map(([type]) => type)).toEqual(['error', 'unhandledrejection']);
+
+    const { client, load } = fakeClient();
+    const early = new Error('early');
+    window.dispatchEvent(new ErrorEvent('error', { error: early }));
+    await loadMonitoring(load);
+    expect(client.captureException.mock.calls).toEqual([[early, undefined]]);
+    expect(remove.mock.calls).toEqual(add.mock.calls);
+  });
+
+  it('loads the SDK once when asked twice while it is loading', async () => {
+    const { client, load } = fakeClient();
+    startMonitoring(ON);
+    identifyUser('u1');
+    reportError(new Error('queued'));
+    await Promise.all([loadMonitoring(load), loadMonitoring(load)]);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(client.setUserId).toHaveBeenCalledTimes(1);
+    expect(client.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes its early listeners when the SDK chunk fails to load', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const add = vi.spyOn(window, 'addEventListener');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    startMonitoring(ON);
+    await loadMonitoring(async () => {
+      throw new Error('chunk failed');
+    });
+    expect(add).toHaveBeenCalledTimes(2);
+    expect(remove.mock.calls).toEqual(add.mock.calls);
+  });
+
   it('turns itself off when the SDK chunk fails to load', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     startMonitoring(ON);

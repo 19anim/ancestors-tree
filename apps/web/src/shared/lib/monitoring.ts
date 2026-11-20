@@ -41,6 +41,7 @@ let client: MonitoringClient | null = null;
 let queue: QueuedReport[] = [];
 let userId: string | null = null;
 let removeEarlyListeners: (() => void) | null = null;
+let loading: Promise<void> | null = null;
 
 /**
  * Expected failures are not bugs (spec §13.1): API errors carry a known code (4xx, offline, a
@@ -75,6 +76,8 @@ function stopEarlyListeners(): void {
  */
 export function startMonitoring(settings: MonitoringSettings): boolean {
   if (!settings.enabled || !settings.dsn) return false;
+  // Already on: a second pair of listeners would report every early error twice.
+  if (sdkSettings !== null) return true;
   sdkSettings = { dsn: settings.dsn, release: settings.release, environment: settings.environment };
   const onError = (event: ErrorEvent) => reportError(event.error ?? new Error(event.message));
   const onRejection = (event: PromiseRejectionEvent) => reportError(event.reason);
@@ -93,22 +96,32 @@ const loadSentryClient: LoadMonitoringClient = async (settings) => {
   return createSentryClient(settings);
 };
 
-/** Loads the SDK, then sends what was queued. A failed load turns monitoring off. */
-export async function loadMonitoring(load: LoadMonitoringClient = loadSentryClient): Promise<void> {
-  if (sdkSettings === null || client !== null) return;
+async function initClient(settings: SdkSettings, load: LoadMonitoringClient): Promise<void> {
   try {
-    const loaded = await load(sdkSettings);
+    const loaded = await load(settings);
+    if (sdkSettings !== settings) return; // reset by a test while loading
     stopEarlyListeners();
     client = loaded;
     loaded.setUserId(userId);
     for (const report of queue) loaded.captureException(report.error, report.context);
     queue = [];
   } catch (error) {
+    if (sdkSettings !== settings) return;
     console.error(error);
     stopEarlyListeners();
     sdkSettings = null;
     queue = [];
   }
+}
+
+/**
+ * Loads the SDK, then sends what was queued. A failed load turns monitoring off. Calls made while
+ * it is loading share the same load, so the SDK is set up once.
+ */
+export function loadMonitoring(load: LoadMonitoringClient = loadSentryClient): Promise<void> {
+  if (sdkSettings === null || client !== null) return Promise.resolve();
+  loading ??= initClient(sdkSettings, load);
+  return loading;
 }
 
 /** After the first render, when the browser is idle. */
@@ -125,6 +138,7 @@ export function resetMonitoringForTests(): void {
   stopEarlyListeners();
   sdkSettings = null;
   client = null;
+  loading = null;
   queue = [];
   userId = null;
 }

@@ -10,7 +10,6 @@ export function createQueryClient(): QueryClient {
   // The silent refresh already failed: the session is over, and nothing of that user may stay.
   const endSession = (error: unknown) => {
     if (error instanceof ApiError && error.code === 'UNAUTHENTICATED') {
-      identifyUser(null);
       clearUserData(client);
       client.setQueryData(CURRENT_USER_KEY, null);
     }
@@ -20,8 +19,6 @@ export function createQueryClient(): QueryClient {
       onError: endSession,
       onSuccess: (data, query) => {
         if (query.queryKey[0] !== CURRENT_USER_KEY[0]) return;
-        // Error reports name the user by id only (spec §13.1).
-        identifyUser((data as CurrentUser | null)?.id ?? null);
         // `/me` answers "signed out" as null data rather than an error.
         if (data === null) clearUserData(client);
       },
@@ -30,6 +27,13 @@ export function createQueryClient(): QueryClient {
     defaultOptions: {
       queries: { retry: shouldRetryQuery, staleTime: 30_000, refetchOnWindowFocus: false },
     },
+  });
+  // Error reports name the user by id only (spec §13.1). A `success` action covers both a fetch
+  // and `setQueryData`, which sign-in, logout and the end of a session use.
+  client.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated' || event.action.type !== 'success') return;
+    if (event.query.queryKey[0] !== CURRENT_USER_KEY[0]) return;
+    identifyUser((event.action.data as CurrentUser | null | undefined)?.id ?? null);
   });
   return client;
 }
