@@ -64,7 +64,8 @@ describe('createApp', () => {
     const token = signProxyToken(netlifyClaims(Math.floor(Date.now() / 1000)));
     // Past the check: the route itself answers (signed out).
     const signed = await request(app).get('/api/me').set('x-nf-sign', token);
-    expect(signed.status).not.toBe(403);
+    expect(signed.status).toBe(401);
+    expect(signed.body.error.code).toBe('UNAUTHENTICATED');
 
     expect((await request(app).get('/api/health')).status).toBe(200);
   });
