@@ -112,7 +112,8 @@ export function createProxySignatureCheck({
       next();
       return;
     }
-    // The reason only: never the header (a credential until it expires) or the secret.
+    // The reason, method, masked path and client IP: never the header (a credential until it
+    // expires) or the secret.
     logger.warn(
       {
         reason: result.reason,
