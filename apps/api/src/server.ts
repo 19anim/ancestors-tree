@@ -44,6 +44,7 @@ const { app } = createApp({
   httpLogging: config.NODE_ENV !== 'test',
   appOrigin: config.APP_ORIGIN,
   trustProxyHops: config.TRUST_PROXY_HOPS,
+  proxySignatureSecret: config.PROXY_SIGNATURE_SECRET,
   apiDocs: apiDocsEnabled(config),
   rateLimits: { auth: 5, user: 300 },
   mailer: createMailer(config, logger),

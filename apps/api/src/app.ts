@@ -1,6 +1,6 @@
 import { apiReference } from '@scalar/express-api-reference';
 import cookieParser from 'cookie-parser';
-import express, { type Express } from 'express';
+import express, { type Express, type Request } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
@@ -8,6 +8,7 @@ import { serializeRequest, serializeResponse } from './http/logSerializers.ts';
 import { createErrorHandler } from './http/errorHandler.ts';
 import { notFoundHandler } from './http/notFound.ts';
 import { createOriginCheck } from './http/originCheck.ts';
+import { createProxySignatureCheck } from './http/proxySignature.ts';
 import {
   AUTH_RATE_LIMITED_PATHS,
   createAuthRateLimit,
@@ -53,6 +54,11 @@ export interface AppOptions {
   appOrigin: string;
   /** Proxies in front of the API (TRUST_PROXY_HOPS), so req.ip is the client's address. */
   trustProxyHops: number;
+  /**
+   * PROXY_SIGNATURE_SECRET: when set, every request except GET /api/health must carry Netlify's
+   * x-nf-sign (spec §12). Production always sets it; development and tests usually do not.
+   */
+  proxySignatureSecret?: string;
   /** Serve the interactive reference at /api/docs (see apiDocsEnabled). */
   apiDocs: boolean;
   /**
@@ -127,19 +133,28 @@ export function createApp(options: AppOptions): CreatedApp {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops);
+  // First, so every answer is logged, including the 403s of the proxy check.
+  if (options.httpLogging)
+    app.use(
+      pinoHttp({
+        logger: options.logger,
+        serializers: { req: serializeRequest, res: serializeResponse },
+        // The address after `trust proxy`, so a real deploy can confirm TRUST_PROXY_HOPS.
+        customProps: (req) => ({ clientIp: (req as Request).ip }),
+      }),
+    );
+  if (options.proxySignatureSecret !== undefined) {
+    // Before anything that reads the request: only Netlify's proxy gets further.
+    app.use(
+      createProxySignatureCheck({ secret: options.proxySignatureSecret, logger: options.logger }),
+    );
+  }
   if (options.apiDocs) {
     // Mounted before helmet: the Scalar page loads its script from a CDN, which helmet's CSP
     // would block. Off in production by default, so it never runs next to real sessions.
     app.use('/api/docs', apiReference({ url: '/api/openapi.json', cdn: SCALAR_CDN }));
   }
   app.use(helmet());
-  if (options.httpLogging)
-    app.use(
-      pinoHttp({
-        logger: options.logger,
-        serializers: { req: serializeRequest, res: serializeResponse },
-      }),
-    );
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use('/api', createOriginCheck(options.appOrigin));

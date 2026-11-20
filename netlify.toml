@@ -23,6 +23,10 @@
   to = "https://ancestors-tree-api.onrender.com/api/:splat"
   status = 200
   force = true
+  # Netlify signs every proxied request with an x-nf-sign header (a JWS made with the value of this
+  # environment variable; the setting is the variable's NAME). The API refuses unsigned requests in
+  # production (spec §12). The variable needs the Runtime scope: docs/deployment.md §7.
+  signed = "PROXY_SIGNATURE_SECRET"
 
 # Single-page app: every other path serves index.html (client-side routing).
 [[redirects]]
