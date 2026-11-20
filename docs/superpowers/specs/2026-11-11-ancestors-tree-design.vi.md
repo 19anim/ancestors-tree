@@ -904,7 +904,7 @@ ancestors-tree/                      gốc trên Cloudinary
   - Một dịch vụ giám sát uptime gọi `/api/health` mỗi 5 phút giữ máy chủ luôn thức, nên thực tế màn hình chỉ hiện sau khi deploy hoặc khởi động lại.
 - **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production, cho cả web và API, và chỉ khi đã đặt DSN (chốt ngày 2026-11-20):
   - **Web:** lỗi chưa được bắt và lỗi do các error boundary bắt. **API:** chỉ các lỗi bất ngờ trả về 5xx; các mã lỗi đã biết thì không gửi. Không đo hiệu năng, để hạn mức dành cho lỗi.
-  - **Không gửi dữ liệu cá nhân:** tắt `sendDefaultPii`, và xoá body request, cookie, header, query string cùng địa chỉ email trước khi gửi. Người dùng chỉ được nhận diện bằng id.
+  - **Không gửi dữ liệu cá nhân:** SDK không thu thập thông tin người dùng, cookie, header, body, query string hay biến cục bộ (`dataCollection`, thay cho `sendDefaultPii` từ SDK 11), và xoá body request, cookie, header, query string cùng địa chỉ email trước khi gửi. Người dùng chỉ được nhận diện bằng id.
   - Mỗi sự kiện mang theo bản phát hành (commit). Bản build web tải source map lên Sentry khi có `SENTRY_AUTH_TOKEN`, rồi xoá chúng đi, nên trình duyệt không bao giờ tải về.
 
 ### 13.2 Trạng thái tải & trống

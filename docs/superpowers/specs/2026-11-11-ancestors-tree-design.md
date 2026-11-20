@@ -902,7 +902,7 @@ ancestors-tree/                      Cloudinary root
   - An uptime monitor calling `/api/health` every 5 minutes keeps the server awake, so in practice the screen is seen after a deploy or a restart.
 - **Sentry** (free Developer plan: 5,000 errors/month, 1 user, 30-day retention; over quota, events are dropped, never billed). Production only, web and API, and only when a DSN is set (decided 2026-11-20):
   - **Web:** unhandled errors and the errors caught by the error boundaries. **API:** unexpected errors answered 5xx only; known error codes are not sent. No performance tracing, so the quota goes to errors.
-  - **No personal data:** `sendDefaultPii` is off, and request bodies, cookies, headers, query strings and email addresses are removed before sending. The user is identified by id only.
+  - **No personal data:** the SDK collects no user details, cookies, headers, bodies, query strings or local variables (`dataCollection`, which replaced `sendDefaultPii` in SDK 11), and request bodies, cookies, headers, query strings and email addresses are removed before sending. The user is identified by id only.
   - Each event carries the release (the commit). The web build uploads its source maps to Sentry when `SENTRY_AUTH_TOKEN` is set, then deletes them, so browsers never download them.
 
 ### 13.2 Loading & empty states

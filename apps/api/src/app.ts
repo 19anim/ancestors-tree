@@ -31,6 +31,7 @@ import { registerHistoryRoutes } from './routes/history.ts';
 import { registerPhotoRoutes } from './routes/photos.ts';
 import { registerViewPreferenceRoutes } from './routes/viewPreference.ts';
 import type { PhotoStore } from './photos/store.ts';
+import type { ErrorReporter } from './monitoring/reporter.ts';
 import { registerHealthRoutes } from './routes/health.ts';
 import { registerMeRoutes } from './routes/me.ts';
 import { createPasswordResets } from './auth/passwordResets.ts';
@@ -72,6 +73,8 @@ export interface AppOptions {
   google?: GoogleOAuthClient;
   /** Cloudinary (spec §12); undefined when CLOUDINARY_URL is not set. */
   photos?: PhotoStore;
+  /** Unexpected errors (answered 500) go here: Sentry in production with a DSN. */
+  errorReporter?: ErrorReporter;
   auth: {
     /** JWT_SECRET: signs the access tokens. */
     jwtSecret: string;
@@ -166,7 +169,7 @@ export function createApp(options: AppOptions): CreatedApp {
   });
   app.use('/api', api.router);
   app.use(notFoundHandler);
-  app.use(createErrorHandler(options.logger));
+  app.use(createErrorHandler(options.logger, options.errorReporter));
 
   return { app, api, openApiDocument };
 }

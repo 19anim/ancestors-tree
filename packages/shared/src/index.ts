@@ -86,3 +86,9 @@ export {
   ViewPreferenceSchema,
   type ViewPreference,
 } from './api/viewPreference.ts';
+export {
+  REDACTED_EMAIL,
+  redactEmails,
+  scrubErrorEvent,
+  type ScrubbableEvent,
+} from './monitoring/scrub.ts';

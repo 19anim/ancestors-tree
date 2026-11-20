@@ -2,11 +2,12 @@ import { pino } from 'pino';
 import { createApp } from './app.ts';
 import { createGoogleOAuthClient } from './auth/google.ts';
 import { BCRYPT_COST } from './auth/passwords.ts';
-import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
+import { apiDocsEnabled, loadConfig, releaseOf, requireSetting } from './config.ts';
 import { createMailer } from './mail/mailer.ts';
 import { connectDatabase, disconnectDatabase } from './db/connect.ts';
 import { ensureIndexes } from './db/indexes.ts';
 import { createCloudinaryPhotoStore } from './photos/cloudinary.ts';
+import { createSentryReporter } from './monitoring/sentry.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -19,6 +20,13 @@ const logger = pino({
     censor: '[redacted]',
   },
 });
+
+// Production only, and only with a DSN (spec §13.1). Loaded on demand, so development and tests
+// never import the SDK.
+const errorReporter =
+  config.NODE_ENV === 'production' && config.SENTRY_DSN !== undefined
+    ? await createSentryReporter({ dsn: config.SENTRY_DSN, release: releaseOf(config) })
+    : undefined;
 
 try {
   await connectDatabase(requireSetting(config.MONGODB_URI, 'MONGODB_URI'));
@@ -58,6 +66,7 @@ const { app } = createApp({
   photos: config.CLOUDINARY_URL
     ? createCloudinaryPhotoStore({ url: config.CLOUDINARY_URL, folder: config.CLOUDINARY_FOLDER })
     : undefined,
+  errorReporter,
   auth: {
     jwtSecret: requireSetting(config.JWT_SECRET, 'JWT_SECRET'),
     secureCookies: config.NODE_ENV === 'production',
