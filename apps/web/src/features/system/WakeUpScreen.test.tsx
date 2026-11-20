@@ -1,7 +1,16 @@
-import { act, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
+import userEvent, { PointerEventsCheckLevel } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../../app/providers';
-import { GIVE_UP_MS, POLL_INTERVAL_MS, startWaking, useWakeStore } from '../../shared/lib/wake';
+import {
+  AWAKE_REFETCH_WAIT_MS,
+  GIVE_UP_MS,
+  POLL_INTERVAL_MS,
+  startWaking,
+  useWakeStore,
+  wakeFailed,
+} from '../../shared/lib/wake';
+import { Dialog, DialogContent, TextField } from '../../shared/ui';
 import { renderWithProviders } from '../../test/render';
 import { WakeUpScreen } from './WakeUpScreen';
 
@@ -31,6 +40,7 @@ function health(up: () => boolean) {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('WakeUpScreen', () => {
@@ -90,5 +100,53 @@ describe('WakeUpScreen', () => {
     expect(screen.getByRole('heading', { level: 1, name: TITLE })).toHaveFocus();
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(fetchMock).toHaveBeenCalledTimes(checks + 1);
+  });
+
+  it('leaves the screen after a while even when the refetch never settles', async () => {
+    vi.useFakeTimers();
+    health(() => true);
+    const { invalidate } = renderScreen();
+    // apiClient has no request timeout: a refetch can hang for good.
+    invalidate.mockReturnValue(new Promise<void>(() => {}));
+
+    act(() => startWaking());
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await act(() => vi.advanceTimersByTimeAsync(AWAKE_REFETCH_WAIT_MS - 1));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(useWakeStore.getState()).toEqual({ phase: 'awake', recoveries: 1 });
+  });
+
+  it('keeps a dialog open underneath, with what was typed in it', async () => {
+    health(() => false);
+    // The screen's own button must stay clickable while a Radix modal sets pointer-events: none
+    // on <body>; jsdom has no Tailwind to apply pointer-events-auto.
+    const user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+    const onOpenChange = vi.fn();
+    renderWithProviders(
+      <>
+        <Dialog defaultOpen onOpenChange={onOpenChange}>
+          <DialogContent title="Thêm người">
+            <TextField label="Họ và tên" />
+          </DialogContent>
+        </Dialog>
+        <WakeUpScreen />
+      </>,
+    );
+    await user.type(screen.getByLabelText('Họ và tên'), 'Nguyễn Văn An');
+
+    act(() => startWaking());
+    fireEvent.keyDown(screen.getByRole('heading', { level: 1, name: TITLE }), { key: 'Escape' });
+    act(() => wakeFailed());
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(useWakeStore.getState().phase).toBe('waking');
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Thêm người', hidden: true })).toBeInTheDocument();
+    expect(screen.getByLabelText('Họ và tên')).toHaveValue('Nguyễn Văn An');
   });
 });

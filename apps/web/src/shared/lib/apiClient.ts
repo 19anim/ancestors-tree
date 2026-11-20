@@ -1,7 +1,7 @@
 import { ApiErrorBodySchema } from '@ancestors-tree/shared';
 import type { z } from 'zod';
 import { ApiError, errorCodeForStatus } from './apiError';
-import { noteFailedRequest, watchSlowRequest } from './wake';
+import { hasApiErrorBody, noteFailedRequest, watchSlowRequest } from './wake';
 
 export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   /** Sent as JSON with Content-Type: application/json. */
@@ -80,12 +80,16 @@ async function sendAndParse<T>(
     const apiError = ApiErrorBodySchema.safeParse(payload);
     if (apiError.success) {
       const { code, message, details, reason } = apiError.data.error;
-      throw new ApiError(code, message, response.status, details, reason);
+      throw new ApiError(code, message, response.status, details, reason, { fromApiBody: true });
     }
     throw new ApiError(
       errorCodeForStatus(response.status),
       `Unexpected error response (HTTP ${response.status})`,
       response.status,
+      undefined,
+      undefined,
+      // A code this client does not know is still the API answering.
+      { fromApiBody: hasApiErrorBody(payload) },
     );
   }
 

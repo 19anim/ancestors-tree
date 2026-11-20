@@ -14,7 +14,11 @@ export function RequireAuth() {
 
   // Let the route error element show it.
   if (me.isError && !waking) throw me.error;
-  if (me.isPending || me.isError) return <p className="text-ink-muted">{t('common.loading')}</p>;
+  // A failed refetch keeps the cached user (TanStack Query v5): the page stays mounted under the
+  // wake-up screen, drafts and all. Only a first load with nothing cached waits here.
+  if (me.isPending || (me.isError && me.data === undefined)) {
+    return <p className="text-ink-muted">{t('common.loading')}</p>;
+  }
   if (me.data === null) {
     const returnTo = location.pathname + location.search;
     return <Navigate to={`/login?${new URLSearchParams({ returnTo })}`} replace />;

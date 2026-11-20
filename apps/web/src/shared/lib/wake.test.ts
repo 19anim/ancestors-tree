@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from './apiError';
 import {
   checkHealth,
   GIVE_UP_MS,
   HEALTH_TIMEOUT_MS,
+  isWakeError,
   isWakeSignal,
   noteFailedRequest,
   POLL_INTERVAL_MS,
@@ -53,6 +55,29 @@ describe('isWakeSignal', () => {
     expect(isWakeSignal(500, '<html>Error</html>', true)).toBe(false);
     expect(isWakeSignal(404, undefined, true)).toBe(false);
     expect(isWakeSignal(0, undefined, false)).toBe(false);
+  });
+});
+
+describe('isWakeError', () => {
+  it("is an error from a gateway status without the API's body, or from no answer", () => {
+    for (const status of [502, 503, 504]) {
+      const error = new ApiError('INTERNAL_ERROR', 'Bad gateway', status);
+      expect(isWakeError(error), String(status)).toBe(true);
+    }
+    expect(isWakeError(new ApiError('NETWORK_ERROR', 'Network request failed', 0))).toBe(true);
+  });
+
+  it("is not the API's own error, a refusal, or anything else thrown", () => {
+    const fromApi = { fromApiBody: true };
+    expect(
+      isWakeError(new ApiError('INTERNAL_ERROR', 'x', 503, undefined, undefined, fromApi)),
+    ).toBe(false);
+    expect(isWakeError(new ApiError('FORBIDDEN', 'x', 403, undefined, undefined, fromApi))).toBe(
+      false,
+    );
+    expect(isWakeError(new ApiError('NOT_FOUND', 'x', 404))).toBe(false);
+    expect(isWakeError(new ApiError('INTERNAL_ERROR', 'x', 500))).toBe(false);
+    expect(isWakeError(new Error('Bad gateway'))).toBe(false);
   });
 });
 

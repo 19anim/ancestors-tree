@@ -184,7 +184,10 @@ describe('apiRequest and the wake-up screen', () => {
 
   it("notices a gateway error without the API's body", async () => {
     mockFetch(async () => new Response('<html>Bad gateway</html>', { status: 502 }));
-    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({ status: 502 });
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
+      status: 502,
+      fromApiBody: false,
+    });
     expect(phase()).toBe('waking');
   });
 
@@ -194,6 +197,15 @@ describe('apiRequest and the wake-up screen', () => {
     );
     await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
       code: 'PHOTOS_NOT_CONFIGURED',
+      fromApiBody: true,
+    });
+    expect(phase()).toBe('awake');
+
+    // A code this client does not know is still the API's own body.
+    mockFetch(async () => jsonResponse({ error: { code: 'BRAND_NEW', message: 'x' } }, 502));
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
+      code: 'INTERNAL_ERROR',
+      fromApiBody: true,
     });
     expect(phase()).toBe('awake');
   });

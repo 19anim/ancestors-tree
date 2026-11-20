@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../shared/lib/cn';
 import {
+  AWAKE_REFETCH_WAIT_MS,
   checkHealth,
   retryWaking,
   runWakeCycle,
@@ -50,8 +51,16 @@ function WakeUpPanel({ phase }: { phase: Exclude<WakePhase, 'awake'> }) {
     return runWakeCycle({
       check: () => checkHealth(),
       onAwake: async () => {
-        // Refetch before leaving: RequireAuth waits while the phase is not "awake".
-        await queryClient.invalidateQueries();
+        // Refetch before leaving: RequireAuth waits while the phase is not "awake". But not for
+        // good: apiClient has no request timeout, and a hung refetch would keep the screen up.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          queryClient.invalidateQueries(),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, AWAKE_REFETCH_WAIT_MS);
+          }),
+        ]);
+        clearTimeout(timer);
         serverAwake();
       },
       onGiveUp: wakeFailed,

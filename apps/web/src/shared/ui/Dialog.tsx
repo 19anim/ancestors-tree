@@ -3,6 +3,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/cn';
+import { useWakeStore } from '../lib/wake';
 import { Button } from './Button';
 
 export const Dialog = DialogPrimitive.Root;
@@ -23,12 +24,26 @@ export interface DialogContentProps extends Omit<
   closeDisabled?: boolean;
 }
 
+/**
+ * Runs the caller's handler, then keeps the dialog open while the wake-up screen shows: Radix
+ * hears Escape and pointer downs on the whole document, the screen's included, and closing
+ * would lose a draft (spec §13.1).
+ */
+function keptWhileWaking<E extends Event>(handler: ((event: E) => void) | undefined) {
+  return (event: E) => {
+    handler?.(event);
+    if (useWakeStore.getState().phase !== 'awake') event.preventDefault();
+  };
+}
+
 export function DialogContent({
   title,
   description,
   closeDisabled = false,
   className,
   children,
+  onEscapeKeyDown,
+  onInteractOutside,
   ...props
 }: DialogContentProps) {
   const { t } = useTranslation();
@@ -43,6 +58,9 @@ export function DialogContent({
           className,
         )}
         {...props}
+        onEscapeKeyDown={keptWhileWaking(onEscapeKeyDown)}
+        // Pointer downs and focus moving outside both come through here.
+        onInteractOutside={keptWhileWaking(onInteractOutside)}
       >
         <DialogPrimitive.Title className="pr-8 text-lg font-bold">{title}</DialogPrimitive.Title>
         {description ? (

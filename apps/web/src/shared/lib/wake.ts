@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ApiError } from './apiError';
 
 /** A request still waiting after this long makes one quick health check (spec §13.1). */
 export const SLOW_REQUEST_MS = 4_000;
@@ -8,6 +9,11 @@ export const HEALTH_TIMEOUT_MS = 3_000;
 export const POLL_INTERVAL_MS = 3_000;
 /** After this long the wake-up screen says the server did not wake up. */
 export const GIVE_UP_MS = 2 * 60_000;
+/**
+ * Once the server answers, the wake-up screen waits at most this long for the app's refetch
+ * before it closes: apiClient has no request timeout, so a refetch could hang for good.
+ */
+export const AWAKE_REFETCH_WAIT_MS = 10_000;
 
 const GATEWAY_STATUSES = new Set([502, 503, 504]);
 
@@ -38,8 +44,21 @@ export function hasApiErrorBody(payload: unknown): boolean {
  * browser is online. Offline, the pending queue keeps the edits; it is not a sleeping server.
  */
 export function isWakeSignal(status: number, payload: unknown, online: boolean): boolean {
+  return isWakeAnswer(status, hasApiErrorBody(payload), online);
+}
+
+/**
+ * Whether a thrown error was a wake signal (the rule of isWakeSignal), for a loader outside
+ * TanStack Query that tries again after a recovery. A refusal (403, 404) or the API's own error
+ * is left alone. Online is assumed: the server has just answered.
+ */
+export function isWakeError(error: unknown): boolean {
+  return error instanceof ApiError && isWakeAnswer(error.status, error.fromApiBody, true);
+}
+
+function isWakeAnswer(status: number, fromApiBody: boolean, online: boolean): boolean {
   if (status === 0) return online;
-  return GATEWAY_STATUSES.has(status) && !hasApiErrorBody(payload);
+  return GATEWAY_STATUSES.has(status) && !fromApiBody;
 }
 
 export function startWaking(): void {
