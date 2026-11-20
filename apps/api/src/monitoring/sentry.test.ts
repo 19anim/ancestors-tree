@@ -61,6 +61,9 @@ describe('sentryOptions', () => {
       stackFrameVariables: false,
       databaseQueryData: false,
       queues: false,
+      graphQL: { document: false, variables: false },
+      genAI: { inputs: false, outputs: false },
+      mcp: { inputs: false, outputs: false },
     });
     const event = {
       type: undefined,
