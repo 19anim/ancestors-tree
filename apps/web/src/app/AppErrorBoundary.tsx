@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { reportError } from '../shared/lib/monitoring';
 
 /**
  * Shown when the app cannot start (i18n failed to load, or a render error outside the
@@ -35,6 +36,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error(error, info.componentStack);
+    reportError(error, { boundary: 'app' });
   }
 
   override render(): ReactNode {
