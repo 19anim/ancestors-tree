@@ -20,7 +20,7 @@ Both platforms read Node 24 from `.nvmrc` and pnpm from `"packageManager"` in `p
 
 1. Sign in at https://dashboard.render.com with GitHub.
 2. **New → Blueprint**, select the `ancestors-tree` repository, branch `main`. Render reads `render.yaml` and proposes the service `ancestors-tree-api`.
-3. Click **Apply**. Render asks for the values of the variables marked `sync: false` in `render.yaml` (the table below says what to enter). Fill in `MONGODB_URI` (section 3) and `PROXY_SIGNATURE_SECRET` (section 7, step 1; the same value also goes to Netlify, section 7, step 4) now: in production the API refuses to start without either. `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (section 5), `RESEND_API_KEY` (section 6) and `CLOUDINARY_URL` (section 4, used from P6) can stay empty for now. If the Blueprint already exists, add them under the service's **Environment** tab instead. Secrets are entered in the dashboard only, never committed.
+3. Click **Apply**. Render asks for the values of the variables marked `sync: false` in `render.yaml` (the table below says what to enter). Fill in `MONGODB_URI` (section 3) and `PROXY_SIGNATURE_SECRET` (section 7, step 1; the same value also goes to Netlify, section 7, step 4) now: in production the API refuses to start without either. `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (section 5), `RESEND_API_KEY` (section 6), `CLOUDINARY_URL` (section 4, used from P6) and `SENTRY_DSN` (section 7, step 2) can stay empty for now. If the Blueprint already exists, add them under the service's **Environment** tab instead. Secrets are entered in the dashboard only, never committed.
 4. When the first deploy is live, copy the service URL from the service page (normally `https://ancestors-tree-api.onrender.com`).
    - If Render added a suffix because the name was taken (for example `https://ancestors-tree-api-x1y2.onrender.com`), replace the URL in the `/api/*` redirect of `netlify.toml` and commit.
 5. Check it: open `<render-url>/api/health` → `{"status":"ok","version":"0.1.0",...}` with the database reported as connected. `/api/health` is the only path the Render URL answers directly; every other path answers 403 because it did not come through Netlify (section 7).
@@ -187,7 +187,7 @@ Run `openssl rand -base64 48` once (without OpenSSL, for example on Windows: `no
 
 ### Step 3: Render
 
-1. **Blueprints → (the blueprint) → Manual sync**, so `render.yaml`'s `CLOUDINARY_FOLDER=ancestors-tree/prod` and the two new `sync: false` keys are applied. Render's documentation says a sync ignores new `sync: false` keys (it only asks for them when a Blueprint is first created). If the sync screen asks for `PROXY_SIGNATURE_SECRET` and `SENTRY_DSN` anyway, enter them there; otherwise add them in the next step.
+1. **Blueprints → (the blueprint) → Manual sync**, so `render.yaml`'s `CLOUDINARY_FOLDER=ancestors-tree/prod` is applied. Render's documentation says a sync ignores new `sync: false` keys (it only asks for them when a Blueprint is first created). If the sync screen asks for `PROXY_SIGNATURE_SECRET` and `SENTRY_DSN` anyway, enter them there; otherwise add them in the next step.
 2. **ancestors-tree-api → Environment → Add Environment Variable** (skip a variable the sync already asked for):
    - `PROXY_SIGNATURE_SECRET` = the value from step 1;
    - `SENTRY_DSN` = `<your DSN from Sentry → Project settings → Client Keys>` of the **Node** project.
@@ -207,7 +207,7 @@ Run `openssl rand -base64 48` once (without OpenSSL, for example on Windows: `no
 | `SENTRY_ORG`             | the organization slug                                                              | **Builds**                                                                      | Production only                           |
 | `SENTRY_PROJECT`         | `ancestors-tree-web`                                                               | **Builds**                                                                      | Production only                           |
 
-Choosing scopes is a Pro and Enterprise feature. On the free plan the dialog shows no scope choice and every variable gets all scopes, which includes Runtime and Builds; if you do see scope checkboxes, make sure `PROXY_SIGNATURE_SECRET` has **Runtime** (or simply all scopes). `PROXY_SIGNATURE_SECRET` is then visible to the build too, but Vite puts only `VITE_*` variables in the bundle, so it never reaches the browser. A different value per deploy context is not limited to paid plans; if the dialog offers no per-context values, give the Sentry variables the same value for all contexts (previews then report to Sentry too, which does no harm).
+Choosing scopes is a Pro and Enterprise feature. On the free plan the dialog shows no scope choice and every variable gets all scopes, which includes Runtime and Builds; if you do see scope checkboxes, make sure `PROXY_SIGNATURE_SECRET` has **Runtime** (or simply all scopes). `PROXY_SIGNATURE_SECRET` is then visible to the build too, but Vite puts only `VITE_*` variables in the bundle, so it never reaches the browser. Netlify's docs list no plan restriction for per-context values; if the dialog offers no per-context values, give the Sentry variables the same value for all contexts (previews then report to Sentry too, which does no harm).
 
 ### Step 5: deploy order
 
