@@ -852,7 +852,8 @@ Prompt yêu cầu AI: chỉ trả về JSON đúng định dạng này; không b
   - **Đăng nhập Google:** qua chuyển hướng (authorization code + PKCE, `state` và `nonce` giữ trong cookie sống ngắn); chỉ nhận email Google đã xác minh. Đăng nhập Google tiếp quản tài khoản có email chưa từng được xác minh bằng cách xoá mật khẩu và đăng xuất khỏi mọi thiết bị.
   - **Đặt lại mật khẩu:** link có hiệu lực 1 giờ, dùng một lần, token nằm trong phần fragment của URL (`/reset-password#token=…`) nên không gửi tới máy chủ hay log. Yêu cầu luôn trả lời giống nhau dù email có tồn tại hay không. Đặt lại mật khẩu sẽ đăng xuất mọi thiết bị.
   - **Đăng nhập khi đã có phiên:** mỗi lần đăng nhập (mật khẩu, đăng ký, đặt lại mật khẩu hoặc Google) thu hồi cả họ token của cookie refresh mà trình duyệt đang giữ.
-  - **Sau proxy:** `trust proxy` đặt theo số tầng proxy (`TRUST_PROXY_HOPS`); ở production, `APP_ORIGIN` và `TRUST_PROXY_HOPS` là bắt buộc khi khởi động. Logger che cookie và `Authorization`, che token mời, `code`, `state` và `returnTo` của Google cùng URL đặt lại mật khẩu, và ẩn các header `Referer` và `Location`.
+  - **Sau proxy:** `trust proxy` đặt theo số tầng proxy (`TRUST_PROXY_HOPS`); ở production, `APP_ORIGIN`, `TRUST_PROXY_HOPS`, `CLOUDINARY_FOLDER` và `PROXY_SIGNATURE_SECRET` là bắt buộc khi khởi động, nên thiếu một biến thì deploy dừng lại thay vì lặng lẽ dùng giá trị mặc định của môi trường dev. Logger che cookie và `Authorization`, che token mời, `code`, `state` và `returnTo` của Google cùng URL đặt lại mật khẩu, và ẩn các header `Referer` và `Location`.
+  - **Proxy có chữ ký (chốt ngày 2026-11-20):** Netlify ký mọi request nó chuyển tới `/api/*` bằng header `x-nf-sign`: một JWS (HS256) tạo bằng secret dùng chung với API, `PROXY_SIGNATURE_SECRET`, đặt ở cả Netlify và Render (`signed = "PROXY_SIGNATURE_SECRET"` trong `netlify.toml`). Ở production, API từ chối request thiếu chữ ký hoặc sai chữ ký, có `iss` khác `netlify`, hoặc đã quá `exp` (`FORBIDDEN`, 403). Chỉ `GET /api/health` được miễn, cho health check của Render và dịch vụ giám sát uptime. Nhờ vậy không ai gọi thẳng URL Render với `X-Forwarded-For` giả được nữa, và giới hạn theo IP có hiệu lực. Ngoài production, khi chưa đặt secret, bước kiểm tra này được bỏ qua.
 - Mọi route `/clans/:id/*` kiểm tra Membership + vai trò ở middleware. Không bao giờ tin `clanId` trong body; luôn kiểm tra `Person.clanId === :id`.
 - `helmet`, `express-rate-limit` (đăng nhập, đăng ký, quên mật khẩu và đặt lại mật khẩu: 5 lần/phút theo từng IP và từng endpoint; API chung: 300 lần/phút/user). Đăng nhập còn có giới hạn thứ hai: 10 lần thử sai trong 15 phút cho mỗi email (`RATE_LIMITED`, 429; đăng nhập thành công không bị tính), nên dò mật khẩu qua nhiều IP cũng không thoát. Đánh đổi: ai biết email của một người dùng đều có thể chặn việc đăng nhập bằng mật khẩu của người đó tối đa 15 phút, và chặn email đặt lại mật khẩu của họ tối đa 24 giờ (giới hạn 5 email mỗi 24 giờ). Đăng nhập bằng Google và các phiên đang mở không bị ảnh hưởng. Cải tiến sau này: miễn trừ theo thiết bị (một cookie có chữ ký, đặt sau khi đăng nhập thành công). Quên mật khẩu vẫn luôn trả 204, nhưng mỗi người dùng chỉ được gửi tối đa một email mỗi 60 giây và 5 email mỗi 24 giờ.
 - Upload ảnh: client xin **chữ ký upload** từ API rồi upload thẳng lên Cloudinary; tối đa 2 MB; chỉ jpg/png/webp. Đường dẫn và các bước kiểm tra: xem "Lưu trữ ảnh" bên dưới.
@@ -897,8 +898,14 @@ ancestors-tree/                      gốc trên Cloudinary
   ```
   Mã lỗi được định nghĩa một lần trong `packages/shared/errors.ts` (`ERROR_CODES`) kèm HTTP status và mô tả; tài liệu mã lỗi được sinh từ đó. Các mã chính: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, kèm `details`), `VERSION_CONFLICT` (409), `IDENTITY_MISMATCH` (409, `expectedUserId` của thao tác không phải người đang đăng nhập), `RULE_VIOLATION` (422, từ `applyOp`, kèm `reason`: mã `OpError`), `RATE_LIMITED` (429). Phần tài khoản thêm `INVALID_TOKEN` (400, token đặt lại mật khẩu hoặc token mời không tồn tại, đã dùng hoặc hết hạn), `INVALID_CREDENTIALS` (401, sai email hoặc mật khẩu) và `EMAIL_TAKEN` (409). Phần ảnh thêm `PHOTO_REJECTED` (422: ảnh nằm ngoài thư mục của người đó, không tồn tại, khác version hoặc quá 2 MB, hoặc máy chủ chưa cài đặt ảnh hay máy chủ ảnh từ chối khoá của server) và `PHOTOS_NOT_CONFIGURED` (503).
 - **Client:** api client chuyển lỗi thành `ApiError { code, message }`, giao diện hiện câu tiếng Việt tương ứng với `code`. Mỗi feature được bọc trong một **Error Boundary**. Thao tác lỗi thì hiện toast. Mất mạng khi gửi op thì giữ trong `pending` và thử lại kiểu **exponential backoff** (1 s, 2 s, 4 s…); thanh công cụ hiện "Chưa lưu".
-- **Render cold start (~30–60 giây):** lần tải đầu hiện màn hình "Đang khởi động máy chủ…" thay vì trang trắng.
-- **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production.
+- **Render cold start (~30–60 giây; proxy của Netlify bỏ cuộc sau 26 giây):** ứng dụng hiện màn hình "Đang đánh thức máy chủ…" phủ cả trang, thay vì trang trắng hay trang lỗi. Chi tiết (chốt ngày 2026-11-20):
+  - **Khi nào hiện:** một request API hỏng vì lỗi cổng (502, 503 hoặc 504 không kèm body lỗi của API) hoặc lỗi mạng, hoặc đã chờ quá 4 giây mà một lần kiểm tra nhanh `/api/health` (chờ tối đa 3 giây) cũng không có trả lời. Request chậm khi máy chủ đang thức thì không làm màn hình này hiện.
+  - **Trong lúc hiện:** trang bên dưới vẫn giữ nguyên (bị khoá tương tác), nên bản nháp và các thay đổi đang chờ gửi không mất. Màn hình kiểm tra `/api/health` mỗi 3 giây. Khi máy chủ trả lời thì tải lại dữ liệu của ứng dụng và tự đóng. Quá 2 phút thì báo máy chủ chưa dậy và có nút "Thử lại".
+  - Một dịch vụ giám sát uptime gọi `/api/health` mỗi 5 phút giữ máy chủ luôn thức, nên thực tế màn hình chỉ hiện sau khi deploy hoặc khởi động lại.
+- **Sentry** (gói Developer miễn phí: 5.000 lỗi/tháng, 1 người dùng, lưu 30 ngày; vượt hạn mức thì bỏ sự kiện, không tính tiền). Chỉ bật ở production, cho cả web và API, và chỉ khi đã đặt DSN (chốt ngày 2026-11-20):
+  - **Web:** lỗi chưa được bắt và lỗi do các error boundary bắt. **API:** chỉ các lỗi bất ngờ trả về 5xx; các mã lỗi đã biết thì không gửi. Không đo hiệu năng, để hạn mức dành cho lỗi.
+  - **Không gửi dữ liệu cá nhân:** tắt `sendDefaultPii`, và xoá body request, cookie, header, query string cùng địa chỉ email trước khi gửi. Người dùng chỉ được nhận diện bằng id.
+  - Mỗi sự kiện mang theo bản phát hành (commit). Bản build web tải source map lên Sentry khi có `SENTRY_AUTH_TOKEN`, rồi xoá chúng đi, nên trình duyệt không bao giờ tải về.
 
 ### 13.2 Trạng thái tải & trống
 
@@ -1061,14 +1068,14 @@ Hai quy tắc giúp dễ đoán: **thẻ thắng cả cây**, và **của tôi t
 | Thành phần | Dịch vụ (gói miễn phí) | Ghi chú |
 |---|---|---|
 | Web | **Netlify** | Tài khoản tạo từ 04/09/2025 có 300 credit/tháng; mỗi lần deploy production tốn 15 (~20 lần/tháng) → **chỉ deploy khi merge `main`, tắt deploy preview**. Hết credit thì site tạm dừng tới tháng sau. Dự phòng: Cloudflare Pages |
-| API | Render | Ngủ sau 15 phút không dùng → có màn hình chờ khởi động |
+| API | Render | Ngủ sau 15 phút không dùng → có màn hình đánh thức; một dịch vụ giám sát uptime (UptimeRobot, gọi `/api/health` mỗi 5 phút) giữ máy chủ thức, vẫn nằm trong 750 giờ chạy miễn phí mỗi tháng |
 | Database | MongoDB Atlas M0 | 512 MB, có transaction |
 | Ảnh | Cloudinary | Gói miễn phí: 25 credit/tháng (tính chung dung lượng, băng thông và biến đổi ảnh); một cloud, dev và prod tách bằng thư mục (§12) |
 | Email | Resend | 3.000 email/tháng. Khi chưa xác minh tên miền, Resend chỉ gửi tới địa chỉ email của chủ tài khoản Resend, nên cho tới lúc xác minh tên miền, API production chưa thể gửi email cho người dùng khác; khi đã xác minh, đặt `MAIL_FROM` là một địa chỉ thuộc tên miền đó |
 | Push | Web Push (VAPID) | Miễn phí |
 | Cron chính | Cloudflare Workers Cron Trigger | Free: 5 trigger/tài khoản, tối đa 15 phút mỗi lần chạy |
 | Cron dự phòng | cron-job.org | Timeout 30 giây, cảnh báo qua email, không tự thử lại |
-| Theo dõi lỗi | Sentry Developer | |
+| Theo dõi lỗi | Sentry Developer | 5.000 lỗi/tháng; web và API, chỉ ở production, không gửi dữ liệu cá nhân (§13.1) |
 
 Biến môi trường được mô tả trong `apps/*/.env.example` (không chứa giá trị thật).
 
@@ -1098,7 +1105,7 @@ Biến môi trường được mô tả trong `apps/*/.env.example` (không ch�
 | Layout tự viết tốn nhiều thời gian hơn dự kiến | Tuần 2 dùng layout đơn giản trước; tuần 4 thay thế. Tệ nhất: dùng ELK (`elkjs`) trong worker |
 | Phình phạm vi ("làm tất cả") | Danh sách giai đoạn 2 rõ ràng; tính năng mới vào đó, trừ khi thay thế một mục trong phạm vi |
 | Hết credit Netlify | Chỉ deploy từ `main`; dự phòng Cloudflare Pages |
-| Render cold start làm người dùng khó chịu | Màn hình chờ; các lần gọi cron giữ server thức vào buổi sáng |
+| Render cold start làm người dùng khó chịu | Màn hình đánh thức; dịch vụ giám sát uptime giữ máy chủ thức |
 | Gia đình không đồng ý với cách tính giỗ đặc biệt | Ghi chú giải thích mọi luật; `source` giữ dữ liệu gốc người dùng nhập |
 | iOS chỉ nhận push khi PWA đã được cài | Hiện hướng dẫn cài đúng lúc bật push trên iOS |
 | Liên kết cây làm lộ dữ liệu ngoài ý muốn | Server kiểm tra quyền mỗi lần xem trước/mở; qua link chia sẻ thì lọc như cây công khai; Quản lý đích thấy và chặn được liên kết trỏ tới |
