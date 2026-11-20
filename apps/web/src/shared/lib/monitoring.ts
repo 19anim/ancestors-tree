@@ -111,6 +111,8 @@ async function initClient(settings: SdkSettings, load: LoadMonitoringClient): Pr
     stopEarlyListeners();
     sdkSettings = null;
     queue = [];
+    // Monitoring is off: a later start must load the SDK afresh, not reuse this finished load.
+    loading = null;
   }
 }
 

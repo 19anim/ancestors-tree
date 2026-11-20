@@ -165,4 +165,20 @@ describe('monitoring', () => {
     expect(load).not.toHaveBeenCalled();
     expect(client.captureException).not.toHaveBeenCalled();
   });
+
+  it('can load the SDK again when started again after a failed load', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    startMonitoring(ON);
+    await loadMonitoring(async () => {
+      throw new Error('chunk failed');
+    });
+
+    expect(startMonitoring(ON)).toBe(true);
+    const { client, load } = fakeClient();
+    const after = new Error('after');
+    reportError(after);
+    await loadMonitoring(load);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(client.captureException.mock.calls).toEqual([[after, undefined]]);
+  });
 });
