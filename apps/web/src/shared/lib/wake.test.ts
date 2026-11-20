@@ -132,6 +132,16 @@ describe('watchSlowRequest', () => {
     stopSecond();
   });
 
+  it('stays awake when the health check fails because the browser is offline', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.stubGlobal('fetch', hangingFetch());
+    const stop = watchSlowRequest();
+    await vi.advanceTimersByTimeAsync(SLOW_REQUEST_MS + HEALTH_TIMEOUT_MS);
+    expect(phase()).toBe('awake');
+    stop();
+  });
+
   it('stays awake when the health check answers: a slow request on an awake server', async () => {
     vi.useFakeTimers();
     vi.stubGlobal(

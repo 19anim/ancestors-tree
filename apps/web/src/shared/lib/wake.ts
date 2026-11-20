@@ -98,7 +98,8 @@ export function watchSlowRequest(): () => void {
     probing = true;
     void checkHealth().then((ok) => {
       probing = false;
-      if (!ok) startWaking();
+      // An offline browser is not a sleeping server: the pending queue handles that.
+      if (!ok && navigator.onLine) startWaking();
     });
   }, SLOW_REQUEST_MS);
   return () => clearTimeout(timer);
