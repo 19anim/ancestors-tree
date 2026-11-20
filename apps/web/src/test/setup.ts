@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 import { i18nReady } from '../shared/i18n';
+import { resetWakeForTests } from '../shared/lib/wake';
 
 await i18nReady;
 
@@ -14,4 +15,5 @@ afterEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   delete document.documentElement.dataset.theme;
+  resetWakeForTests();
 });

@@ -49,4 +49,21 @@ describe('request logging', () => {
     const redirect = entries.find((entry) => entry.res.headers?.location !== undefined);
     expect(redirect?.res.headers.location).toBe('[redacted]');
   });
+
+  it("logs the visitor's address after trust proxy, and never the proxy signature", async () => {
+    const lines: string[] = [];
+    const logger = pino({ level: 'info' }, { write: (line: string) => void lines.push(line) });
+    const { app } = createTestApp({ logger, httpLogging: true, trustProxyHops: 2 });
+
+    // Netlify adds the visitor, Render's load balancer adds Netlify; the socket is the balancer.
+    await request(app)
+      .get('/api/health')
+      .set('X-Forwarded-For', '203.0.113.7, 198.51.100.2')
+      .set('x-nf-sign', 'header.payload.signature-from-netlify');
+
+    const entry = lines.map((line) => JSON.parse(line)).find((logged) => logged.req);
+    expect(entry.clientIp).toBe('203.0.113.7');
+    expect(entry.req.headers['x-nf-sign']).toBe('[redacted]');
+    expect(lines.join('')).not.toContain('signature-from-netlify');
+  });
 });

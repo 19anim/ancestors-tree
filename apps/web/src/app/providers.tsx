@@ -1,7 +1,9 @@
+import type { CurrentUser } from '@ancestors-tree/shared';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { clearUserData, CURRENT_USER_KEY } from '../features/auth';
 import { ApiError, shouldRetryQuery } from '../shared/lib/apiError';
+import { identifyUser } from '../shared/lib/monitoring';
 import { ThemeProvider } from '../shared/ui';
 
 export function createQueryClient(): QueryClient {
@@ -16,14 +18,22 @@ export function createQueryClient(): QueryClient {
     queryCache: new QueryCache({
       onError: endSession,
       onSuccess: (data, query) => {
+        if (query.queryKey[0] !== CURRENT_USER_KEY[0]) return;
         // `/me` answers "signed out" as null data rather than an error.
-        if (query.queryKey[0] === CURRENT_USER_KEY[0] && data === null) clearUserData(client);
+        if (data === null) clearUserData(client);
       },
     }),
     mutationCache: new MutationCache({ onError: endSession }),
     defaultOptions: {
       queries: { retry: shouldRetryQuery, staleTime: 30_000, refetchOnWindowFocus: false },
     },
+  });
+  // Error reports name the user by id only (spec §13.1). A `success` action covers both a fetch
+  // and `setQueryData`, which sign-in, logout and the end of a session use.
+  client.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated' || event.action.type !== 'success') return;
+    if (event.query.queryKey[0] !== CURRENT_USER_KEY[0]) return;
+    identifyUser((event.action.data as CurrentUser | null | undefined)?.id ?? null);
   });
   return client;
 }

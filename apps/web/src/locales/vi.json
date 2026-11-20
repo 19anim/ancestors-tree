@@ -101,6 +101,14 @@
       "ok": "Máy chủ đang hoạt động (phiên bản {{version}})",
       "databaseDown": "Máy chủ đang chạy (phiên bản {{version}}) nhưng chưa kết nối được cơ sở dữ liệu",
       "retry": "Thử lại"
+    },
+    "wakeUp": {
+      "title": "Đang đánh thức máy chủ…",
+      "failedTitle": "Máy chủ chưa thức dậy",
+      "body": "Máy chủ miễn phí sẽ ngủ khi lâu không có ai dùng, và thường mất khoảng một phút để thức dậy. Những gì bạn đang làm dở vẫn được giữ nguyên.",
+      "waiting": "Đang chờ máy chủ trả lời…",
+      "failed": "Đã chờ 2 phút mà máy chủ vẫn chưa trả lời. Hãy thử lại sau ít phút.",
+      "retry": "Thử lại"
     }
   },
   "errors": {

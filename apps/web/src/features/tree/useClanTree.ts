@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { isWakeError, useWakeStore } from '../../shared/lib/wake';
 import { useTreeStore } from './store';
 
 export type ClanTreeView =
@@ -17,6 +18,21 @@ export function useClanTree(clanId: string): ClanTreeView {
   useEffect(() => {
     void load(clanId);
   }, [clanId, load, needsLoad]);
+
+  // After the wake-up screen: a load that failed because the server slept is tried again. The
+  // tree is a Zustand store, which invalidateQueries does not reach. A refusal (403, 404) stays,
+  // as a reload would drop the pending entries it keeps on purpose. The pending queue keeps its
+  // own backoff and is left alone.
+  const recoveries = useWakeStore((state) => state.recoveries);
+  const seenRecoveries = useRef(recoveries);
+  useEffect(() => {
+    if (recoveries === seenRecoveries.current) return;
+    seenRecoveries.current = recoveries;
+    const state = useTreeStore.getState();
+    if (state.clanId === clanId && state.status === 'error' && isWakeError(state.loadError)) {
+      void load(clanId);
+    }
+  }, [recoveries, clanId, load]);
 
   if (loadedClanId === clanId && status === 'error') {
     return { state: 'error', error: loadError, retry: () => void load(clanId) };

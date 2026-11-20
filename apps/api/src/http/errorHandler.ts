@@ -1,7 +1,9 @@
 import type { ApiErrorBody } from '@ancestors-tree/shared';
 import type { ErrorRequestHandler } from 'express';
 import type { Logger } from 'pino';
+import { NO_ERROR_REPORTER, type ErrorReporter } from '../monitoring/reporter.ts';
 import { AppError } from './AppError.ts';
+import { getLocals } from './locals.ts';
 
 /** A client error raised by Express middleware in the http-errors style (e.g. body-parser). */
 interface ClientHttpError {
@@ -25,7 +27,11 @@ function asClientHttpError(err: unknown): ClientHttpError | undefined {
   return { status: code, type };
 }
 
-function toAppError(err: unknown, logger: Logger): AppError {
+function toAppError(
+  err: unknown,
+  logger: Logger,
+  reportUnexpected: (error: unknown) => void,
+): AppError {
   if (err instanceof AppError) return err;
   const clientError = asClientHttpError(err);
   if (clientError) {
@@ -38,16 +44,23 @@ function toAppError(err: unknown, logger: Logger): AppError {
     );
   }
   logger.error({ err }, 'Unhandled error');
+  // Only the unexpected: AppErrors and client errors have known codes (spec §13.1).
+  reportUnexpected(err);
   return new AppError('INTERNAL_ERROR', 'Unexpected server error');
 }
 
-export function createErrorHandler(logger: Logger): ErrorRequestHandler {
+export function createErrorHandler(
+  logger: Logger,
+  reporter: ErrorReporter = NO_ERROR_REPORTER,
+): ErrorRequestHandler {
   return (err, _req, res, next) => {
     if (res.headersSent) {
       next(err);
       return;
     }
-    const appError = toAppError(err, logger);
+    const appError = toAppError(err, logger, (error) => {
+      reporter.captureException(error, { userId: getLocals(res).userId });
+    });
     const body: ApiErrorBody = {
       error: {
         code: appError.code,

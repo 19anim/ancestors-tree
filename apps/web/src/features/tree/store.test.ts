@@ -1,5 +1,6 @@
 import type { Op, Person } from '@ancestors-tree/shared/tree';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as WakeModule from '../../shared/lib/wake';
 import { apiErrorReply, mockApi, UNAUTHENTICATED_REPLY, type MockRoutes } from '../../test/api';
 import {
   CLAN_ID,
@@ -24,6 +25,13 @@ import {
   signOutTreeStore,
   useTreeStore,
 } from './store';
+
+// retryScheduled() counts fake timers: the slow-request watch of each request in flight would
+// count as one, so it is off here (wake.test.ts and apiClient.test.ts cover it).
+vi.mock('../../shared/lib/wake', async (importOriginal) => ({
+  ...(await importOriginal<typeof WakeModule>()),
+  watchSlowRequest: () => () => undefined,
+}));
 
 const OPS = `POST /clans/${CLAN_ID}/ops`;
 const NEW_ID = '64b7f0c2a1b2c3d4e5f6a0f1';

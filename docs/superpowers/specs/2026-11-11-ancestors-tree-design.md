@@ -850,7 +850,8 @@ The prompt instructs the AI to: return only JSON in this format; never invent in
   - **Google sign-in:** by redirect (authorization code + PKCE, `state` and `nonce` kept in a short-lived cookie); only verified Google emails are accepted. A Google sign-in takes over an account whose email was never verified by clearing its password and signing it out everywhere.
   - **Password reset:** a link valid for 1 hour and usable once, with the token in the URL fragment (`/reset-password#token=…`) so it is not sent to servers or logs. The request answers the same whether or not the email exists. A reset signs out every device.
   - **Signing in over an existing session:** a sign-in (password, register, reset or Google) revokes the session family of any refresh cookie the browser already had.
-  - **Behind proxies:** `trust proxy` is set to the number of hops (`TRUST_PROXY_HOPS`); in production `APP_ORIGIN` and `TRUST_PROXY_HOPS` are required at boot. The logger redacts cookies and `Authorization`, masks invite tokens, the Google `code`, `state` and `returnTo` and password reset URLs, and redacts the `Referer` and `Location` headers.
+  - **Behind proxies:** `trust proxy` is set to the number of hops (`TRUST_PROXY_HOPS`); in production `APP_ORIGIN`, `TRUST_PROXY_HOPS`, `CLOUDINARY_FOLDER` and `PROXY_SIGNATURE_SECRET` are required at boot, so a missing setting stops the deploy instead of falling back to a development default. The logger redacts cookies and `Authorization`, masks invite tokens, the Google `code`, `state` and `returnTo` and password reset URLs, and redacts the `Referer` and `Location` headers.
+  - **Signed proxy (decided 2026-11-20):** Netlify signs every request it proxies to `/api/*` with an `x-nf-sign` header: a JWS (HS256) made with a secret shared with the API, `PROXY_SIGNATURE_SECRET`, set on both Netlify and Render (`signed = "PROXY_SIGNATURE_SECRET"` in `netlify.toml`). In production the API refuses a request whose signature is missing or wrong, whose `iss` is not `netlify`, or whose `exp` has passed (`FORBIDDEN`, 403). Only `GET` and `HEAD` on `/api/health` are exempt, for Render's health check and the uptime monitor. Nobody can then call the Render URL directly with a forged `X-Forwarded-For`, so the per-IP limits hold. Outside production, with no secret set, the check is skipped.
 - Every `/clans/:id/*` route checks Membership + role in middleware. A `clanId` in the request body is never trusted; `Person.clanId === :id` is always verified.
 - `helmet`, `express-rate-limit` (sign-in, sign-up, forgot-password and reset-password: 5/min per IP and endpoint; general API: 300/min/user). Sign-in has a second limit of 10 failed attempts per 15 minutes per email (`RATE_LIMITED`, 429; successful sign-ins do not count), so spreading guesses over many IPs does not help. Trade-off: anyone who knows a user's email can block that user's password sign-in for up to 15 minutes, and their reset emails for up to 24 hours (the 5-per-24-hours cap). Google sign-in and existing sessions are unaffected. A later improvement is a per-device exemption (a signed cookie set after a successful sign-in). Forgot-password still always answers 204, but sends at most one email per user per 60 seconds and at most 5 per 24 hours.
 - Image upload: the client requests a **signed upload** from the API, then uploads directly to Cloudinary; max 2 MB; jpg/png/webp only. Paths and checks: "Image storage" below.
@@ -895,8 +896,14 @@ ancestors-tree/                      Cloudinary root
   ```
   Codes are defined once in `packages/shared/errors.ts` (`ERROR_CODES`) with HTTP status and description; the error-code doc is generated from it. Main codes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400, with `details`), `VERSION_CONFLICT` (409), `IDENTITY_MISMATCH` (409, the op's `expectedUserId` is not the signed-in user), `RULE_VIOLATION` (422, from `applyOp`, with `reason`: the `OpError` code), `RATE_LIMITED` (429). Accounts add `INVALID_TOKEN` (400, reset or invite token unknown, used or expired), `INVALID_CREDENTIALS` (401, wrong email or password) and `EMAIL_TAKEN` (409). Photos add `PHOTO_REJECTED` (422: the photo is outside this person's folder, missing, another version or over 2 MB, or photos are not set up or the image host refuses the server's keys) and `PHOTOS_NOT_CONFIGURED` (503).
 - **Client:** the API client maps errors to `ApiError { code, message }`, and the UI shows the Vietnamese text for that code. Each feature is wrapped in an **Error Boundary**. Failed actions show a toast. Network failures while sending ops keep them in `pending` and retry with **exponential backoff** (1 s, 2 s, 4 s…); the toolbar shows "Unsaved".
-- **Render cold start (~30–60 s):** the first load shows a "Waking up the server…" screen instead of a blank page.
-- **Sentry** (free Developer plan: 5,000 errors/month, 1 user, 30-day retention; over quota, events are dropped, never billed). Production only.
+- **Render cold start (~30–60 s; Netlify's proxy gives up after 26 s):** the app shows a full-page "Waking up the server…" screen instead of a blank page or an error. Detail (decided 2026-11-20):
+  - **When it shows:** an API request fails with a gateway error (502, 503 or 504 without the API's error body) or a network error while the browser is online, or it has waited more than 4 s and a quick `/api/health` check (3 s timeout) gets no answer either. A slow request on an awake server never shows it, and an offline browser never shows it either.
+  - **While it shows:** the page stays mounted underneath (inert), so drafts and pending ops are kept. The screen checks `/api/health` every 3 s. When the server answers, it refetches the app's queries and goes away. After 2 minutes it says the server did not wake up and offers "Try again".
+  - An uptime monitor calling `/api/health` every 5 minutes keeps the server awake, so in practice the screen is seen after a deploy or a restart.
+- **Sentry** (free Developer plan: 5,000 errors/month, 1 user, 30-day retention; over quota, events are dropped, never billed). Production only, web and API, and only when a DSN is set (decided 2026-11-20):
+  - **Web:** unhandled errors and the errors caught by the error boundaries. **API:** unexpected errors answered 5xx only; known error codes are not sent. No performance tracing, so the quota goes to errors.
+  - **No personal data:** the SDK collects no user details, cookies, headers, bodies, query strings or local variables (`dataCollection`, which replaced `sendDefaultPii` in SDK 11), and request bodies, cookies, headers, query strings and email addresses are removed before sending. The user is identified by id only.
+  - Each event carries the release (the commit). The web build uploads its source maps to Sentry when `SENTRY_AUTH_TOKEN` is set, then deletes them, so browsers never download them.
 
 ### 13.2 Loading & empty states
 
@@ -1059,14 +1066,14 @@ Two rules make this predictable: **a card beats the whole tree**, and **mine bea
 | Component | Service (free tier) | Notes |
 |---|---|---|
 | Web | **Netlify** | Accounts created on/after 2025-09-04 get 300 credits/month; each production deploy costs 15 (~20 deploys/month) → **deploy only on merge to `main`, disable deploy previews**. Out of credits = sites paused until next month. Fallback: Cloudflare Pages |
-| API | Render | Sleeps after 15 idle minutes → wake-up screen |
+| API | Render | Sleeps after 15 idle minutes → wake-up screen; an uptime monitor (UptimeRobot, every 5 minutes on `/api/health`) keeps it awake, within the 750 free instance hours a month |
 | Database | MongoDB Atlas M0 | 512 MB, supports transactions |
 | Images | Cloudinary | Free plan: 25 credits/month (storage, bandwidth and transformations together); one cloud, dev and prod kept apart by folder (§12) |
 | Email | Resend | 3,000 emails/month. Without a verified domain Resend only delivers to the account owner's own address, so until a domain is verified the production API cannot email other users; once it is, set `MAIL_FROM` to an address on that domain |
 | Push | Web Push (VAPID) | Free |
 | Primary cron | Cloudflare Workers Cron Trigger | Free: 5 triggers/account, up to 15 min per run |
 | Backup cron | cron-job.org | 30 s timeout, email alerts, no retries |
-| Error tracking | Sentry Developer | |
+| Error tracking | Sentry Developer | 5,000 errors/month; web and API, production only, no personal data (§13.1) |
 
 Environment variables are documented in `apps/*/.env.example` (no real values).
 
@@ -1096,7 +1103,7 @@ Environment variables are documented in `apps/*/.env.example` (no real values).
 | Custom layout takes longer than planned | Week 2 ships a simple layout first; week 4 replaces it. Worst case: use ELK (`elkjs`) inside the worker |
 | Scope creep ("everything") | Phase 2 list is explicit; anything new goes there unless it replaces an in-scope item |
 | Netlify credits run out | Deploy only from `main`; fallback to Cloudflare Pages |
-| Render cold start annoys users | Wake-up screen; cron calls keep it warm in the morning |
+| Render cold start annoys users | Wake-up screen; an uptime monitor keeps the server awake |
 | Lunar edge cases disputed by families | Notes explain every rule; `source` keeps the user's original input |
 | iOS push only works for installed PWAs | Install guide shown at the moment push is enabled on iOS |
 | Linked trees expose data unintentionally | Server checks access on every preview/open; share-link access is filtered like a public link; target Owner sees and can block incoming links |

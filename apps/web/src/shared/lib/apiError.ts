@@ -12,6 +12,11 @@ export class ApiError extends Error {
   readonly details: ErrorDetail[] | undefined;
   /** Only with RULE_VIOLATION: the rule applyOp refused (translated as `tree.rules.<reason>`). */
   readonly reason: OpErrorCode | undefined;
+  /**
+   * The API's own error body carried it (even with a code this client does not know). False for
+   * a proxy's page, an empty body or no answer: what tells a sleeping server apart (wake.ts).
+   */
+  readonly fromApiBody: boolean;
 
   constructor(
     code: ClientErrorCode,
@@ -19,6 +24,7 @@ export class ApiError extends Error {
     status: number,
     details?: ErrorDetail[],
     reason?: OpErrorCode,
+    { fromApiBody = false }: { fromApiBody?: boolean } = {},
   ) {
     super(message);
     this.name = 'ApiError';
@@ -26,6 +32,7 @@ export class ApiError extends Error {
     this.status = status;
     this.details = details;
     this.reason = reason;
+    this.fromApiBody = fromApiBody;
   }
 }
 

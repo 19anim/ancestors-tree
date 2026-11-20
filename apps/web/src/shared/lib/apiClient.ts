@@ -1,6 +1,7 @@
 import { ApiErrorBodySchema } from '@ancestors-tree/shared';
 import type { z } from 'zod';
 import { ApiError, errorCodeForStatus } from './apiError';
+import { hasApiErrorBody, noteFailedRequest, watchSlowRequest } from './wake';
 
 export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   /** Sent as JSON with Content-Type: application/json. */
@@ -40,11 +41,27 @@ async function send(path: string, options: ApiRequestOptions): Promise<Response>
     });
   } catch (error) {
     if (init.signal?.aborted) throw error;
+    // No answer at all: maybe a sleeping server (the wake-up screen decides, spec §13.1).
+    noteFailedRequest(0, undefined);
     throw new ApiError('NETWORK_ERROR', 'Network request failed', 0);
   }
 }
 
 export async function apiRequest<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  // A request still waiting after 4 s makes one quick /health check (spec §13.1).
+  const stopWatching = watchSlowRequest();
+  try {
+    return await sendAndParse(path, schema, options);
+  } finally {
+    stopWatching();
+  }
+}
+
+async function sendAndParse<T>(
   path: string,
   schema: z.ZodType<T>,
   options: ApiRequestOptions = {},
@@ -59,15 +76,20 @@ export async function apiRequest<T>(
     response.status === 204 ? undefined : await response.json().catch(() => undefined);
 
   if (!response.ok) {
+    noteFailedRequest(response.status, payload);
     const apiError = ApiErrorBodySchema.safeParse(payload);
     if (apiError.success) {
       const { code, message, details, reason } = apiError.data.error;
-      throw new ApiError(code, message, response.status, details, reason);
+      throw new ApiError(code, message, response.status, details, reason, { fromApiBody: true });
     }
     throw new ApiError(
       errorCodeForStatus(response.status),
       `Unexpected error response (HTTP ${response.status})`,
       response.status,
+      undefined,
+      undefined,
+      // A code this client does not know is still the API answering.
+      { fromApiBody: hasApiErrorBody(payload) },
     );
   }
 

@@ -2,6 +2,7 @@ import { HealthResponseSchema } from '@ancestors-tree/shared';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createTestApp } from './test/app.ts';
+import { netlifyClaims, signProxyToken, TEST_PROXY_SECRET } from './test/proxySignature.ts';
 
 const { app } = createTestApp();
 
@@ -52,5 +53,20 @@ describe('createApp', () => {
     expect((await request(createTestApp({ apiDocs: false }).app).get('/api/docs')).status).toBe(
       404,
     );
+  });
+
+  it('refuses requests that skip the Netlify proxy when a proxy secret is set', async () => {
+    const { app } = createTestApp({ proxySignatureSecret: TEST_PROXY_SECRET });
+    const unsigned = await request(app).get('/api/me');
+    expect(unsigned.status).toBe(403);
+    expect(unsigned.body.error.code).toBe('FORBIDDEN');
+
+    const token = signProxyToken(netlifyClaims(Math.floor(Date.now() / 1000)));
+    // Past the check: the route itself answers (signed out).
+    const signed = await request(app).get('/api/me').set('x-nf-sign', token);
+    expect(signed.status).toBe(401);
+    expect(signed.body.error.code).toBe('UNAUTHENTICATED');
+
+    expect((await request(app).get('/api/health')).status).toBe(200);
   });
 });

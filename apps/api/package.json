@@ -14,6 +14,7 @@
     "@ancestors-tree/shared": "workspace:*",
     "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@scalar/express-api-reference": "^0.10.36",
+    "@sentry/node": "^11.14.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",

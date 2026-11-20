@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { apiRequest } from './apiClient';
 import { ApiError } from './apiError';
+import { SLOW_REQUEST_MS, HEALTH_TIMEOUT_MS, useWakeStore } from './wake';
 
 const ItemSchema = z.object({ id: z.string() });
 
@@ -15,7 +16,9 @@ const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('apiRequest', () => {
@@ -173,5 +176,67 @@ describe('session refresh', () => {
       apiRequest('/auth/login', ItemSchema, { method: 'POST', json: {} }),
     ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('apiRequest and the wake-up screen', () => {
+  const phase = () => useWakeStore.getState().phase;
+
+  it("notices a gateway error without the API's body", async () => {
+    mockFetch(async () => new Response('<html>Bad gateway</html>', { status: 502 }));
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
+      status: 502,
+      fromApiBody: false,
+    });
+    expect(phase()).toBe('waking');
+  });
+
+  it("ignores the API's own 503", async () => {
+    mockFetch(async () =>
+      jsonResponse({ error: { code: 'PHOTOS_NOT_CONFIGURED', message: 'No photos' } }, 503),
+    );
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
+      code: 'PHOTOS_NOT_CONFIGURED',
+      fromApiBody: true,
+    });
+    expect(phase()).toBe('awake');
+
+    // A code this client does not know is still the API's own body.
+    mockFetch(async () => jsonResponse({ error: { code: 'BRAND_NEW', message: 'x' } }, 502));
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({
+      code: 'INTERNAL_ERROR',
+      fromApiBody: true,
+    });
+    expect(phase()).toBe('awake');
+  });
+
+  it('notices a network error while online, but not offline', async () => {
+    mockFetch(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+    expect(phase()).toBe('awake');
+
+    vi.restoreAllMocks();
+    await expect(apiRequest('/items', ItemSchema)).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+    expect(phase()).toBe('waking');
+  });
+
+  it('checks /api/health once when a request waits more than 4 s', async () => {
+    vi.useFakeTimers();
+    const fetchMock = mockFetch(
+      (_input: unknown, init?: unknown) =>
+        new Promise<Response>((_resolve, reject) => {
+          (init as RequestInit | undefined)?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+          });
+        }),
+    );
+    void apiRequest('/items', ItemSchema).catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(SLOW_REQUEST_MS);
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(['/api/items', '/api/health']);
+    await vi.advanceTimersByTimeAsync(HEALTH_TIMEOUT_MS);
+    expect(phase()).toBe('waking');
   });
 });

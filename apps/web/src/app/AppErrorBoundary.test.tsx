@@ -2,6 +2,9 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppErrorBoundary } from './AppErrorBoundary';
 
+const reportError = vi.hoisted(() => vi.fn());
+vi.mock('../shared/lib/monitoring', () => ({ reportError }));
+
 function Boom(): never {
   throw new Error('boom');
 }
@@ -31,5 +34,17 @@ describe('AppErrorBoundary', () => {
     expect(alert).toHaveTextContent('Ứng dụng gặp lỗi khi khởi động. Hãy tải lại trang.');
     expect(alert).toHaveTextContent('The app failed to start. Please reload the page.');
     expect(screen.getByRole('button', { name: 'Tải lại trang · Reload' })).toBeInTheDocument();
+  });
+
+  it('reports the error it caught', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(
+      <AppErrorBoundary>
+        <Boom />
+      </AppErrorBoundary>,
+    );
+    expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }), {
+      boundary: 'app',
+    });
   });
 });

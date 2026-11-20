@@ -28,8 +28,12 @@ export function serializeRequest<T extends LoggedRequest>(req: T): T {
   req.url = maskUrl(req.url);
   // The query is logged separately from the URL.
   if (hidesQuery && req.query !== undefined) req.query = {};
-  // The Referer can be /join/<token>. Copied: the headers object is the live request's.
-  if (req.headers.referer !== undefined) req.headers = { ...req.headers, referer: REDACTED };
+  // The Referer can be /join/<token>, and x-nf-sign is a proxy credential until it expires.
+  // Copied: the headers object is the live request's.
+  const masked: Record<string, string> = {};
+  if (req.headers.referer !== undefined) masked.referer = REDACTED;
+  if (req.headers['x-nf-sign'] !== undefined) masked['x-nf-sign'] = REDACTED;
+  if (Object.keys(masked).length > 0) req.headers = { ...req.headers, ...masked };
   return req;
 }
 

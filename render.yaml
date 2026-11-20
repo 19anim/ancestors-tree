@@ -33,11 +33,12 @@ services:
         value: 0.1.0
       - key: APP_ORIGIN
         value: https://ancestorstree.netlify.app
-      # Netlify proxy + Render load balancer. Verify req.ip in the P8 deploy review.
+      # Netlify proxy + Render load balancer. The request log's clientIp shows the result (docs/deployment.md §7).
       - key: TRUST_PROXY_HOPS
         value: '2'
       - key: MAIL_FROM
         value: AncestorsTree <onboarding@resend.dev>
+      # Required in production: without it the API refuses to start instead of using the dev folder.
       - key: CLOUDINARY_FOLDER
         value: ancestors-tree/prod
       # Generated once by Render; rotating it signs everyone out.
@@ -53,4 +54,11 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: CLOUDINARY_URL
+        sync: false
+      # The secret Netlify signs proxied requests with (x-nf-sign); the same value as on Netlify.
+      # Required: without it the API refuses to start.
+      - key: PROXY_SIGNATURE_SECRET
+        sync: false
+      # Error reports to Sentry (the Node project's DSN). Optional: without it nothing is sent.
+      - key: SENTRY_DSN
         sync: false

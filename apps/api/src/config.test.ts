@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { apiDocsEnabled, loadConfig, requireSetting } from './config.ts';
+import { apiDocsEnabled, loadConfig, releaseOf, requireSetting } from './config.ts';
 
 // Obviously fake values: credential-shaped fixtures get flagged by GitHub secret scanning.
 const REQUIRED = {
   MONGODB_URI: 'mongodb+srv://db.example.test/ancestors-tree-dev?retryWrites=true',
   JWT_SECRET: 'test-only-secret-with-at-least-32-chars',
+};
+
+// Built at runtime: no secret- or DSN-shaped literal in the repository.
+const PROXY_SECRET = 'proxy-test-'.repeat(4);
+const SENTRY_HOST = 'sentry.example.test';
+const SENTRY_DSN = `https://${SENTRY_HOST}/42`;
+
+const PRODUCTION = {
+  ...REQUIRED,
+  NODE_ENV: 'production',
+  APP_ORIGIN: 'https://ancestorstree.netlify.app',
+  TRUST_PROXY_HOPS: '2',
+  CLOUDINARY_FOLDER: 'ancestors-tree/prod',
+  PROXY_SIGNATURE_SECRET: PROXY_SECRET,
 };
 
 function messageOf(run: () => unknown): string {
@@ -37,45 +51,53 @@ describe('loadConfig', () => {
     expect(loadConfig(REQUIRED).JWT_SECRET).toBe(REQUIRED.JWT_SECRET);
   });
 
-  it('requires APP_ORIGIN and TRUST_PROXY_HOPS in production, with no development defaults', () => {
-    const production = { ...REQUIRED, NODE_ENV: 'production' };
-    const message = messageOf(() => loadConfig(production));
-    expect(message).toMatch(/APP_ORIGIN is required in production/);
-    expect(message).toMatch(/TRUST_PROXY_HOPS is required in production/);
-    // Empty is missing, not 0.
-    expect(() =>
-      loadConfig({
-        ...production,
-        APP_ORIGIN: 'https://ancestorstree.netlify.app',
-        TRUST_PROXY_HOPS: '',
-      }),
-    ).toThrow(/TRUST_PROXY_HOPS is required in production/);
-    expect(() => loadConfig({ ...production, TRUST_PROXY_HOPS: '2' })).toThrow(
-      /APP_ORIGIN is required in production/,
+  it('requires every production setting, with no development defaults', () => {
+    const message = messageOf(() => loadConfig({ ...REQUIRED, NODE_ENV: 'production' }));
+    for (const key of [
+      'APP_ORIGIN',
+      'TRUST_PROXY_HOPS',
+      'CLOUDINARY_FOLDER',
+      'PROXY_SIGNATURE_SECRET',
+    ]) {
+      expect(message).toMatch(new RegExp(`${key} is required in production`));
+    }
+    // Empty is missing, not 0 and not the development folder.
+    expect(() => loadConfig({ ...PRODUCTION, TRUST_PROXY_HOPS: '' })).toThrow(
+      /TRUST_PROXY_HOPS is required in production/,
     );
-    const ok = loadConfig({
-      ...production,
-      APP_ORIGIN: 'https://ancestorstree.netlify.app',
-      TRUST_PROXY_HOPS: '0',
-    });
+    expect(() => loadConfig({ ...PRODUCTION, CLOUDINARY_FOLDER: '' })).toThrow(
+      /CLOUDINARY_FOLDER is required in production/,
+    );
+    expect(() => loadConfig({ ...PRODUCTION, PROXY_SIGNATURE_SECRET: '' })).toThrow(
+      /PROXY_SIGNATURE_SECRET is required in production/,
+    );
+    const ok = loadConfig({ ...PRODUCTION, TRUST_PROXY_HOPS: '0' });
     expect(ok.TRUST_PROXY_HOPS).toBe(0);
+    expect(ok.CLOUDINARY_FOLDER).toBe('ancestors-tree/prod');
+    expect(ok.PROXY_SIGNATURE_SECRET).toBe(PROXY_SECRET);
+  });
+
+  it('keeps the development folder and no proxy secret outside production', () => {
+    const config = loadConfig({ ...REQUIRED, CLOUDINARY_FOLDER: '', PROXY_SIGNATURE_SECRET: '' });
+    expect(config.CLOUDINARY_FOLDER).toBe('ancestors-tree/dev');
+    expect(config.PROXY_SIGNATURE_SECRET).toBeUndefined();
   });
 
   it('accepts every optional integration', () => {
     const config = loadConfig({
-      ...REQUIRED,
-      NODE_ENV: 'production',
-      APP_ORIGIN: 'https://ancestorstree.netlify.app',
-      TRUST_PROXY_HOPS: '2',
+      ...PRODUCTION,
       GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
       GOOGLE_CLIENT_SECRET: 'test-google-secret',
       RESEND_API_KEY: 're_test',
       CLOUDINARY_URL: 'cloudinary://test-key:test-secret@example-cloud',
-      CLOUDINARY_FOLDER: 'ancestors-tree/prod',
+      SENTRY_DSN,
+      RENDER_GIT_COMMIT: 'abc123def',
     });
     expect(config.TRUST_PROXY_HOPS).toBe(2);
     expect(config.GOOGLE_CLIENT_ID).toBe('test-client.apps.googleusercontent.com');
     expect(config.RESEND_API_KEY).toBe('re_test');
+    expect(config.SENTRY_DSN).toBe(SENTRY_DSN);
+    expect(config.RENDER_GIT_COMMIT).toBe('abc123def');
   });
 
   it('treats empty optional values as not set', () => {
@@ -87,11 +109,15 @@ describe('loadConfig', () => {
       GOOGLE_CLIENT_SECRET: '',
       RESEND_API_KEY: '',
       CLOUDINARY_URL: '',
+      SENTRY_DSN: '',
+      RENDER_GIT_COMMIT: '',
     });
     expect(config.MONGODB_URI).toBeUndefined();
     expect(config.JWT_SECRET).toBeUndefined();
     expect(config.GOOGLE_CLIENT_ID).toBeUndefined();
     expect(config.RESEND_API_KEY).toBeUndefined();
+    expect(config.SENTRY_DSN).toBeUndefined();
+    expect(config.RENDER_GIT_COMMIT).toBeUndefined();
   });
 
   it('requires a database name in MONGODB_URI', () => {
@@ -104,6 +130,21 @@ describe('loadConfig', () => {
     const message = messageOf(() => loadConfig({ ...REQUIRED, JWT_SECRET: 'short-secret-value' }));
     expect(message).toMatch(/JWT_SECRET must be at least 32 characters/);
     expect(message).not.toContain('short-secret-value');
+  });
+
+  it('rejects a short or spaced PROXY_SIGNATURE_SECRET without echoing it', () => {
+    for (const value of ['too-short-proxy-value', `${PROXY_SECRET} with spaces`]) {
+      const message = messageOf(() => loadConfig({ ...REQUIRED, PROXY_SIGNATURE_SECRET: value }));
+      expect(message).toMatch(/PROXY_SIGNATURE_SECRET must be at least 32 characters/);
+      expect(message).not.toContain(value);
+    }
+  });
+
+  it('rejects a SENTRY_DSN that is not an https URL, without echoing it', () => {
+    const plain = `http://${SENTRY_HOST}/42`;
+    const message = messageOf(() => loadConfig({ NODE_ENV: 'test', SENTRY_DSN: plain }));
+    expect(message).toMatch(/SENTRY_DSN must be the https DSN/);
+    expect(message).not.toContain(plain);
   });
 
   it('rejects a malformed CLOUDINARY_URL without echoing the secret', () => {
@@ -135,18 +176,21 @@ describe('loadConfig', () => {
   it('coerces PORT and keeps it in range', () => {
     expect(loadConfig({ NODE_ENV: 'test', PORT: '8080' }).PORT).toBe(8080);
     expect(() => loadConfig({ NODE_ENV: 'test', PORT: '70000' })).toThrow(/PORT/);
+    expect(() => loadConfig({ NODE_ENV: 'test', PORT: '0' })).toThrow(/PORT/);
     expect(() => loadConfig({ NODE_ENV: 'test', PORT: 'abc' })).toThrow(
       /Invalid environment variables/,
     );
   });
 });
 
-const PRODUCTION = {
-  ...REQUIRED,
-  NODE_ENV: 'production',
-  APP_ORIGIN: 'https://ancestorstree.netlify.app',
-  TRUST_PROXY_HOPS: '2',
-};
+describe('releaseOf', () => {
+  it('is the commit Render deployed, or APP_VERSION elsewhere', () => {
+    expect(releaseOf(loadConfig({ ...PRODUCTION, RENDER_GIT_COMMIT: 'abc123def' }))).toBe(
+      'abc123def',
+    );
+    expect(releaseOf(loadConfig({ NODE_ENV: 'test', APP_VERSION: '0.1.0' }))).toBe('0.1.0');
+  });
+});
 
 describe('apiDocsEnabled', () => {
   it('is on outside production unless turned off', () => {

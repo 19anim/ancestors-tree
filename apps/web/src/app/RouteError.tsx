@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useRouteError } from 'react-router';
+import { isRouteErrorResponse, useRouteError } from 'react-router';
+import { reportError } from '../shared/lib/monitoring';
 import { Button } from '../shared/ui';
 
 export function RouteError() {
@@ -9,6 +10,8 @@ export function RouteError() {
 
   useEffect(() => {
     console.error(error);
+    // A route the router does not know (404) is expected; anything else is a bug worth a report.
+    if (!isRouteErrorResponse(error)) reportError(error, { boundary: 'route' });
   }, [error]);
 
   return (

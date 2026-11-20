@@ -1,7 +1,8 @@
 import express from 'express';
 import { pino, type Logger } from 'pino';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { ErrorReporter } from '../monitoring/reporter.ts';
 import { AppError, zodIssuesToDetails } from './AppError.ts';
 import { createErrorHandler } from './errorHandler.ts';
 import { notFoundHandler } from './notFound.ts';
@@ -27,7 +28,7 @@ function createRecordingLogger() {
 
 const { warn: WARN, error: ERROR } = pino.levels.values;
 
-function buildTestApp(logger: Logger = pino({ level: 'silent' })) {
+function buildTestApp(logger: Logger = pino({ level: 'silent' }), reporter?: ErrorReporter) {
   const app = express();
   app.use(express.json({ limit: '1kb' }));
   app.get('/forbidden', () => {
@@ -52,6 +53,10 @@ function buildTestApp(logger: Logger = pino({ level: 'silent' })) {
   app.get('/boom', () => {
     throw new Error('database password is hunter2');
   });
+  app.get('/boom-signed-in', (_req, res) => {
+    res.locals.userId = 'u-123';
+    throw new Error('boom for lan@example.test');
+  });
   app.get('/teapot', () => {
     // http-errors style: a client status the error is allowed to expose.
     throw Object.assign(new Error('internal detail'), { status: 418, expose: true });
@@ -60,7 +65,7 @@ function buildTestApp(logger: Logger = pino({ level: 'silent' })) {
     res.json(req.body);
   });
   app.use(notFoundHandler);
-  app.use(createErrorHandler(logger));
+  app.use(createErrorHandler(logger, reporter));
   return app;
 }
 
@@ -175,6 +180,27 @@ describe('error handling', () => {
     entries.length = 0;
     await request(recordingApp).get('/boom');
     expect(entries.map((e) => e.level)).toEqual([ERROR]);
+  });
+
+  it('reports unexpected errors with the user id only, and never known codes or client errors', async () => {
+    const reporter = { captureException: vi.fn() };
+    const reportingApp = buildTestApp(pino({ level: 'silent' }), reporter);
+
+    await request(reportingApp).get('/forbidden');
+    await request(reportingApp).get('/async-conflict');
+    await request(reportingApp).get('/teapot');
+    await request(reportingApp)
+      .post('/echo')
+      .set('Content-Type', 'application/json')
+      .send('{"name":');
+    expect(reporter.captureException).not.toHaveBeenCalled();
+
+    await request(reportingApp).get('/boom-signed-in');
+    await request(reportingApp).get('/boom');
+    expect(reporter.captureException.mock.calls).toEqual([
+      [expect.objectContaining({ message: 'boom for lan@example.test' }), { userId: 'u-123' }],
+      [expect.objectContaining({ message: 'database password is hunter2' }), { userId: undefined }],
+    ]);
   });
 
   it('returns NOT_FOUND for unknown routes', async () => {

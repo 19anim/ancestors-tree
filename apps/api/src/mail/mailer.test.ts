@@ -1,6 +1,7 @@
 import { pino } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config.ts';
+import { TEST_PROXY_SECRET } from '../test/proxySignature.ts';
 import { createMailer, createMemoryMailer, createResendMailer } from './mailer.ts';
 
 const { send } = vi.hoisted(() => ({ send: vi.fn() }));
@@ -47,6 +48,8 @@ describe('mailers', () => {
       TRUST_PROXY_HOPS: '0',
       MONGODB_URI: 'mongodb+srv://db.example.test/app',
       JWT_SECRET: 'test-only-secret-with-at-least-32-chars',
+      CLOUDINARY_FOLDER: 'ancestors-tree/test',
+      PROXY_SIGNATURE_SECRET: TEST_PROXY_SECRET,
     });
     await createMailer(config, logger).send(MESSAGE);
     expect(info).not.toHaveBeenCalled();
