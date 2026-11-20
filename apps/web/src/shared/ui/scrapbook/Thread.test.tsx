@@ -17,6 +17,7 @@ describe('Thread', () => {
       'd',
       'M284 102 L284 172 C284 198 140 198 140 224',
     );
+    expect(group?.querySelector('path')).toHaveClass('thread-line');
     const pin = group?.querySelector('circle');
     expect(pin).toHaveAttribute('cx', '140');
     expect(pin).toHaveAttribute('cy', '224');
@@ -39,7 +40,7 @@ describe('Stitch', () => {
     const group = container.querySelector('[data-relation="marriage"]');
     const path = group?.querySelector('path');
     expect(path).toHaveAttribute('d', 'M270 102 L298 102');
-    expect(path).toHaveAttribute('stroke-dasharray', '4 4');
+    expect(path).toHaveClass('stitch-line');
     const knot = group?.querySelector('circle');
     expect(knot).toHaveAttribute('cx', '284');
     expect(knot).toHaveAttribute('cy', '102');

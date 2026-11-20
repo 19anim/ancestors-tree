@@ -1,12 +1,14 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../shared/lib/apiError';
 import { apiErrorReply, mockApi } from '../../test/api';
 import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
-import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, treeRoutes } from './fixtures';
+import { CLAN, CLAN_ID, EMPTY_TREE_RESPONSE, FAMILY, ME, SIBLINGS, treeRoutes } from './fixtures';
+import { useProfileDraft } from './profileDraft';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
+import { batchOps, cardName, EDITOR, editableTree } from './testKit';
 
 const VIEWER = { ...CLAN, role: 'viewer' as const };
 
@@ -38,6 +40,18 @@ describe('TreePage', () => {
     expect(loose.textContent).toBe('');
     // Viewers get no editing controls: the toolbar has no undo.
     expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
+  });
+
+  it('draws my own theme once it loads', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET /clans/${CLAN_ID}/view-preference`]: () => ({
+        body: { enabled: true, theme: { surface: 'corkboard' }, cards: {} },
+      }),
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await waitFor(() => expect(board).toHaveAttribute('data-surface', 'corkboard'));
   });
 
   it('says when the family tree is empty', async () => {
@@ -186,4 +200,297 @@ describe('TreePage', () => {
     await user.click(screen.getByRole('button', { name: 'Đã hiểu' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+});
+
+describe('Decorate on the tree page', () => {
+  const PREFERENCE = `/clans/${CLAN_ID}/view-preference`;
+
+  it('opens the panel; a whole-family pick is one undoable change', async () => {
+    const sent = editableTree(FAMILY);
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    const panel = screen.getByRole('complementary', { name: 'Trang trí cây' });
+    expect(within(panel).getByRole('radio', { name: 'Cả họ' })).toBeChecked();
+
+    await user.click(within(panel).getByRole('radio', { name: 'Bảng gỗ bần' }));
+    expect(board).toHaveAttribute('data-surface', 'corkboard');
+    expect(await screen.findByText('Đã đổi: chủ đề cây')).toBeInTheDocument();
+    await waitFor(() => expect(sent()).toHaveLength(1));
+    expect(batchOps(sent()[0])).toEqual([
+      { type: 'setTreeTheme', payload: { changes: { surface: 'corkboard', fastener: 'pushpin' } } },
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Hoàn tác thay đổi này' }));
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+  });
+
+  it("the change toast stays usable over the sheet: its Undo isn't inert", async () => {
+    // No matchMedia in jsdom: the panel is the bottom sheet, which makes the page behind inert.
+    editableTree(FAMILY);
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    const panel = screen.getByRole('complementary', { name: 'Trang trí cây' });
+    expect(screen.getByRole('button', { name: 'Trang trí' }).closest('[inert]')).not.toBeNull();
+
+    await user.click(within(panel).getByRole('radio', { name: 'Bảng gỗ bần' }));
+    const undo = await screen.findByRole('button', { name: 'Hoàn tác thay đổi này' });
+    expect(undo.closest('[inert]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Đóng thông báo' }).closest('[inert]')).toBeNull();
+    await user.click(undo);
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+    expect(panel).toBeInTheDocument();
+  });
+
+  it("re-picking the family's choice sends nothing and shows no error", async () => {
+    const sent = editableTree({ ...FAMILY, theme: { surface: 'corkboard', fastener: 'pushpin' } });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    const corkboard = screen.getByRole('radio', { name: 'Bảng gỗ bần' });
+    expect(corkboard).toBeChecked();
+    // As a radio whose checked state went stale would send it: React reports a change.
+    (corkboard as HTMLInputElement).checked = false;
+    await user.click(corkboard);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Quan hệ này đã có rồi/)).not.toBeInTheDocument();
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('only me: the board changes at once and one PUT saves it, with no op', async () => {
+    const api = mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    await user.click(screen.getByRole('radio', { name: 'Chỉ mình tôi' }));
+    await user.click(screen.getByRole('radio', { name: 'Cửa tủ lạnh' }));
+    expect(board).toHaveAttribute('data-surface', 'fridge');
+    await waitFor(
+      () =>
+        expect(
+          api.calls.filter((call) => call.method === 'PUT' && call.path === PREFERENCE),
+        ).toHaveLength(1),
+      { timeout: 2000 },
+    );
+    expect(api.calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
+  it('closes the panel when a profile opens, and gives focus back on close', async () => {
+    mockApi(treeRoutes(FAMILY, VIEWER));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    const open = screen.getByRole('button', { name: 'Trang trí' });
+    await user.click(open);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('complementary', { name: 'Trang trí cây' })).not.toBeInTheDocument();
+    expect(open).toHaveFocus();
+
+    await user.click(open);
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    expect(screen.queryByRole('complementary', { name: 'Trang trí cây' })).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' })).toBeInTheDocument();
+  });
+
+  it('does not open over unsaved profile changes', async () => {
+    mockApi(treeRoutes(FAMILY));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    act(() => useProfileDraft.setState({ dirty: true }));
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    expect(screen.queryByRole('complementary', { name: 'Trang trí cây' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Hãy lưu hoặc huỷ thay đổi trong hồ sơ trước khi trang trí.'),
+    ).toBeInTheDocument();
+    act(() => useProfileDraft.setState({ dirty: false }));
+  });
+});
+
+describe('my own theme on the tree page', () => {
+  const PREFERENCE = `/clans/${CLAN_ID}/view-preference`;
+  const MINE = { enabled: true, theme: { surface: 'corkboard' }, cards: {} };
+
+  it('says I see my own theme, and goes back to the shared one', async () => {
+    const api = mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    expect(await screen.findByText('Bạn đang xem chủ đề của riêng mình.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Về chủ đề chung' }));
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+    expect(screen.queryByText('Bạn đang xem chủ đề của riêng mình.')).not.toBeInTheDocument();
+    await waitFor(
+      () => {
+        const put = api.calls.find((call) => call.method === 'PUT' && call.path === PREFERENCE);
+        expect(put?.body).toEqual({ ...MINE, enabled: false });
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('lets an editor use my theme for the whole family, as one change', async () => {
+    const api = mockApi({
+      ...treeRoutes(FAMILY),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: FAMILY.version + 1 } }),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Dùng cho cả họ' }));
+    expect(await screen.findByText('Đã đổi: chủ đề cây')).toBeInTheDocument();
+    expect(useTreeStore.getState().tree.theme).toEqual({ surface: 'corkboard' });
+    await waitFor(() => expect(api.calls.some((call) => call.method === 'POST')).toBe(true));
+    const sent = api.calls.find((call) => call.method === 'POST');
+    expect(batchOps(sent?.body)).toEqual([
+      { type: 'setTreeTheme', payload: { changes: { surface: 'corkboard' } } },
+    ]);
+    // The family's theme now matches mine: nothing is left to share.
+    expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument();
+  });
+
+  it('moves focus to Decorate when the banner goes away under it', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    screen.getByRole('button', { name: 'Về chủ đề chung' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(screen.queryByText('Bạn đang xem chủ đề của riêng mình.')).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Trang trí' })).toHaveFocus());
+  });
+
+  it('moves focus to the main content when there is no Decorate button', async () => {
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE, VIEWER),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    expect(screen.queryByRole('button', { name: 'Trang trí' })).not.toBeInTheDocument();
+    screen.getByRole('button', { name: 'Về chủ đề chung' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
+  });
+
+  it('moves focus to "Back to the shared theme" once nothing is left to share', async () => {
+    mockApi({
+      ...treeRoutes(FAMILY),
+      [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: FAMILY.version + 1 } }),
+      [`GET ${PREFERENCE}`]: () => ({ body: MINE }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByText('Bạn đang xem chủ đề của riêng mình.');
+    screen.getByRole('button', { name: 'Dùng cho cả họ' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Dùng cho cả họ' })).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Về chủ đề chung' })).toHaveFocus(),
+    );
+  });
+
+  it('says when my choices were not saved, and saves them again', async () => {
+    let fail = true;
+    mockApi({
+      ...treeRoutes(FAMILY, VIEWER),
+      [`PUT ${PREFERENCE}`]: ({ body }) => (fail ? apiErrorReply('INTERNAL_ERROR', 500) : { body }),
+    });
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const board = await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: 'Trang trí' }));
+    await user.click(screen.getByRole('radio', { name: 'Cửa tủ lạnh' }));
+    expect(
+      await screen.findByText('Chưa lưu được phần trang trí của bạn.', {}, { timeout: 2000 }),
+    ).toBeInTheDocument();
+    expect(board).toHaveAttribute('data-surface', 'fridge');
+
+    fail = false;
+    await user.click(screen.getByRole('button', { name: 'Thử lưu lại' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Chưa lưu được phần trang trí của bạn.')).not.toBeInTheDocument(),
+    );
+  });
+
+  it("opens a viewer's card panel from the profile, and goes back to the profile", async () => {
+    mockApi(treeRoutes(FAMILY, VIEWER));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    const profile = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    await user.click(within(profile).getByRole('button', { name: 'Trang trí thẻ này…' }));
+    expect(
+      screen.getByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
+    ).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    const back = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    expect(within(back).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
+  });
+
+  it("a click on the decorated card's own board card goes back to its profile", async () => {
+    mockApi(treeRoutes(FAMILY, VIEWER));
+    const user = userEvent.setup();
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('group', { name: 'Cây gia phả: Họ Nguyễn' });
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    const profile = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    await user.click(within(profile).getByRole('button', { name: 'Trang trí thẻ này…' }));
+    expect(
+      screen.getByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
+    ).toBeInTheDocument();
+
+    // The profile is already in the address: the click must still swap Decorate out.
+    await user.click(screen.getByRole('button', { name: /^Nguyễn Văn Nam,/ }));
+    expect(
+      screen.queryByRole('complementary', { name: 'Trang trí thẻ của Nguyễn Văn Nam' }),
+    ).not.toBeInTheDocument();
+    const back = screen.getByRole('complementary', { name: 'Nguyễn Văn Nam' });
+    expect(within(back).getByRole('heading', { name: 'Nguyễn Văn Nam' })).toHaveFocus();
+  });
+});
+
+describe('the change toast over the profile sheet', () => {
+  it.each(['Hoàn tác thay đổi này', 'Đóng thông báo'])(
+    'gives focus to something usable after "%s", not to a card behind the sheet',
+    async (control) => {
+      // No matchMedia in jsdom: the profile is the bottom sheet, and the cards behind it are
+      // inert. jsdom lets an inert element take focus; a browser does not, and focus would drop
+      // to <body>.
+      editableTree(SIBLINGS, EDITOR);
+      const user = userEvent.setup();
+      renderRoute(`/clans/${CLAN_ID}/tree`);
+      await user.click(await screen.findByRole('button', { name: cardName('Nguyễn Thị Lan') }));
+      const profile = screen.getByRole('complementary', { name: 'Nguyễn Thị Lan' });
+      await user.click(within(profile).getByRole('button', { name: 'Xếp lên trước' }));
+      await user.click(await screen.findByRole('button', { name: control }));
+
+      expect(screen.queryByRole('button', { name: control })).not.toBeInTheDocument();
+      await waitFor(() => {
+        const active = document.activeElement;
+        expect(active).not.toBe(document.body);
+        expect(active?.closest('[inert]')).toBeNull();
+      });
+      expect(profile).toBeInTheDocument();
+    },
+  );
 });

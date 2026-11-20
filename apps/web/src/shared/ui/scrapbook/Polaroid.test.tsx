@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Polaroid, POLAROID_SIZE } from './Polaroid';
 import { initialsOf } from './initials';
+import { tapeColor } from './tape';
 
 const LABEL = 'Ông Thịnh, 1931–2004';
 
@@ -119,5 +120,28 @@ describe('Polaroid', () => {
       />,
     );
     expect(screen.getByTestId('lan').className).toContain('absolute');
+  });
+
+  it('carries its frame and fastener, and draws the fastener on the full card only', () => {
+    const { rerender } = render(
+      <Polaroid name="Ông Thịnh" label={LABEL} tape={2} frame="kraft" fastener="pushpin" />,
+    );
+    const card = screen.getByRole('figure', { name: LABEL });
+    expect(card).toHaveAttribute('data-frame', 'kraft');
+    expect(card).toHaveAttribute('data-fastener', 'pushpin');
+    const fastener = card.querySelector<HTMLElement>('[data-part="fastener"]');
+    expect(fastener).toHaveClass('fastener');
+    // The branch colour, as the washi tape had.
+    expect(fastener?.style.getPropertyValue('--fastener-color')).toBe(tapeColor(2));
+    rerender(<Polaroid name="Ông Thịnh" label={LABEL} tape={2} lod="label" frame="kraft" />);
+    expect(screen.getByRole('figure', { name: LABEL })).toHaveAttribute('data-frame', 'kraft');
+    expect(document.querySelector('[data-part="fastener"]')).toBeNull();
+  });
+
+  it('defaults to the classic frame and washi tape', () => {
+    render(<Polaroid name="Ông Thịnh" label={LABEL} tape="progenitor" />);
+    const card = screen.getByRole('figure', { name: LABEL });
+    expect(card).toHaveAttribute('data-frame', 'classic');
+    expect(card).toHaveAttribute('data-fastener', 'washi');
   });
 });

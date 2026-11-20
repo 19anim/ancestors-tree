@@ -4,6 +4,7 @@ import { OpError } from './op-error.ts';
 import type { Op, SingleOp } from './ops.ts';
 import type { Person, Union } from './schemas.ts';
 import { EMPTY_TREE, treeStateFromLists, type TreeState } from './state.ts';
+import { LINE_STYLES, SURFACES, type LineStyle, type Surface } from './theme.ts';
 
 /** A readable, valid ObjectId for tests: testId(1) = "000…001". */
 export function testId(n: number): string {
@@ -94,6 +95,7 @@ export type TreeCommand =
   | { kind: 'deleteUnion'; target: number }
   | { kind: 'setParents'; target: number; union: number | null }
   | { kind: 'setProgenitor'; target: number | null }
+  | { kind: 'setTreeTheme'; surface: Surface | null; thread: LineStyle | null }
   /** Applies the inverse of the latest change not undone yet (restore ops come from here). */
   | { kind: 'undo' };
 
@@ -122,6 +124,14 @@ export const treeCommand: fc.Arbitrary<TreeCommand> = fc.oneof(
   { weight: 5, arbitrary: fc.record({ kind: fc.constant('deleteUnion' as const), target: index }) },
   fc.record({ kind: fc.constant('setParents' as const), target: index, union: fc.option(index) }),
   fc.record({ kind: fc.constant('setProgenitor' as const), target: fc.option(index) }),
+  {
+    weight: 2,
+    arbitrary: fc.record({
+      kind: fc.constant('setTreeTheme' as const),
+      surface: fc.option(fc.constantFrom(...SURFACES)),
+      thread: fc.option(fc.constantFrom(...LINE_STYLES)),
+    }),
+  },
   { weight: 6, arbitrary: fc.constant({ kind: 'undo' as const }) },
 );
 
@@ -189,6 +199,11 @@ export function treeCommandOp(
       const personId = cmd.target === null ? null : (pick(people, cmd.target) ?? null);
       return { type: 'setProgenitor', payload: { personId } };
     }
+    case 'setTreeTheme':
+      return {
+        type: 'setTreeTheme',
+        payload: { changes: { surface: cmd.surface, thread: cmd.thread } },
+      };
     case 'undo':
       // Handled by the caller: an undo needs the stored inverses, not the tree.
       return null;

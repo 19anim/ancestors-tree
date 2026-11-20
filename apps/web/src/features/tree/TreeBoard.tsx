@@ -1,3 +1,9 @@
+import {
+  EMPTY_TREE,
+  resolveBoardStyle,
+  resolveCardStyle,
+  type BoardStyle,
+} from '@ancestors-tree/shared/tree';
 import { useDndContext } from '@dnd-kit/core';
 import {
   ReactFlow,
@@ -29,6 +35,7 @@ import {
   pannedToShow,
   personRect,
 } from './boardView';
+import { useThemeLayers } from './decorContext';
 import { useDragStore } from './dragStore';
 import { clampedPan, edgePan, PAN_FRAME_MS, panFor } from './dragZones';
 import { toFlowElements, type FlowElements } from './flowElements';
@@ -259,10 +266,11 @@ interface BoardSurfaceProps {
   label: string;
   layout: TreeLayout;
   elements: FlowElements;
+  board: BoardStyle;
   openPersonId: string | null;
 }
 
-function BoardSurface({ label, layout, elements, openPersonId }: BoardSurfaceProps) {
+function BoardSurface({ label, layout, elements, board, openPersonId }: BoardSurfaceProps) {
   const { t } = useTranslation();
   const { getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const reducedMotion = useReducedMotion();
@@ -306,6 +314,9 @@ function BoardSurface({ label, layout, elements, openPersonId }: BoardSurfacePro
       tabIndex={0}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
+      data-surface={board.surface}
+      data-thread={board.thread}
+      data-stitch={board.stitch}
       className="board-grid relative h-[70vh] min-h-[420px] overflow-hidden rounded-control border border-line"
     >
       <p id={hintId} className="sr-only">
@@ -376,20 +387,42 @@ interface TreeBoardProps {
 
 export function TreeBoard({ label, openPersonId = null }: TreeBoardProps) {
   const { t } = useTranslation();
-  const tree = useTreeStore((state) => state.tree);
-  const layout = useMemo(() => layoutTree(tree), [tree]);
+  // The layout reads the people, the unions and the progenitor only. A theme change (a new
+  // `tree.theme`) keeps all three, so it never lays the tree out again (spec §13.4).
+  const progenitorId = useTreeStore((state) => state.tree.progenitorId);
+  const persons = useTreeStore((state) => state.tree.persons);
+  const unions = useTreeStore((state) => state.tree.unions);
+  const layout = useMemo(
+    () => layoutTree({ ...EMPTY_TREE, progenitorId, persons, unions }),
+    [progenitorId, persons, unions],
+  );
+  const layers = useThemeLayers();
+  const styleOf = useCallback(
+    (personId: string) => resolveCardStyle(layers, personId, persons[personId]?.cardStyle),
+    [layers, persons],
+  );
   const previous = useRef<FlowElements | undefined>(undefined);
-  const elements = useMemo(() => toFlowElements(layout, previous.current), [layout]);
+  const elements = useMemo(
+    () => toFlowElements(layout, previous.current, styleOf),
+    [layout, styleOf],
+  );
   useEffect(() => {
     previous.current = elements;
   }, [elements]);
+  const board = useMemo(() => resolveBoardStyle(layers), [layers]);
 
   if (layout.persons.length === 0) {
     return <p className="text-ink-muted">{t('tree.board.noProgenitor')}</p>;
   }
   return (
     <ReactFlowProvider>
-      <BoardSurface label={label} layout={layout} elements={elements} openPersonId={openPersonId} />
+      <BoardSurface
+        label={label}
+        layout={layout}
+        elements={elements}
+        board={board}
+        openPersonId={openPersonId}
+      />
     </ReactFlowProvider>
   );
 }

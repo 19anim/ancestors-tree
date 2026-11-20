@@ -64,4 +64,19 @@ describe('toFlowElements', () => {
     expect(second.nodes[2]).not.toBe(first.nodes[2]);
     expect(second.edges[0]).toBe(first.edges[0]);
   });
+  it("puts each card's resolved style in its data, and keeps the cards whose style did not change", () => {
+    const person = (elements: ReturnType<typeof toFlowElements>, id: string) =>
+      elements.nodes.find((node) => node.id === id);
+    const plain = toFlowElements(layout);
+    expect(person(plain, C)?.data).toMatchObject({ frame: 'classic', fastener: 'washi' });
+
+    const styled = toFlowElements(layout, plain, (id) =>
+      id === C ? { frame: 'kraft', fastener: 'pushpin' } : { frame: 'classic', fastener: 'washi' },
+    );
+    expect(person(styled, C)?.data).toMatchObject({ frame: 'kraft', fastener: 'pushpin' });
+    expect(person(styled, C)).not.toBe(person(plain, C));
+    // Same place, same style: the same object, so its memoised card skips the render.
+    expect(person(styled, A)).toBe(person(plain, A));
+    expect(person(styled, B)).toBe(person(plain, B));
+  });
 });

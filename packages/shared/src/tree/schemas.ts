@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IdSchema } from '../api/common.ts';
 import { LunarDateSchema, MAX_YEAR, MIN_YEAR, SolarDateSchema } from '../lunar/dates.ts';
 import { hasWrongDerivedSide } from './date-info.ts';
+import { CardStyleSchema } from './theme.ts';
 
 /** The design limit of one family tree (spec §5). */
 export const MAX_PERSONS = 5000;
@@ -77,7 +78,7 @@ export const PersonPhotoSchema = z.object({
 
 /**
  * A person in the genealogy (spec §5). `clanId`, `createdAt` and `updatedAt` stay on the
- * server. `treeLink` (P10) and `cardStyle` (P6e, tree themes) arrive with their features.
+ * server. `treeLink` (P10) arrives with its feature.
  */
 export const PersonSchema = z.object({
   id: IdSchema,
@@ -95,6 +96,8 @@ export const PersonSchema = z.object({
   bio: BioSchema.optional(),
   burialPlace: BurialPlaceSchema.optional(),
   photo: PersonPhotoSchema.optional(),
+  /** The clan's own choice for this card (spec §13.4); cleared with null. */
+  cardStyle: CardStyleSchema.optional(),
 });
 
 /** Changed fields only (spec §6.1). `id` and `parentUnionId` belong to other ops. */
@@ -112,6 +115,7 @@ export const PersonChangesSchema = z
     bio: BioSchema.nullable().optional(),
     burialPlace: BurialPlaceSchema.nullable().optional(),
     photo: PersonPhotoSchema.nullable().optional(),
+    cardStyle: CardStyleSchema.nullable().optional(),
   })
   .refine((changes) => Object.values(changes).some((value) => value !== undefined), {
     message: 'Send at least one field to change',

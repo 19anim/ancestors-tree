@@ -2,7 +2,6 @@ import {
   applyOp,
   EMPTY_TREE,
   OpError,
-  treeStateFromLists,
   type ApplyOpResult,
   type Op,
   type OpErrorCode,
@@ -10,7 +9,7 @@ import {
 } from '@ancestors-tree/shared/tree';
 import { create } from 'zustand';
 import { ApiError } from '../../shared/lib/apiError';
-import { fetchOpsSince, fetchTree, submitOp } from './api';
+import { fetchOpsSince, fetchTree, submitOp, treeFromResponse } from './api';
 import {
   pushCapped,
   replayPending,
@@ -349,7 +348,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
     try {
       const response = await fetchTree(clanId);
       if (mine !== session) return;
-      const tree = treeStateFromLists(response.progenitorId, response.persons, response.unions);
+      const tree = treeFromResponse(response);
       needsReload = false;
       needsRebase = false;
       resetConflicts();
@@ -501,7 +500,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         return;
       }
       if (response.version <= state.confirmedVersion) return;
-      const tree = treeStateFromLists(response.progenitorId, response.persons, response.unions);
+      const tree = treeFromResponse(response);
       set({ tree, confirmedTree: tree, confirmedVersion: response.version });
     } catch {
       // The tree on screen is still valid; the next op's 409 would catch a missed change.
@@ -533,11 +532,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         if (mine !== session) return;
         attempt = 0;
         const state = get();
-        const fetched = treeStateFromLists(
-          response.progenitorId,
-          response.persons,
-          response.unions,
-        );
+        const fetched = treeFromResponse(response);
         const base = {
           status: 'ready' as const,
           confirmedTree: fetched,
@@ -683,7 +678,7 @@ export const useTreeStore = create<TreeStoreState>()((set, get) => {
         try {
           const response = await fetchTree(clanId);
           if (mine !== session) return;
-          const tree = treeStateFromLists(response.progenitorId, response.persons, response.unions);
+          const tree = treeFromResponse(response);
           set({
             status: 'ready',
             tree,

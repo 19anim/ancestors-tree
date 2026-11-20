@@ -54,7 +54,8 @@
       "dialog": "Dialog",
       "photos": "Polaroids by zoom level",
       "marks": "Date marks",
-      "threads": "Threads and stitches"
+      "threads": "Threads and stitches",
+      "themes": "Tree themes"
     },
     "type": {
       "display": "The Nguyễn family tree",
@@ -89,6 +90,9 @@
     },
     "threads": {
       "note": "Threads with a red pin join parents to children. Stitches with a round knot join spouses."
+    },
+    "themes": {
+      "note": "Every option has a light and a dark version. The fastener is always the branch color."
     }
   },
   "system": {
@@ -465,6 +469,8 @@
       "updatePerson": "edit the details of {{name}}",
       "changePhoto": "change the photo of {{name}}",
       "removePhoto": "remove the photo of {{name}}",
+      "cardStyle": "change the card style of {{name}}",
+      "clearCardStyle": "set the card of {{name}} back to the tree's style",
       "deletePerson": "delete {{name}}",
       "restorePerson": "restore {{name}}",
       "addUnion": "add the marriage of {{names}}",
@@ -475,6 +481,7 @@
       "detachParents": "detach {{name}} from their parents",
       "setProgenitor": "choose {{name}} as the progenitor",
       "clearProgenitor": "clear the progenitor",
+      "treeTheme": "change the tree's theme",
       "changes": "a set of changes ({{count}})",
       "someone": "someone",
       "parents": "the parents",
@@ -509,7 +516,10 @@
         "status": "Marriage of {{a}} and {{b}}: {{status}}",
         "detach": "{{a}} moves to Loose photos",
         "photo": "photo of {{a}}",
-        "photoRemoved": "{{a}} has no photo"
+        "photoRemoved": "{{a}} has no photo",
+        "treeTheme": "the tree's theme",
+        "cardStyle": "the card style of {{a}}",
+        "cardStyleCleared": "the card of {{a}} follows the tree's style"
       },
       "status": {
         "married": "Married",
@@ -605,6 +615,62 @@
       "stay": "Stay",
       "discard": "Discard changes and open",
       "discardProfile": "Your unsaved profile changes will be lost too."
+    },
+    "decor": {
+      "open": "Decorate",
+      "title": "Decorate the tree",
+      "cardTitle": "Decorate the card of {{name}}",
+      "close": "Close decorating",
+      "applyTo": "Apply to",
+      "mode": { "me": "Only me", "clan": "Whole family" },
+      "viewerHint": "Viewers can decorate only for themselves.",
+      "saveFirst": "Save or cancel the profile changes before decorating.",
+      "card": {
+        "open": "Decorate this card…",
+        "useTree": "Use the tree's style",
+        "different": "Different from the tree"
+      },
+      "banner": {
+        "text": "You are viewing your own theme.",
+        "back": "Back to the shared theme",
+        "useForClan": "Use for the whole family"
+      },
+      "save": {
+        "failed": "Your decoration was not saved.",
+        "retry": "Try saving again"
+      },
+      "parts": {
+        "surface": "Surface",
+        "frame": "Frame",
+        "fastener": "Fastener",
+        "thread": "Parent–child thread",
+        "stitch": "Marriage stitch"
+      },
+      "options": {
+        "surface": {
+          "grid-paper": "Grid paper",
+          "corkboard": "Corkboard",
+          "fridge": "Fridge door"
+        },
+        "frame": {
+          "classic": "Classic white",
+          "kraft": "Kraft paper",
+          "vintage": "Vintage photo"
+        },
+        "fastener": {
+          "washi": "Washi tape",
+          "pushpin": "Pushpin",
+          "magnet": "Magnet"
+        },
+        "thread": {
+          "cotton": "Cotton",
+          "yarn": "Yarn"
+        },
+        "stitch": {
+          "cotton": "Cotton",
+          "yarn": "Yarn"
+        }
+      }
     }
   },
   "dates": {

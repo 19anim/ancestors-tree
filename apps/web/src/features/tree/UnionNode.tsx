@@ -39,7 +39,7 @@ function UnionNodeComponent({ data, width = 0, height = 0 }: NodeProps<UnionFlow
             broken={status === 'divorced'}
           />
         ) : (
-          <circle cx={width / 2} cy={height / 2} r={4} className="fill-thread" />
+          <circle cx={width / 2} cy={height / 2} r={4} className="thread-knot" />
         )}
       </svg>
       {requestChange === null ? null : (

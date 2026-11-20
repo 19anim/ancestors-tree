@@ -19,6 +19,8 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
         tape={data.tape}
         generation={data.generation}
         inLaw={data.tape === 'in-law'}
+        frame={data.frame}
+        fastener={data.fastener}
       />
     </>
   );

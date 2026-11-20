@@ -54,3 +54,16 @@ describe('relate sentences', () => {
     ]);
   });
 });
+
+describe('theme sentences', () => {
+  it('says what a theme change did', () => {
+    const tree = treeStateFromLists(FAMILY.progenitorId, FAMILY.persons, FAMILY.unions);
+    expect(changeSentence(i18n.t, tree, { kind: 'treeTheme' })).toBe('chủ đề cây');
+    expect(changeSentence(i18n.t, tree, { kind: 'cardStyle', personId: SON, cleared: false })).toBe(
+      'kiểu thẻ của Nguyễn Văn Nam',
+    );
+    expect(changeSentence(i18n.t, tree, { kind: 'cardStyle', personId: SON, cleared: true })).toBe(
+      'thẻ của Nguyễn Văn Nam theo kiểu của cây',
+    );
+  });
+});

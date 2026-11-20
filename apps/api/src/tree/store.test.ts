@@ -12,7 +12,7 @@ import { Clan } from '../models/Clan.ts';
 import { PersonModel } from '../models/Person.ts';
 import { UnionModel } from '../models/Union.ts';
 import { useTestDatabase } from '../test/database.ts';
-import { diffRecords, findClan, loadTreeState, saveTreeChanges } from './store.ts';
+import { diffRecords, findClan, loadTreeState, saveTreeChanges, storedTheme } from './store.ts';
 
 useTestDatabase();
 
@@ -153,5 +153,14 @@ describe('tree store', () => {
     await expect(
       inTransaction((session) => findClan(new Types.ObjectId().toString(), session)),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('storedTheme', () => {
+  it('reads a stored theme, and treats anything unreadable as the defaults', () => {
+    expect(storedTheme({ surface: 'fridge' })).toEqual({ surface: 'fridge' });
+    expect(storedTheme(undefined)).toEqual({});
+    expect(storedTheme(null)).toEqual({});
+    expect(storedTheme({ surface: 'chalkboard' })).toEqual({});
   });
 });

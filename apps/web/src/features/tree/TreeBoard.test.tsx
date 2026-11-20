@@ -10,6 +10,7 @@ import { mockApi } from '../../test/api';
 import { mockReactFlow, resizeObserved } from '../../test/reactFlow';
 import { renderWithProviders } from '../../test/render';
 import { centredOn, isRectVisible, pannedToShow, personRect, type Rect } from './boardView';
+import { PersonalThemeContext } from './decorContext';
 import {
   CLAN_ID,
   FAMILY,
@@ -20,6 +21,7 @@ import {
   PARENTS_UNION,
   SON,
 } from './fixtures';
+import type * as Layout from './layout';
 import { layoutTree } from './layout';
 import { PersonCard } from './PersonCard';
 import { OpenPersonContext } from './profileParams';
@@ -71,6 +73,12 @@ function viewportOf(board: HTMLElement): { x: number; y: number; zoom: number } 
 vi.mock('./PersonCard', async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
   return { ...original, PersonCard: vi.fn(original.PersonCard as typeof PersonCard) };
+});
+
+// Count layouts (spec §13.4: a theme switch never lays the tree out again).
+vi.mock('./layout', async (importOriginal) => {
+  const original = await importOriginal<typeof Layout>();
+  return { ...original, layoutTree: vi.fn(original.layoutTree) };
 });
 
 /**
@@ -623,5 +631,75 @@ describe('TreeBoard', () => {
     act(() => resizeObserved(board));
     expect(setViewport).toHaveBeenCalledTimes(1);
     expect(setViewport).toHaveBeenLastCalledWith(expect.anything(), { duration: 0 });
+  });
+});
+
+describe('tree themes on the board', () => {
+  const renderedFor = (id: string) =>
+    vi.mocked(PersonCard).mock.calls.filter(([props]) => props.person.id === id).length;
+
+  it('switches the clan theme without laying out the tree or redrawing unchanged cards', async () => {
+    showTree(family);
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    const son = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const board = screen.getByRole('group', { name: 'Cây gia phả' });
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+    expect(board).toHaveAttribute('data-thread', 'cotton');
+    const layouts = vi.mocked(layoutTree).mock.calls.length;
+    const before = renderedFor(SON);
+
+    act(() => {
+      useTreeStore.getState().apply({
+        type: 'setTreeTheme',
+        payload: { changes: { surface: 'corkboard', thread: 'yarn', stitch: 'yarn' } },
+      });
+    });
+    expect(board).toHaveAttribute('data-surface', 'corkboard');
+    expect(board).toHaveAttribute('data-thread', 'yarn');
+    expect(board).toHaveAttribute('data-stitch', 'yarn');
+    expect(vi.mocked(layoutTree).mock.calls.length).toBe(layouts);
+    // No card part changed, so no card was drawn again.
+    expect(renderedFor(SON)).toBe(before);
+    expect(figureOf(son)).toHaveAttribute('data-fastener', 'washi');
+  });
+
+  it('redraws only the card whose own style changed', async () => {
+    mockApi({ [`POST /clans/${CLAN_ID}/ops`]: () => ({ body: { seq: 4 } }) });
+    showTree(family);
+    renderWithProviders(<TreeBoard label="Cây gia phả" />);
+    const son = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    const before = { son: renderedFor(SON), grandma: renderedFor(GRANDMA) };
+    act(() => {
+      useTreeStore.getState().apply({
+        type: 'updatePerson',
+        payload: { id: SON, changes: { cardStyle: { frame: 'vintage' } } },
+      });
+    });
+    expect(figureOf(son)).toHaveAttribute('data-frame', 'vintage');
+    expect(renderedFor(SON)).toBeGreaterThan(before.son);
+    expect(renderedFor(GRANDMA)).toBe(before.grandma);
+  });
+
+  it('uses my own choices while they are on', async () => {
+    showTree(family);
+    renderWithProviders(
+      <PersonalThemeContext
+        value={{
+          enabled: true,
+          theme: { surface: 'fridge' },
+          cards: { [SON]: { fastener: 'magnet' } },
+        }}
+      >
+        <TreeBoard label="Cây gia phả" />
+      </PersonalThemeContext>,
+    );
+    const son = await screen.findByRole('button', { name: 'Nguyễn Văn Nam, đời thứ 2' });
+    expect(screen.getByRole('group', { name: 'Cây gia phả' })).toHaveAttribute(
+      'data-surface',
+      'fridge',
+    );
+    expect(figureOf(son)).toHaveAttribute('data-fastener', 'magnet');
+    const grandma = await screen.findByRole('button', { name: /^Lê Thị Hoa,/ });
+    expect(figureOf(grandma)).toHaveAttribute('data-fastener', 'washi');
   });
 });

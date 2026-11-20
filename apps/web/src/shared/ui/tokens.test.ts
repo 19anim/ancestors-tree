@@ -1,3 +1,4 @@
+import { CARD_FASTENERS, CARD_FRAMES, LINE_STYLES, SURFACES } from '@ancestors-tree/shared/tree';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from './contrast';
 import tokensCss from './tokens.css?raw';
@@ -34,6 +35,7 @@ const THEMED = [
   '--photo',
   '--thread',
   '--pin',
+  '--yarn',
 ];
 
 const TAPES = [
@@ -74,6 +76,7 @@ const NON_TEXT_PAIRS: Array<[string, string]> = [
   ['--success', '--paper'],
   ['--thread', '--paper'],
   ['--pin', '--paper'],
+  ['--yarn', '--paper'],
 ];
 
 describe('design tokens', () => {
@@ -125,4 +128,103 @@ describe('design tokens', () => {
       }
     });
   }
+});
+
+const HEX = /^#[0-9a-f]{6}$/;
+const SURFACE_COLORS = ['--paper', '--paper-grid', '--thread', '--line-strong'];
+const FRAME_COLORS = ['--photo', '--photo-ink', '--photo-muted'];
+const DARK = ":root[data-theme='dark']";
+
+function expectContrast(
+  tokens: Map<string, string>,
+  pairs: Array<[string, string]>,
+  minimum: number,
+): void {
+  for (const [foreground, background] of pairs) {
+    const ratio = contrastRatio(tokens.get(foreground) ?? '', tokens.get(background) ?? '');
+    expect(ratio, `${foreground} on ${background} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(
+      minimum,
+    );
+  }
+}
+
+/**
+ * The tokens inside an option in one theme, as the cascade gives them: the theme's tokens, the
+ * option's own block, then (dark) the option's dark block.
+ */
+function optionTokens(attribute: string, value: string, theme: 'light' | 'dark') {
+  const own = declarations(`[${attribute}='${value}']`);
+  if (theme === 'light') return new Map([...light, ...own]);
+  return new Map([...dark, ...own, ...declarations(`${DARK} [${attribute}='${value}']`)]);
+}
+
+describe('tree theme options (spec §13.4)', () => {
+  for (const surface of SURFACES) {
+    it(`surface ${surface} sets its colours as #rrggbb in both themes`, () => {
+      for (const block of [`[data-surface='${surface}']`, `${DARK} [data-surface='${surface}']`]) {
+        const tokens = declarations(block);
+        for (const name of SURFACE_COLORS)
+          expect(tokens.get(name), `${block} ${name}`).toMatch(HEX);
+      }
+      expect(declarations(`[data-surface='${surface}']`).has('--surface-pattern')).toBe(true);
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      it(`surface ${surface} meets contrast in the ${theme} theme`, () => {
+        const tokens = optionTokens('data-surface', surface, theme);
+        expectContrast(
+          tokens,
+          [
+            ['--ink', '--paper'],
+            ['--ink-muted', '--paper'],
+          ],
+          4.5,
+        );
+        expectContrast(
+          tokens,
+          [
+            ['--thread', '--paper'],
+            ['--pin', '--paper'],
+            ['--yarn', '--paper'],
+            ['--accent', '--paper'],
+            ['--line-strong', '--paper'],
+            ['--line-strong', '--surface'],
+          ],
+          3,
+        );
+      });
+    }
+  }
+
+  for (const frame of CARD_FRAMES) {
+    it(`frame ${frame} sets its paper and inks as #rrggbb in both themes`, () => {
+      for (const block of [`[data-frame='${frame}']`, `${DARK} [data-frame='${frame}']`]) {
+        const tokens = declarations(block);
+        for (const name of FRAME_COLORS) expect(tokens.get(name), `${block} ${name}`).toMatch(HEX);
+      }
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      it(`frame ${frame} meets 4.5:1 text contrast in the ${theme} theme`, () => {
+        expectContrast(
+          optionTokens('data-frame', frame, theme),
+          [
+            ['--photo-ink', '--photo'],
+            ['--photo-muted', '--photo'],
+          ],
+          4.5,
+        );
+      });
+    }
+  }
+
+  it('gives every fastener and line style its block', () => {
+    for (const fastener of CARD_FASTENERS) {
+      expect(declarations(`[data-fastener='${fastener}']`).has('--fastener-width')).toBe(true);
+    }
+    for (const style of LINE_STYLES) {
+      expect(declarations(`[data-thread='${style}']`).has('--thread-line')).toBe(true);
+      expect(declarations(`[data-stitch='${style}']`).has('--stitch-line')).toBe(true);
+    }
+  });
 });

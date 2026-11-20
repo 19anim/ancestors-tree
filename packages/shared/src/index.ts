@@ -81,3 +81,8 @@ export {
   type HistoryPage,
 } from './api/history.ts';
 export { PhotoUploadResponseSchema, type PhotoUploadResponse } from './api/photos.ts';
+export {
+  EMPTY_VIEW_PREFERENCE,
+  ViewPreferenceSchema,
+  type ViewPreference,
+} from './api/viewPreference.ts';

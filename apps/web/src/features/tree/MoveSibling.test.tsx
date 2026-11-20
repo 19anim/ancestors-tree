@@ -20,6 +20,13 @@ afterEach(() => {
 
 describe('Move earlier / later', () => {
   it('moves a sibling earlier in one op, confirms it, and undoes it from the toast', async () => {
+    // From md up the profile is a column beside the board, so the moved card takes focus. Below
+    // md it is inert behind the sheet, and focus goes elsewhere (TreePage.test.tsx).
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(min-width: 48rem)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
     const user = userEvent.setup();
     const sent = editableTree(SIBLINGS, EDITOR);
     renderRoute(`/clans/${CLAN_ID}/tree`);

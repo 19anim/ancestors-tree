@@ -1,4 +1,4 @@
-import type { Person } from '@ancestors-tree/shared/tree';
+import type { CardFastener, CardFrame, Person } from '@ancestors-tree/shared/tree';
 import {
   useContext,
   useEffect,
@@ -39,9 +39,11 @@ interface PersonCardProps {
   tape: TapeKind;
   generation: number;
   inLaw: boolean;
+  frame: CardFrame;
+  fastener: CardFastener;
 }
 
-export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps) {
+export function PersonCard({ person, tape, generation, inLaw, frame, fastener }: PersonCardProps) {
   const { t } = useTranslation();
   const openPerson = useContext(OpenPersonContext);
   const tooltipId = useId();
@@ -114,6 +116,8 @@ export function PersonCard({ person, tape, generation, inLaw }: PersonCardProps)
         photoUrl={photoUrl(person.photo, 'card')}
         tape={tape}
         tilt={tiltFor(person.id)}
+        frame={frame}
+        fastener={fastener}
         dateLine={
           anniversary && anniversaryLabel ? (
             <DateMark kind="death-anniversary" label={anniversaryLabel}>

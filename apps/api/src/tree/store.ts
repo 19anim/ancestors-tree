@@ -1,4 +1,9 @@
-import { treeStateFromLists, type TreeState } from '@ancestors-tree/shared/tree';
+import {
+  treeStateFromLists,
+  TreeThemeSchema,
+  type TreeState,
+  type TreeTheme,
+} from '@ancestors-tree/shared/tree';
 import { Types, type ClientSession } from 'mongoose';
 import { AppError } from '../http/AppError.ts';
 import { Clan, type ClanDocument } from '../models/Clan.ts';
@@ -37,7 +42,17 @@ export async function loadTreeState(
     clan.progenitorId ? clan.progenitorId.toString() : null,
     persons.map(toPerson),
     unions.map(toUnion),
+    storedTheme(clan.theme),
   );
+}
+
+/**
+ * The clan's stored theme. A document from before themes, or one holding an option that no
+ * longer exists, reads as the defaults rather than failing the whole tree.
+ */
+export function storedTheme(value: unknown): TreeTheme {
+  const parsed = TreeThemeSchema.safeParse(value ?? {});
+  return parsed.success ? parsed.data : {};
 }
 
 /** What applyOp changed: new or replaced objects (by reference) and removed ids. */

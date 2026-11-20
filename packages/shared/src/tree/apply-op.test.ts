@@ -487,3 +487,27 @@ describe('batch', () => {
     expect(tree).toStrictEqual(before);
   });
 });
+
+describe('a batch with a tree theme change', () => {
+  it('applies the theme with the other ops; its inverse restores the theme too', () => {
+    const tree: TreeState = { ...family(), theme: { thread: 'yarn' } };
+    const op: Op = {
+      type: 'batch',
+      payload: {
+        ops: [
+          { type: 'updatePerson', payload: { id: C, changes: { fullName: 'Nguyễn Văn Cường' } } },
+          {
+            type: 'setTreeTheme',
+            payload: { changes: { surface: 'corkboard', fastener: 'pushpin', thread: null } },
+          },
+        ],
+      },
+    };
+    const result = applyOp(tree, op);
+    expect(result.tree.theme).toEqual({ surface: 'corkboard', fastener: 'pushpin' });
+    expect(result.tree.persons[C]?.fullName).toBe('Nguyễn Văn Cường');
+    const restored = applyOp(result.tree, result.inverse).tree;
+    expect(restored.theme).toEqual({ thread: 'yarn' });
+    roundTrip(tree, op);
+  });
+});

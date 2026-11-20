@@ -36,6 +36,7 @@ export { MAX_TILT, tiltFor } from './scrapbook/tilt';
 export { Board, type BoardProps } from './scrapbook/Board';
 export { Stitch } from './scrapbook/Stitch';
 export { Thread } from './scrapbook/Thread';
+export { ThemeSwatch, themeOptionKey } from './scrapbook/ThemeSwatch';
 export {
   midpoint,
   PIN_OFFSET,

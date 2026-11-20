@@ -128,6 +128,75 @@ describe('planChange', () => {
       planChange(tree, { kind: 'photo', personId: '64b7f0c2a1b2c3d4e5f6afff', photo }),
     ).toEqual({ kind: 'blocked', reason: 'PERSON_NOT_FOUND' });
   });
+
+  it('sets the tree theme as one op, and says when nothing would change', () => {
+    const tree = stateOf(FAMILY);
+    const changes = { surface: 'corkboard', fastener: 'pushpin' } as const;
+    expect(planChange(tree, { kind: 'treeTheme', changes })).toEqual({
+      kind: 'ok',
+      op: { type: 'batch', payload: { ops: [{ type: 'setTreeTheme', payload: { changes } }] } },
+      summary: { kind: 'treeTheme' },
+    });
+    const themed = applyOp(tree, {
+      type: 'setTreeTheme',
+      payload: { changes: { surface: 'corkboard' } },
+    }).tree;
+    expect(planChange(themed, { kind: 'treeTheme', changes: { surface: 'corkboard' } })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+    // Resetting a part that is already the default changes nothing either.
+    expect(planChange(tree, { kind: 'treeTheme', changes: { surface: null } })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+  });
+
+  it("sets and clears a card's style as one person update", () => {
+    const tree = stateOf(FAMILY);
+    expect(
+      planChange(tree, { kind: 'cardStyle', personId: SON, cardStyle: { frame: 'kraft' } }),
+    ).toEqual({
+      kind: 'ok',
+      op: {
+        type: 'batch',
+        payload: {
+          ops: [
+            {
+              type: 'updatePerson',
+              payload: { id: SON, changes: { cardStyle: { frame: 'kraft' } } },
+            },
+          ],
+        },
+      },
+      summary: { kind: 'cardStyle', personId: SON, cleared: false },
+    });
+    expect(planChange(tree, { kind: 'cardStyle', personId: SON, cardStyle: null })).toEqual({
+      kind: 'blocked',
+      reason: 'ALREADY',
+    });
+
+    const styled = applyOp(tree, {
+      type: 'updatePerson',
+      payload: { id: SON, changes: { cardStyle: { frame: 'kraft' } } },
+    }).tree;
+    expect(
+      planChange(styled, { kind: 'cardStyle', personId: SON, cardStyle: { frame: 'kraft' } }),
+    ).toEqual({ kind: 'blocked', reason: 'ALREADY' });
+    expect(planChange(styled, { kind: 'cardStyle', personId: SON, cardStyle: null })).toMatchObject(
+      {
+        kind: 'ok',
+        summary: { kind: 'cardStyle', personId: SON, cleared: true },
+      },
+    );
+    expect(
+      planChange(tree, {
+        kind: 'cardStyle',
+        personId: '64b7f0c2a1b2c3d4e5f6afff',
+        cardStyle: { frame: 'kraft' },
+      }),
+    ).toEqual({ kind: 'blocked', reason: 'PERSON_NOT_FOUND' });
+  });
 });
 
 describe('decide (the tree changed meanwhile)', () => {

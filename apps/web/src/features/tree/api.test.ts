@@ -1,8 +1,8 @@
 import { OPS_PAGE_SIZE } from '@ancestors-tree/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
-import { fetchOpsSince } from './api';
-import { CLAN_ID, GRANDPA, remoteEntry } from './fixtures';
+import { fetchOpsSince, treeFromResponse } from './api';
+import { CLAN_ID, FAMILY, GRANDPA, remoteEntry } from './fixtures';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -40,5 +40,14 @@ describe('fetchOpsSince', () => {
     const entries = await fetchOpsSince(CLAN_ID, 3);
     expect(reads).toBe(1);
     expect(entries).toHaveLength(OPS_PAGE_SIZE);
+  });
+});
+
+describe('treeFromResponse', () => {
+  it("keeps the clan's theme, and reads a response without one as the defaults", () => {
+    const tree = treeFromResponse({ ...FAMILY, theme: { surface: 'fridge' } });
+    expect(tree.theme).toEqual({ surface: 'fridge' });
+    expect(Object.keys(tree.persons)).toHaveLength(FAMILY.persons.length);
+    expect(treeFromResponse(FAMILY).theme).toEqual({});
   });
 });

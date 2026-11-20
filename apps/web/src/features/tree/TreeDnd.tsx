@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
   type UniqueIdentifier,
 } from '@dnd-kit/core';
+import { resolveCardStyle } from '@ancestors-tree/shared/tree';
 import {
   useContext,
   useEffect,
@@ -24,6 +25,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Polaroid, tiltFor, type Point } from '../../shared/ui';
 import { ChangeContext } from './ChangeRunner';
+import { useThemeLayers } from './decorContext';
 import { IDLE_DRAG, resetDrag, useDragStore } from './dragStore';
 import { dropChange, pointerOf, zoneFor, zoneResults, type RectLike } from './dragZones';
 import { lifeYears } from './format';
@@ -123,7 +125,9 @@ function LiftedCard() {
   const person = useTreeStore((state) =>
     activeId === null ? undefined : state.tree.persons[activeId],
   );
+  const layers = useThemeLayers();
   if (person === undefined) return null;
+  const style = resolveCardStyle(layers, person.id, person.cardStyle);
   return (
     // Lifted: a slight extra tilt and the lift shadow. Scaled from the corner, where dnd-kit
     // places the overlay on the card it came from. As wide as the photo, not the overlay (already
@@ -141,6 +145,8 @@ function LiftedCard() {
         photoUrl={photoUrl(person.photo, 'card')}
         tape="loose"
         tilt={tiltFor(person.id)}
+        frame={style.frame}
+        fastener={style.fastener}
       />
     </div>
   );

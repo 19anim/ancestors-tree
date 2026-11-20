@@ -1,4 +1,5 @@
-import { screen, within } from '@testing-library/react';
+import * as sharedTree from '@ancestors-tree/shared/tree';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi } from '../../test/api';
@@ -6,6 +7,12 @@ import { mockReactFlow } from '../../test/reactFlow';
 import { renderRoute } from '../../test/render';
 import { CLAN_ID, FAMILY, LOOSE_BRANCH, ME, treeRoutes } from './fixtures';
 import { resetTreeStore, signOutTreeStore, useTreeStore } from './store';
+
+// Counts the tray's grouping, to see what a theme switch reruns.
+vi.mock('@ancestors-tree/shared/tree', async (importOriginal) => {
+  const actual = await importOriginal<typeof sharedTree>();
+  return { ...actual, looseStacks: vi.fn(actual.looseStacks) };
+});
 
 beforeEach(() => {
   mockReactFlow();
@@ -85,5 +92,31 @@ describe('Loose photos', () => {
     await user.click(screen.getByRole('button', { name: 'Đóng hồ sơ' }));
     expect(screen.queryByRole('complementary', { name: 'Trần Văn Dũng' })).not.toBeInTheDocument();
     expect(toggle).toHaveFocus();
+  });
+
+  it('draws a loose photo in the frame and fastener in effect', async () => {
+    mockApi(treeRoutes({ ...FAMILY, theme: { frame: 'vintage', fastener: 'magnet' } }));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    const tray = await screen.findByRole('region', { name: 'Ảnh chưa dán' });
+    // The photo's own list item: the stack's top person is drawn first in it.
+    const photo = within(tray)
+      .getByRole('button', { name: 'Trần Văn Bình' })
+      .closest('li')
+      ?.querySelector('[data-frame]');
+    expect(photo).toHaveAttribute('data-frame', 'vintage');
+    expect(photo).toHaveAttribute('data-fastener', 'magnet');
+  });
+
+  it('does not group the photos again when only the theme changes', async () => {
+    mockApi(treeRoutes(FAMILY));
+    renderRoute(`/clans/${CLAN_ID}/tree`);
+    await screen.findByRole('region', { name: 'Ảnh chưa dán' });
+    const grouped = vi.mocked(sharedTree.looseStacks);
+    const before = grouped.mock.calls.length;
+    act(() => {
+      const { tree } = useTreeStore.getState();
+      useTreeStore.setState({ tree: { ...tree, theme: { surface: 'corkboard' } } });
+    });
+    expect(grouped.mock.calls.length).toBe(before);
   });
 });

@@ -82,6 +82,13 @@ export function changeSentence(t: TFunction, tree: TreeState, summary: ChangeSum
       return t(summary.removed ? 'tree.relate.done.photoRemoved' : 'tree.relate.done.photo', {
         a: name(summary.personId),
       });
+    case 'treeTheme':
+      return t('tree.relate.done.treeTheme');
+    case 'cardStyle':
+      return t(
+        summary.cleared ? 'tree.relate.done.cardStyleCleared' : 'tree.relate.done.cardStyle',
+        { a: name(summary.personId) },
+      );
   }
 }
 

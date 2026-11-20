@@ -81,4 +81,45 @@ describe('inertOthers', () => {
     await flush();
     expect(isInert('later')).toBe(false);
   });
+
+  it('leaves what stays operable on purpose (the change toast) usable, buttons and all', async () => {
+    document.body.innerHTML = `
+      <main id="main">
+        <div id="column"><div id="toolbar"><button>Undo</button></div></div>
+        <aside id="sheet"><button>Close</button></aside>
+      </main>
+      <div id="toast" data-stays-operable>
+        <p role="status" aria-live="polite">Saved</p>
+        <button id="toast-undo">Undo this change</button>
+      </div>`;
+    const undo = inertOthers(byId('sheet'));
+    // Mounted later, beside the walked path: still left alone.
+    const later = document.createElement('div');
+    later.id = 'later-toast';
+    later.setAttribute('data-stays-operable', '');
+    later.innerHTML = '<button>Dismiss</button>';
+    byId('main').append(later);
+    await flush();
+
+    expect(isInert('column')).toBe(true);
+    expect(byId('toast-undo').closest('[inert]')).toBeNull();
+    expect(byId('later-toast').closest('[inert]')).toBeNull();
+    undo();
+  });
+
+  it('goes down to what stays operable on purpose, with no live region on the way', () => {
+    document.body.innerHTML = `
+      <main id="main"><aside id="sheet"><button>Close</button></aside></main>
+      <div id="wrap">
+        <div id="beside"><button>Elsewhere</button></div>
+        <div id="toast" data-stays-operable><button id="toast-undo">Undo this change</button></div>
+      </div>`;
+    const undo = inertOthers(byId('sheet'));
+
+    expect(byId('wrap')).not.toHaveAttribute('inert');
+    expect(byId('toast-undo').closest('[inert]')).toBeNull();
+    expect(isInert('beside')).toBe(true);
+    undo();
+    expect(document.querySelectorAll('[inert]')).toHaveLength(0);
+  });
 });

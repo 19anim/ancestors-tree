@@ -1,6 +1,7 @@
 import { classifyLineage } from '@ancestors-tree/shared/tree';
-import { Pencil, X } from 'lucide-react';
+import { Palette, Pencil, X } from 'lucide-react';
 import {
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -11,9 +12,12 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, inertOthers, useMediaQuery } from '../../shared/ui';
+import { withDecorate } from './decor';
+import { DecorateContext } from './decorContext';
 import { PhotoControl } from './PhotoControl';
 import { ProfileDetails } from './ProfileDetails';
 import { ProfileForm } from './ProfileForm';
+import { SIDE_PANEL_CLASS, WIDE_QUERY } from './sidePanel';
 import { useTreeStore } from './store';
 import {
   ACTION_ICONS,
@@ -36,8 +40,6 @@ interface ProfilePanelProps {
 }
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
-/** Tailwind's md (48rem): from here up the panel is a column beside the board, not a sheet. */
-const WIDE_QUERY = '(min-width: 48rem)';
 
 /** The profile (spec §7.6): a side panel on wide screens, a bottom sheet on small ones. */
 export function ProfilePanel({
@@ -54,6 +56,8 @@ export function ProfilePanel({
   const heading = useRef<HTMLHeadingElement>(null);
   const panel = useRef<HTMLElement>(null);
   const tree = useTreeStore((state) => state.tree);
+  // "Decorate this card…" (spec §13.4) sits with the actions, before Delete; viewers get it too.
+  const decorate = useContext(DecorateContext);
   const status = useTreeStore((state) => state.status);
   const person = tree.persons[personId];
   // Reported once: StrictMode runs effects twice, and a second close would go back twice.
@@ -82,8 +86,8 @@ export function ProfilePanel({
   // Below md the panel is a bottom sheet over the board: a modal one, so neither Tab nor a tap
   // reaches the cards and controls it hides (WCAG 2.4.11). Esc, Back and the close button close
   // it. From md up it is a column beside the board, and the page stays as it is. The cleanup
-  // runs before the page puts focus back on the card. The notice banner (`role="alert"`) stays
-  // operable on purpose (see inertOthers).
+  // runs before the page puts focus back on the card. The notice banner (`role="alert"`)
+  // and the change toast stay operable on purpose (see inertOthers).
   const wide = useMediaQuery(WIDE_QUERY);
   const modal = shown && !wide;
   useEffect(() => {
@@ -133,6 +137,7 @@ export function ProfilePanel({
     onClose();
   };
   const actionIds = actions ? availableActions(tree, person.id, isOwner) : [];
+  const items = decorate === null ? actionIds : withDecorate(actionIds);
 
   return (
     <aside
@@ -141,9 +146,8 @@ export function ProfilePanel({
       onKeyDown={onKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
-      // A bottom sheet on small screens. From md up, a sticky column beside the board, in the
-      // page flow under the header: it never covers the header or the notices (WCAG 2.4.11).
-      className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75vh] flex-col gap-4 overflow-y-auto rounded-t-control border-t border-line bg-paper p-4 shadow-lift md:sticky md:inset-x-auto md:top-4 md:bottom-auto md:z-auto md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:shrink-0 md:rounded-control md:border md:shadow-none"
+      // See SIDE_PANEL_CLASS.
+      className={SIDE_PANEL_CLASS}
     >
       <div className="flex items-start justify-between gap-2">
         <h2
@@ -182,18 +186,30 @@ export function ProfilePanel({
         />
       ) : (
         <>
-          {actions && actionIds.length > 0 ? (
+          {items.length > 0 ? (
             <section aria-label={t('tree.profile.actions')} className="flex flex-wrap gap-2">
-              {actionIds.map((action) => {
-                const Icon = ACTION_ICONS[action];
+              {items.map((item) => {
+                if (item === 'decorate') {
+                  return (
+                    <Button
+                      key={item}
+                      variant="secondary"
+                      onClick={() => decorate?.({ kind: 'card', personId: person.id })}
+                    >
+                      <Palette {...ICON} />
+                      {t('tree.decor.card.open')}
+                    </Button>
+                  );
+                }
+                const Icon = ACTION_ICONS[item];
                 return (
                   <Button
-                    key={action}
-                    variant={action === 'delete' ? 'danger' : 'secondary'}
-                    onClick={() => actions.run(person.id, action)}
+                    key={item}
+                    variant={item === 'delete' ? 'danger' : 'secondary'}
+                    onClick={() => actions?.run(person.id, item)}
                   >
                     <Icon {...ICON} />
-                    {t(actionLabelKey(action))}
+                    {t(actionLabelKey(item))}
                   </Button>
                 );
               })}

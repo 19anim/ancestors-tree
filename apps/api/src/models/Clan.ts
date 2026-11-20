@@ -10,6 +10,8 @@ const clanSchema = new Schema(
     version: { type: Number, default: 0, min: 0 },
     /** Generation 1 of the tree; chosen by the Owner with the setProgenitor op. */
     progenitorId: { type: Schema.Types.ObjectId, ref: 'Person', default: null },
+    /** The clan's tree theme (spec §5, §13.4); changed only by the setTreeTheme op. */
+    theme: { type: Schema.Types.Mixed, default: () => ({}) },
   },
   { timestamps: true },
 );

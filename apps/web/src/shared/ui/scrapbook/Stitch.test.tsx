@@ -11,8 +11,8 @@ describe('Stitch', () => {
     );
     expect(container.querySelectorAll('path')).toHaveLength(1);
     // A marriage's knot is a solid dot in the thread's colour, unlike a divorce's open ring.
-    expect(container.querySelector('circle')).toHaveClass('fill-thread');
-    expect(container.querySelector('circle')).not.toHaveClass('fill-none');
+    expect(container.querySelector('circle')).toHaveClass('stitch-knot');
+    expect(container.querySelector('circle')).not.toHaveClass('stitch-ring');
     expect(container.querySelector('[data-relation="marriage"]')).not.toHaveAttribute(
       'data-broken',
     );
@@ -28,8 +28,8 @@ describe('Stitch', () => {
       'true',
     );
     // The knot is an open ring.
-    expect(container.querySelector('circle')).toHaveClass('fill-none');
-    expect(container.querySelector('circle')).not.toHaveClass('fill-thread');
+    expect(container.querySelector('circle')).toHaveClass('stitch-ring');
+    expect(container.querySelector('circle')).not.toHaveClass('stitch-knot');
   });
 
   it('fills a selected knot in the selection colour, and keeps a divorce open', () => {

@@ -7,6 +7,7 @@ import {
   UnionChangesSchema,
   UnionSchema,
 } from './schemas.ts';
+import { TreeThemeChangesSchema } from './theme.ts';
 
 /** Most ops in one batch. */
 export const MAX_BATCH_OPS = 500;
@@ -46,6 +47,11 @@ const SetProgenitorOpSchema = z.object({
   type: z.literal('setProgenitor'),
   payload: z.object({ personId: IdSchema.nullable() }),
 });
+/** The clan's tree theme (spec §6.1, §13.4). Editors and the Owner, like any edit. */
+const SetTreeThemeOpSchema = z.object({
+  type: z.literal('setTreeTheme'),
+  payload: z.object({ changes: TreeThemeChangesSchema }),
+});
 
 const SINGLE_OP_SCHEMAS = [
   AddPersonOpSchema,
@@ -58,6 +64,7 @@ const SINGLE_OP_SCHEMAS = [
   RestorePersonOpSchema,
   RestoreUnionOpSchema,
   SetProgenitorOpSchema,
+  SetTreeThemeOpSchema,
 ] as const;
 
 export const SingleOpSchema = z.discriminatedUnion('type', SINGLE_OP_SCHEMAS);

@@ -21,13 +21,65 @@
   }
 }
 
-/* The scrapbook board: grid paper with 22 px squares. */
+/* The scrapbook board: its surface pattern (spec §13.4); grid paper with 22 px squares by default. */
 @utility board-grid {
   background-color: var(--paper);
-  background-image:
+  background-image: var(
+    --surface-pattern,
     linear-gradient(var(--paper-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
-  background-size: 22px 22px;
+    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px)
+  );
+  background-size: var(--surface-size, 22px 22px);
+}
+
+/* The polaroid's paper, a layer of its own: the vintage mask must not clip the fastener. */
+@utility polaroid-paper {
+  background-color: var(--photo);
+  background-image: var(--frame-texture, none);
+  mask: var(--frame-edge, none);
+}
+
+/* What holds the card up, in the branch colour (--fastener-color, set by the Polaroid). */
+@utility fastener {
+  position: absolute;
+  top: var(--fastener-top, -8px);
+  left: var(--fastener-left, 28px);
+  width: var(--fastener-width, 44px);
+  height: var(--fastener-height, 14px);
+  border-radius: var(--fastener-radius, 1px);
+  rotate: var(--fastener-rotate, -3deg);
+  opacity: var(--fastener-opacity, 0.85);
+  background-color: var(--fastener-color);
+  background-image: var(--fastener-shine, none);
+  box-shadow: var(--fastener-edge, none);
+}
+
+@utility thread-line {
+  stroke: var(--thread-line, var(--thread));
+  stroke-width: var(--thread-width, 1.5px);
+  stroke-linecap: var(--thread-cap, butt);
+}
+
+@utility thread-knot {
+  fill: var(--thread-line, var(--thread));
+}
+
+@utility stitch-line {
+  stroke: var(--stitch-line, var(--thread));
+  stroke-width: var(--stitch-width, 1.6px);
+  stroke-dasharray: var(--stitch-dash, 4 4);
+  stroke-linecap: var(--stitch-cap, butt);
+}
+
+/* The knot and the ring are never dashed: they take the colour only. */
+@utility stitch-knot {
+  fill: var(--stitch-line, var(--thread));
+  stroke: var(--stitch-line, var(--thread));
+}
+
+@utility stitch-ring {
+  fill: none;
+  stroke: var(--stitch-line, var(--thread));
 }
 
 @keyframes overlay-in {

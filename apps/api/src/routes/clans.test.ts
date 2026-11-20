@@ -8,6 +8,7 @@ import { Membership } from '../models/Membership.ts';
 import { OperationModel } from '../models/Operation.ts';
 import { PersonModel } from '../models/Person.ts';
 import { UnionModel } from '../models/Union.ts';
+import { ViewPreferenceModel } from '../models/ViewPreference.ts';
 import { clanPhotoPrefix } from '../photos/paths.ts';
 import { createMemoryPhotoStore } from '../photos/store.ts';
 import { createTestApp } from '../test/app.ts';
@@ -131,6 +132,13 @@ describe('DELETE /api/clans/:id', () => {
       ).status,
     ).toBe(200);
     expect(
+      (
+        await agent
+          .put(`/api/clans/${clan.id}/view-preference`)
+          .send({ enabled: true, theme: { surface: 'fridge' }, cards: {} })
+      ).status,
+    ).toBe(200);
+    expect(
       (await agent.post(`/api/clans/${clan.id}/invites`).send({ role: 'viewer' })).status,
     ).toBe(201);
     await ClanRemoval.create({ clanId: clan.id, userId: newObjectId(), removedAt: new Date() });
@@ -146,6 +154,7 @@ describe('DELETE /api/clans/:id', () => {
       await Invite.countDocuments({ clanId }),
       await ClanRemoval.countDocuments({ clanId }),
       await Membership.countDocuments({ clanId }),
+      await ViewPreferenceModel.countDocuments({ clanId }),
     ];
   }
 
@@ -158,8 +167,8 @@ describe('DELETE /api/clans/:id', () => {
 
     const response = await owner.agent.delete(`/api/clans/${doomed.id}`);
     expect(response.status).toBe(204);
-    expect(await countFor(doomed.id)).toEqual([0, 0, 0, 0, 0, 0, 0]);
-    expect(await countFor(kept.id)).toEqual([1, 1, 1, 1, 1, 1, 1]);
+    expect(await countFor(doomed.id)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(await countFor(kept.id)).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
     expect((await editor.agent.get('/api/clans')).body).toEqual([]);
   });
 

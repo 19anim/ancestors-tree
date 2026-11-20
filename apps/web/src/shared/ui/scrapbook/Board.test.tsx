@@ -14,4 +14,17 @@ describe('Board', () => {
     expect(board.className).toContain('board-grid');
     expect(screen.getByText('nội dung')).toBeInTheDocument();
   });
+
+  it('carries the tree theme for its CSS, grid paper and cotton by default', () => {
+    const { rerender } = render(<Board width={10} height={10} label="Bảng" />);
+    const board = screen.getByRole('group', { name: 'Bảng' });
+    expect(board).toHaveAttribute('data-surface', 'grid-paper');
+    expect(board).toHaveAttribute('data-thread', 'cotton');
+    expect(board).toHaveAttribute('data-stitch', 'cotton');
+    rerender(
+      <Board width={10} height={10} label="Bảng" surface="fridge" thread="yarn" stitch="yarn" />,
+    );
+    expect(board).toHaveAttribute('data-surface', 'fridge');
+    expect(board).toHaveAttribute('data-stitch', 'yarn');
+  });
 });
