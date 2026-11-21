@@ -24,6 +24,7 @@ import {
   selectHasUnsentChanges,
   signOutTreeStore,
   useTreeStore,
+  whenPersonSaved,
 } from './store';
 
 // retryScheduled() counts fake timers: the slow-request watch of each request in flight would
@@ -1808,5 +1809,88 @@ describe('undo and redo', () => {
     expect(bodies[1]).toMatchObject({ baseVersion: 4, revertsSeq: 4 });
     expect(bodies[1]).not.toHaveProperty('revertsToSeq');
     expect(store().tree).toEqual(before);
+  });
+});
+
+describe('whenPersonSaved', () => {
+  const settled = (promise: Promise<void>) => {
+    const seen = {
+      value: 'waiting' as 'waiting' | 'resolved' | 'rejected',
+      error: undefined as unknown,
+    };
+    promise.then(
+      () => {
+        seen.value = 'resolved';
+      },
+      (error: unknown) => {
+        seen.value = 'rejected';
+        seen.error = error;
+      },
+    );
+    return seen;
+  };
+
+  it('settles at once for a person the server has, and for a tree not on screen', async () => {
+    mockApi(treeRoutes());
+    await store().load(CLAN_ID);
+    await expect(whenPersonSaved(CLAN_ID, SON)).resolves.toBeUndefined();
+    await expect(whenPersonSaved(OTHER_CLAN, NEW_ID)).resolves.toBeUndefined();
+  });
+
+  it('waits while the addPerson is queued, and settles once it is saved', async () => {
+    const held = gate();
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE),
+      [OPS]: async () => {
+        await held.wait;
+        return { body: { seq: 1 } };
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(NEW_ID));
+    const seen = settled(whenPersonSaved(CLAN_ID, NEW_ID));
+    // Other edits while it waits change nothing.
+    store().apply(addPerson(OTHER_ID, 'Nguyễn Văn Sáu'));
+    await new Promise((resolve) => realSetTimeout(resolve, 20));
+    expect(seen.value).toBe('waiting');
+    held.open();
+    await until(() => seen.value !== 'waiting');
+    expect(seen.value).toBe('resolved');
+    expect(store().confirmedTree.persons[NEW_ID]).toBeDefined();
+  });
+
+  it('settles when the add is refused and the person leaves the tree', async () => {
+    const held = gate();
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE),
+      [OPS]: async () => {
+        await held.wait;
+        return apiErrorReply('VALIDATION_ERROR', 400);
+      },
+    });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(NEW_ID));
+    const seen = settled(whenPersonSaved(CLAN_ID, NEW_ID));
+    held.open();
+    await until(() => seen.value !== 'waiting');
+    expect(seen.value).toBe('resolved');
+    expect(store().tree.persons[NEW_ID]).toBeUndefined();
+  });
+
+  it('rejects with an AbortError when the wait is cancelled', async () => {
+    mockApi({ ...treeRoutes(EMPTY_TREE_RESPONSE), [OPS]: () => new Promise(() => {}) });
+    await store().load(CLAN_ID);
+    store().apply(addPerson(NEW_ID));
+    const controller = new AbortController();
+    const seen = settled(whenPersonSaved(CLAN_ID, NEW_ID, controller.signal));
+    controller.abort();
+    await until(() => seen.value !== 'waiting');
+    expect(seen.value).toBe('rejected');
+    expect(seen.error).toMatchObject({ name: 'AbortError' });
+    const already = new AbortController();
+    already.abort();
+    await expect(whenPersonSaved(CLAN_ID, NEW_ID, already.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
   });
 });

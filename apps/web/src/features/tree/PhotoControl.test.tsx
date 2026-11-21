@@ -3,11 +3,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../shared/lib/apiError';
+import { mockApi } from '../../test/api';
 import { ChangeContext, type RequestChange } from './ChangeRunner';
-import { fixturePerson, GRANDPA } from './fixtures';
+import {
+  CLAN_ID as STORE_CLAN_ID,
+  EMPTY_TREE_RESPONSE,
+  fixturePerson,
+  GRANDPA,
+  ME,
+  treeRoutes,
+} from './fixtures';
 import { PhotoControl } from './PhotoControl';
 import { shrinkPhoto } from './photoFile';
 import { PhotoUploadError, requestPhotoUpload, uploadPhoto } from './photoUpload';
+import { signOutTreeStore, useTreeStore } from './store';
 
 vi.mock('./photoFile', async (load) => ({
   ...(await load<Record<string, unknown>>()),
@@ -38,12 +47,18 @@ afterEach(() => {
   vi.mocked(shrinkPhoto).mockReset();
   vi.mocked(requestPhotoUpload).mockReset();
   vi.mocked(uploadPhoto).mockReset();
+  vi.unstubAllGlobals();
+  signOutTreeStore();
 });
 
-function renderControl(person: Person, requestChange: RequestChange | null = vi.fn()) {
+function renderControl(
+  person: Person,
+  requestChange: RequestChange | null = vi.fn(),
+  clanId: string = CLAN_ID,
+) {
   const result = render(
     <ChangeContext.Provider value={requestChange}>
-      <PhotoControl clanId={CLAN_ID} person={person} />
+      <PhotoControl clanId={clanId} person={person} />
     </ChangeContext.Provider>,
   );
   const input = () => {
@@ -198,5 +213,65 @@ describe('PhotoControl', () => {
     unmount();
     expect(signal?.aborted).toBe(true);
     expect(requestChange).not.toHaveBeenCalled();
+  });
+
+  it('signs only once the save that adds the person has landed', async () => {
+    // The API has no such person until the addPerson is saved: signing earlier answers 404.
+    let landSave: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      landSave = resolve;
+    });
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE),
+      [`POST /clans/${STORE_CLAN_ID}/ops`]: async () => {
+        await held;
+        return { body: { seq: 1 } };
+      },
+    });
+    useTreeStore.getState().setAccount(ME.id);
+    await useTreeStore.getState().load(STORE_CLAN_ID);
+    const newcomer = fixturePerson(GRANDPA, 'Nguyễn Văn Tư');
+    useTreeStore.getState().apply({ type: 'addPerson', payload: newcomer });
+    expect(useTreeStore.getState().pending).toHaveLength(1);
+
+    vi.mocked(shrinkPhoto).mockResolvedValue(new Blob([new Uint8Array(1000)]));
+    vi.mocked(requestPhotoUpload).mockResolvedValue(TARGET);
+    vi.mocked(uploadPhoto).mockResolvedValue({ publicId: 'p', version: 2 });
+    const requestChange = vi.fn();
+    const user = userEvent.setup();
+    const { input } = renderControl(newcomer, requestChange, STORE_CLAN_ID);
+    await user.upload(input(), jpg());
+    await waitFor(() => expect(shrinkPhoto).toHaveBeenCalled());
+    // Still saving: the control waits, showing it is busy.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(requestPhotoUpload).not.toHaveBeenCalled();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+
+    landSave();
+    await waitFor(() => expect(requestChange).toHaveBeenCalledTimes(1));
+    expect(requestPhotoUpload).toHaveBeenCalledWith(STORE_CLAN_ID, GRANDPA);
+    expect(useTreeStore.getState().pending).toHaveLength(0);
+  });
+
+  it('stops waiting for the save when it goes away', async () => {
+    mockApi({
+      ...treeRoutes(EMPTY_TREE_RESPONSE),
+      [`POST /clans/${STORE_CLAN_ID}/ops`]: () => new Promise(() => {}),
+    });
+    useTreeStore.getState().setAccount(ME.id);
+    await useTreeStore.getState().load(STORE_CLAN_ID);
+    const newcomer = fixturePerson(GRANDPA, 'Nguyễn Văn Tư');
+    useTreeStore.getState().apply({ type: 'addPerson', payload: newcomer });
+
+    vi.mocked(shrinkPhoto).mockResolvedValue(new Blob([new Uint8Array(1000)]));
+    const user = userEvent.setup();
+    const { input, unmount } = renderControl(newcomer, vi.fn(), STORE_CLAN_ID);
+    await user.upload(input(), jpg());
+    await waitFor(() => expect(shrinkPhoto).toHaveBeenCalled());
+    unmount();
+    // Saving the person later must not start the upload of a control that is gone.
+    useTreeStore.setState({ confirmedTree: useTreeStore.getState().tree });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(requestPhotoUpload).not.toHaveBeenCalled();
   });
 });
