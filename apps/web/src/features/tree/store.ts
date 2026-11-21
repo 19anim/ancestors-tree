@@ -860,6 +860,59 @@ export function discardTreeStateFor(clanId: string): void {
   if (useTreeStore.getState().clanId === clanId) resetTreeStore();
 }
 
+/**
+ * True while person `personId` of tree `clanId` is on screen but the server does not have them
+ * yet: the change that adds them (addPerson, restorePerson, or a batch with one) is still in the
+ * queue. The tree on screen is the confirmed tree plus the queue, so the difference is exactly
+ * what the server has not accepted.
+ */
+function personUnsaved(state: TreeStoreState, clanId: string, personId: string): boolean {
+  return (
+    state.clanId === clanId &&
+    personId in state.tree.persons &&
+    !(personId in state.confirmedTree.persons)
+  );
+}
+
+/**
+ * Settles once the server has person `personId`, at once when it already does. For requests
+ * that name the person outside the op queue (photo upload signing): sent before the queued
+ * addPerson lands, they answer 404. Waits as long as the queue does (offline, signed out);
+ * also settles when the person leaves the tree (their add was refused), and the request then
+ * gets the server's own answer. Rejects with an AbortError when `signal` aborts.
+ */
+export function whenPersonSaved(
+  clanId: string,
+  personId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const aborted = () => new DOMException('The wait was cancelled', 'AbortError');
+    if (signal?.aborted) {
+      reject(aborted());
+      return;
+    }
+    if (!personUnsaved(useTreeStore.getState(), clanId, personId)) {
+      resolve();
+      return;
+    }
+    const stop = () => {
+      unsubscribe();
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const onAbort = () => {
+      stop();
+      reject(aborted());
+    };
+    const unsubscribe = useTreeStore.subscribe((state) => {
+      if (personUnsaved(state, clanId, personId)) return;
+      stop();
+      resolve();
+    });
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /** How many changes are not saved yet, for the app shell (sign-out asks first when any). */
 export function useUnsentChangeCount(): number {
   return useTreeStore(selectUnsentCount);

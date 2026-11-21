@@ -9,6 +9,7 @@ import { PHOTO_TYPES, PhotoFileError, checkSource, shrinkPhoto } from './photoFi
 import { photosEnabled } from './photoUrl';
 import { PhotoUploadError, requestPhotoUpload, uploadPhoto } from './photoUpload';
 import { ProfilePhoto } from './ProfilePhoto';
+import { whenPersonSaved } from './store';
 
 const ICON = { 'aria-hidden': true, className: 'size-4', strokeWidth: 1.75 } as const;
 
@@ -60,6 +61,8 @@ export function PhotoControl({ clanId, person }: { clanId: string; person: Perso
       // Shrinking and signing cannot be cancelled: the next step does not start once closed.
       if (controller.signal.aborted) return;
       if (blob.size > MAX_PHOTO_BYTES) throw new PhotoFileError('tooLarge');
+      // A person just added may still be in the queue: the server signs only for people it has.
+      await whenPersonSaved(clanId, person.id, controller.signal);
       const target = await requestPhotoUpload(clanId, person.id);
       if (controller.signal.aborted) return;
       const photo = await uploadPhoto(
